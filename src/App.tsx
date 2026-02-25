@@ -1,46 +1,19 @@
-// src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-
-// Ovu komponentu koristimo da zaštitimo rute
-// Ako korisnik nije ulogovan, vraća ga na /login
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-    const { user } = useAuth();
-
-    // Ovde bi idealno išao i "loading" spinner dok proveravamo sesiju
-    // ali za početak je ovo dovoljno.
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
-
-    return children;
-};
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import PanelPage from './pages/PanelPage';
 
 function App() {
     return (
-        <BrowserRouter>
-            {/* AuthProvider mora biti unutar Router-a ili oko njega,
-          ali pošto koristi axios spolja, ovde je ok da obavija Routes */}
-            <AuthProvider>
+        <Router>
+            <div className="min-h-screen bg-gray-100">
                 <Routes>
-                    {/* Javna ruta */}
-                    <Route path="/login" element={<Login />} />
-
-                    {/* Zaštićena ruta */}
-                    <Route
-                        path="/"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        }
-                    />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/panel" element={<PanelPage />} />
+                    <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
-            </AuthProvider>
-        </BrowserRouter>
-    )
+            </div>
+        </Router>
+    );
 }
 
-export default App
+export default App;
