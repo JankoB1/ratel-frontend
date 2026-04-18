@@ -3,10 +3,8 @@ import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import axiosClient from '../axios-client';
 import { Loader2 } from 'lucide-react';
-import { useEditor } from '../contexts/EditorContext';
 
 const EditorLayout = () => {
-    const { setSelectedElement } = useEditor();
     const [sections, setSections] = useState<any[]>([]);
     const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
