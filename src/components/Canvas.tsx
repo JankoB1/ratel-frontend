@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type FC, type ClipboardEvent, type FormEvent, type ChangeEvent } from "react";
 import {
-    Plus, Table2, Type, Image as ImageIcon, ChevronRight, LayoutTemplate,
+    Plus, Table2, Type, Image as ImageIcon, LayoutTemplate,
     UploadCloud, Trash2, GripVertical, Settings2, BarChart3, Map as MapIcon,
-    X, Save, Loader2
+    X
 } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -29,7 +29,6 @@ type ElementType = "text" | "image" | "table" | "chart" | "map" | null;
 interface ContentElement { id: string; type: ElementType; payload: any; }
 interface ColumnData { id: string; widthClass: string; elements: ContentElement[]; }
 interface RowData { id: string; columns: ColumnData[]; }
-interface PageData { id: string; rows: RowData[]; }
 
 const CHART_PALETTE = ['#8b98ff', '#34d399', '#fef3c7', '#2563eb', '#1e3a8a', '#f59e0b', '#e11d48'];
 
@@ -186,7 +185,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
     );
 };
 
-const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart }: any) => {
+const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, onDelete, onDragStart }: any) => {
     const defaultSettings = el.payload.settings || {};
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
@@ -467,13 +466,13 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         }
     }, [currentSettings.content]);
 
-    const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
         e.preventDefault();
         const text = e.clipboardData.getData('text/plain');
         document.execCommand('insertText', false, text);
     };
 
-    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const handleInput = (e: FormEvent<HTMLDivElement>) => {
         const html = e.currentTarget.innerHTML;
         const contentArea = contentAreaRef.current;
 
@@ -499,7 +498,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
             if (remainingText.trim() !== '') {
                 if (editorRef.current) editorRef.current.blur();
                 updateElementSettings({ content: safeHtml });
-                onAutoSplit(pageId, rowId, colId, el.id, remainingText);
+                onAutoSplit(pageId, el.id, remainingText);
                 return;
             }
         }
@@ -539,7 +538,7 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const [isUploading, setIsUploading] = useState(false);
 
-    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
         setIsUploading(true);
@@ -681,7 +680,7 @@ const ElementSelector = ({ onSelect }: any) => (
     </div>
 );
 
-const PageItem = ({ page, pageIndex, totalPages, onDeletePage, pages, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu }: any) => {
+const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
 
@@ -732,7 +731,7 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, pages, setPages, 
                                     <div className="absolute -left-14 top-1 opacity-0 group-hover/row:opacity-100 transition-opacity flex flex-col gap-2.5 z-30 animate-in fade-in zoom-in-90">
                                         <button onClick={(e) => { e.stopPropagation(); setActiveRowMenu(activeRowMenu?.rowId === row.id ? null : { pageId: page.id, rowId: row.id }); }} className="p-2.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-400 hover:text-blue-500 hover:scale-110 transition-all"><Settings2 size={16} /></button>
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteRow(page.id, row.id); }} className="p-2.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-400 hover:text-red-500 hover:scale-110 transition-all"><Trash2 size={16} /></button>
-                                        {activeRowMenu?.rowId === row.id && <LayoutSelector onSelect={(l: string) => { const newCols = getGridCols(l); setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: newCols.map((nc, i) => ({ ...nc, elements: r.columns[i]?.elements || [] })) } : r) } : p)); setActiveRowMenu(null); }} position="right" />}
+                                        {activeRowMenu?.rowId === row.id && <LayoutSelector onSelect={(l: string) => { const newCols = getGridCols(l); setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: newCols.map((nc: ColumnData, i: number) => ({ ...nc, elements: r.columns[i]?.elements || [] })) } : r) } : p)); setActiveRowMenu(null); }} position="right" />}
                                     </div>
                                 )}
                                 {row.columns.length === 0 ? (
@@ -795,7 +794,7 @@ interface CanvasProps {
     setPages: (action: any) => void;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ pages, setPages }) => {
+const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     const { setSelectedElement, selectedElement, updateElementSettings } = useEditor();
 
     const [activeRowMenu, setActiveRowMenu] = useState<{pageId: string, rowId: string} | null>(null);
@@ -823,7 +822,7 @@ const Canvas: React.FC<CanvasProps> = ({ pages, setPages }) => {
         }
     }, [selectedElement]);
 
-    const handleAutoSplit = (sourcePageId: string, rowId: string, colId: string, elementId: string, remainingText: string) => {
+    const handleAutoSplit = (sourcePageId: string, _rowId: string, _colId: string, elementId: string, remainingText: string) => {
         const now = Date.now();
         if (now - lastSplitTime.current < 500) return;
         lastSplitTime.current = now;
@@ -863,7 +862,6 @@ const Canvas: React.FC<CanvasProps> = ({ pages, setPages }) => {
         });
 
         setTimeout(() => {
-            // (Timeout logika za prebacivanje fokusa na novi tekst)
             const newElNode = document.getElementById(`editor-${newElementId}`);
             if (newElNode) {
                 newElNode.focus();
@@ -912,7 +910,7 @@ const Canvas: React.FC<CanvasProps> = ({ pages, setPages }) => {
         setActiveColMenu(null);
     };
 
-    const handleDeleteElement = (pageId: string, rowId: string, colId: string, elId: string) => {
+    const handleDeleteElement = (pageId: string, _rowId: string, _colId: string, elId: string) => {
         setPages((prev: any[]) => prev.map(page => page.id === pageId ? { ...page, rows: page.rows.map((row: any) => ({ ...row, columns: row.columns.map((col: any) => ({ ...col, elements: col.elements.filter((el: any) => el.id !== elId) })) })) } : page));
         setSelectedElement(null);
     };
@@ -957,7 +955,7 @@ const Canvas: React.FC<CanvasProps> = ({ pages, setPages }) => {
         >
             {pages?.map((page, index) => (
                 <PageItem
-                    key={page.id} page={page} pageIndex={index} totalPages={pages.length} pages={pages} setPages={setPages}
+                    key={page.id} page={page} pageIndex={index} totalPages={pages.length} setPages={setPages}
                     selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings}
                     handleAutoSplit={handleAutoSplit} onDragStart={onDragStart} onDrop={onDrop}
                     handleDeleteElement={handleDeleteElement} handleDeleteRow={handleDeleteRow} onDeletePage={handleDeletePage}

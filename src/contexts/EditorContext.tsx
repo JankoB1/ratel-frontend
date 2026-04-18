@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, type ReactNode, type FC } from 'react';
 
 interface SelectedElement {
     pageId: string;
@@ -9,12 +9,11 @@ interface SelectedElement {
     subType?: 'table' | 'cell';
     activeCell?: string;
     settings: any;
-    // Extra payload za podatke, boje, i specifine tipove
     extraPayload?: {
         data?: any[];
         colors?: Record<string, string>;
         keys?: string[];
-        subChartType?: string; // NOVO: Za praćenje 2x2 podtipa
+        subChartType?: string;
     };
 }
 
@@ -22,12 +21,15 @@ interface EditorContextType {
     selectedElement: SelectedElement | null;
     setSelectedElement: (el: SelectedElement | null) => void;
     updateElementSettings: (newSettings: Partial<any>, extraPayload?: Partial<SelectedElement['extraPayload']>) => void;
+    isChartModalOpen: boolean;
+    setIsChartModalOpen: (isOpen: boolean) => void;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
 
-export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const EditorProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+    const [isChartModalOpen, setIsChartModalOpen] = useState(false); // Dodato
 
     const updateElementSettings = (newSettings: Partial<any>, newExtraPayload?: Partial<SelectedElement['extraPayload']>) => {
         if (selectedElement) {
@@ -40,7 +42,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     return (
-        <EditorContext.Provider value={{ selectedElement, setSelectedElement, updateElementSettings }}>
+        <EditorContext.Provider value={{ selectedElement, setSelectedElement, updateElementSettings, isChartModalOpen, setIsChartModalOpen }}>
             {children}
         </EditorContext.Provider>
     );
