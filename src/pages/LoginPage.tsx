@@ -1,20 +1,24 @@
 import ratelLogo from '../assets/logo-tekst.svg';
 import background from '../assets/background-login.png';
-import {useState} from "react";
-import {Eye, EyeOff} from "lucide-react";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext"; // Proveri putanju ako se razlikuje
+import { useNavigate } from "react-router-dom";
 
 const LoginPage = () => {
-
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
+    const { login } = useAuth();
+    const navigate = useNavigate();
 
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
         setError("");
 
+        // Klijentska validacija
         if (!email.trim() || !password.trim()) {
             setError("Попуните сва поља како бисте се пријавили.");
             return;
@@ -24,18 +28,26 @@ const LoginPage = () => {
             setError("Унесите исправну е-маил адресу.");
             return;
         }
+
+        // Slanje zahteva na server
+        try {
+            await login({ email, password });
+            navigate("/panel"); // Preusmeri na editor (promeni u "/" ako ti je to glavna ruta)
+        } catch (err: any) {
+            if (err.response && err.response.status === 422) {
+                setError("Погрешан е-маил или лозинка. Проверите податке.");
+            } else {
+                setError("Дошло је до грешке на серверу. Покушајте поново.");
+            }
+        }
     };
 
     return (
         <div className="min-h-screen bg-white flex flex-col bg-no-repeat bg-cover bg-bottom items-center p-8 login" style={{ backgroundImage: `url(${background})` }}>
             <div className="w-full max-w-md text-center">
-                <img src={ratelLogo} alt="ratel" className="mb-28 w-100" />
+                <img src={ratelLogo} alt="ratel" className="mb-28 w-100 mx-auto" />
                 <form className="space-y-4" onSubmit={handleLogin}>
-                    {error && (
-                        <p className="text-red-500 text-sm font-medium animate-bounce">
-                            {error}
-                        </p>
-                    )}
+
                     <div>
                         <input
                             type="email"
@@ -72,17 +84,19 @@ const LoginPage = () => {
                     <div className="flex items-end justify-end w-full">
                         <button
                             type="button"
-                            className="pr-4 text-base hover:text-primary-blue transition-colors cursor-pointer"
+                            className="pr-4 text-sm text-gray-500 hover:text-primary-blue transition-colors cursor-pointer"
                         >
                             Заборавили сте лозинку?
                         </button>
                     </div>
 
+                    {/* Prikaz greške iznad dugmeta */}
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-[20px] text-sm text-center font-medium animate-pulse">
+                        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-[20px] text-sm text-center font-medium animate-pulse mt-4">
                             {error}
                         </div>
                     )}
+
                     <button
                         type="submit"
                         className="w-full h-[60px] bg-primary-blue text-white font-semibold rounded-[50px] hover:bg-opacity-90 transition-colors mt-4"

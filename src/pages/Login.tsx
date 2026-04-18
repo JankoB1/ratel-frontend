@@ -13,7 +13,7 @@ export default function Login() {
         e.preventDefault();
         try {
             await login({ email, password });
-            navigate("/"); // Preusmeri na dashboard
+            navigate("/panel"); // Preusmeri na dashboard
         } catch (e: any) {
             if (e.response && e.response.status === 422) {
                 setError("Proverite podatke.");
