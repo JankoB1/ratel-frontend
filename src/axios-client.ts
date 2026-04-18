@@ -1,46 +1,58 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
+    // Prioritet ima ENV promenljiva, ako je nema ide na localhost
     baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000',
+
+    // OBAVEZNO: Dozvoljava browseru da prima i šalje kolačiće (session i XSRF)
     withCredentials: true,
-    withXSRFToken: true,
-    xsrfCookieName: 'XSRF-TOKEN',
-    xsrfHeaderName: 'X-XSRF-TOKEN',
+
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
 });
 
-// Helper funkcija za čitanje kolačića
-const getCookie = (name: string): string | null => {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    if (match) return match[2];
+/**
+ * Robustna helper funkcija za čitanje XSRF tokena iz dokumenta.
+ * Budući da Laravelov XSRF-TOKEN nije 'HttpOnly', JS može da ga pročita.
+ */
+const getXsrfToken = (): string | null => {
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i].trim();
+        if (c.startsWith("XSRF-TOKEN=")) {
+            // Vraćamo dekodiran token (Laravel ga šalje URL-encoded)
+            return decodeURIComponent(c.substring("XSRF-TOKEN=".length, c.length));
+        }
+    }
     return null;
 };
 
-// REQUEST INTERCEPTOR (Ово ти враћа функционалан логин!)
+// REQUEST INTERCEPTOR: Ručno lepljenje tokena u header pre svakog zahteva
 axiosClient.interceptors.request.use((config) => {
-    const token = getCookie('XSRF-TOKEN');
-    if (token) {
-        config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+    const token = getXsrfToken();
+
+    // Ako šaljemo "state-changing" zahtev, moramo poslati X-XSRF-TOKEN zaglavlje
+    if (token && ['post', 'put', 'patch', 'delete'].includes(config.method || '')) {
+        config.headers['X-XSRF-TOKEN'] = token;
     }
+
     return config;
 });
 
-// RESPONSE INTERCEPTOR
+// RESPONSE INTERCEPTOR: Obrada grešaka (npr. istekla sesija)
 axiosClient.interceptors.response.use(
-    (response) => {
-        return response;
-    },
+    (response) => response,
     (error) => {
-        const { response } = error;
-        if (response) {
-            if (response.status === 401) {
+        if (error.response) {
+            // Ako dobijemo 401 (Unauthenticated), brišemo lokalni status login-a
+            if (error.response.status === 401) {
                 localStorage.removeItem('USER_LOGGED_IN');
+                // Ovde možeš dodati i: window.location.href = '/login';
             }
         }
-        throw error;
+        return Promise.reject(error);
     }
 );
 
