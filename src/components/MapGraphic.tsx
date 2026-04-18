@@ -1,6 +1,3 @@
-import React from 'react';
-
-// Ova komponenta prima boje iz tvoje tabele
 const MapGraphic = ({ colors }: { colors: Record<string, string> }) => {
     const defaultColor = '#ffffff';
 

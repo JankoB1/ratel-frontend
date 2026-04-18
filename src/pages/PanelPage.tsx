@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import LeftSidebar from "../components/LeftSidebar.tsx";
 import Header from "../components/Header.tsx";
 import RightSidebar from "../components/RightSidebar.tsx";

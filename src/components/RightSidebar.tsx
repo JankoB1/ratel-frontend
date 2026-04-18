@@ -4,7 +4,7 @@ import {
     ChevronDown, Bold, Italic, Underline,
     ArrowUpToLine, ArrowDownToLine, FoldVertical,
     List, ListOrdered, Quote, Link2, Trash2, Grid3X3,
-    Table2, Type, ImageIcon, Map as MapIcon, BarChart3, Palette, CaseUpper, Layers, Dot, Target, LineChart, PieChart, ScatterChart
+    Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 
