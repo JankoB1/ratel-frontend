@@ -1,109 +1,81 @@
-import { useState, useEffect } from 'react';
-import LeftSidebar from './LeftSidebar';
-import Canvas from './Canvas';
-import axiosClient from '../axios-client';
-import { Loader2 } from 'lucide-react';
-import { useEditor } from '../contexts/EditorContext';
+import { ChevronDown, ChevronUp, Copy, Download, type LucideProps, FilePlus, Trash2, Loader2, Save } from "lucide-react";
+import { type ReactElement, type FC } from "react";
 
-const EditorLayout = () => {
-    const { setSelectedElement } = useEditor();
-    const [sections, setSections] = useState<any[]>([]);
-    const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+interface SidebarActionButtonProps {
+    icon: ReactElement<LucideProps>;
+    label: string;
+    isBlue?: boolean;
+    isActive?: boolean;
+    onClick?: () => void;
+    disabled?: boolean;
+}
 
-    const DOCUMENT_ID = 1;
-
-    useEffect(() => {
-        const fetchDocument = async () => {
-            try {
-                const response = await axiosClient.get(`/api/documents/${DOCUMENT_ID}`);
-                const fetchedSections = response.data.document.sections;
-
-                setSections(fetchedSections);
-                if (fetchedSections && fetchedSections.length > 0) {
-                    setActiveSectionId(fetchedSections[0].id);
-                }
-            } catch (error) {
-                console.error("Greska pri ucitavanju:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchDocument();
-    }, []);
-
-    const handleSave = async () => {
-        if (!activeSectionId) return;
-        setIsSaving(true);
-
-        const activeSection = sections.find(s => s.id === activeSectionId);
-
-        try {
-            await axiosClient.put(`/api/sections/${activeSectionId}`, {
-                canvas_data: activeSection.canvas_data
-            });
-        } catch (error) {
-            alert("Greška pri čuvanju sekcije!");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDownloadPdf = () => {
-        // Privremena funkcija da zadovolji TypeScript. Kasnije ovde ubacujemo Puppeteer logiku!
-        alert("Preuzimanje PDF-a u pripremi!");
-    };
-
-    const handleSectionChange = (id: number) => {
-        setSelectedElement(null);
-        setActiveSectionId(id);
-    };
-
-    const handlePagesChange = (action: any) => {
-        setSections(prevSections => prevSections.map(sec => {
-            if (sec.id === activeSectionId) {
-                const currentData = sec.canvas_data || [{ id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }];
-                const nextData = typeof action === 'function' ? action(currentData) : action;
-                return { ...sec, canvas_data: nextData };
-            }
-            return sec;
-        }));
-    };
-
-    if (isLoading) {
-        return (
-            <div className="w-full h-screen flex flex-col items-center justify-center gap-4 text-slate-400 bg-slate-50">
-                <Loader2 className="animate-spin text-blue-500" size={40} />
-                <span className="font-semibold tracking-wider uppercase text-sm">Учитавање извештаја...</span>
-            </div>
-        );
-    }
-
-    const activeSection = sections.find(s => s.id === activeSectionId);
-    const canvasData = activeSection?.canvas_data || [{ id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }];
-
-    return (
-        <div className="flex w-full h-screen overflow-hidden bg-slate-50">
-            {/* Očišćeni propsovi za LeftSidebar! */}
-            <LeftSidebar
-                onSave={handleSave}
-                onDownload={handleDownloadPdf}
-                isSaving={isSaving}
-            />
-
-            <main className="flex-1 overflow-y-auto custom-scrollbar relative">
-                {activeSection ? (
-                    <Canvas pages={canvasData} setPages={handlePagesChange} />
-                ) : (
-                    <div className="flex items-center justify-center h-full text-slate-400">
-                        Изаберите секцију са леве стране.
-                    </div>
-                )}
-            </main>
+const SidebarIcon: FC<SidebarActionButtonProps> = ({ icon, label, isBlue = false, isActive = false, onClick, disabled }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className="flex flex-col items-center group w-full px-1 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+        <div className={`
+            w-14 h-14
+            rounded-[50px]
+            flex items-center justify-center
+            transition-all duration-200 cursor-pointer
+            ${isActive ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-500 ring-offset-2' :
+            isBlue ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-white text-slate-600 group-hover:bg-slate-50'}
+        `}>
+            {icon}
         </div>
-    );
-};
+        <span className={`text-[10px] font-bold mt-3 text-center leading-[1.2] max-w-[80px] uppercase tracking-tight ${isActive ? 'text-blue-600' : 'text-slate-500 opacity-80'}`}>
+            {label}
+        </span>
+    </button>
+);
 
-export default EditorLayout;
+// OVO JE KLJUČ: Definisali smo da onSave i onDownload mogu biti i async funkcije (Promise)
+export interface LeftSidebarProps {
+    onSave: () => void | Promise<void>;
+    onDownload: () => void | Promise<void>;
+    isSaving: boolean;
+}
+
+const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving }) => {
+    return (
+        <aside className="w-[110px] bg-[#f8fafc] border-r border-slate-200 flex flex-col items-center py-6 gap-4 h-full overflow-y-auto custom-scrollbar z-40 shrink-0">
+            <div className="bg-white rounded-[50px] flex flex-col items-center p-2 shadow-sm border border-slate-100 mb-8">
+                <button className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500">
+                    <ChevronUp size={18} strokeWidth={3} />
+                </button>
+                <div className="w-8 h-[1px] bg-slate-200 my-1" />
+                <button className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500">
+                    <ChevronDown size={18} strokeWidth={3} />
+                </button>
+            </div>
+
+            <SidebarIcon icon={<FilePlus size={20} />} label="ДОДАТИ НОВУ СТРАНУ" />
+            <SidebarIcon icon={<Copy size={20} />} label="ДУПЛИРАТИ СТРАНУ" />
+            <SidebarIcon icon={<Trash2 size={20} />} label="ИЗБРИСАТИ СТРАНУ" />
+
+            {/* Odeljak sa dugmićima na dnu */}
+            <div className="mt-auto flex flex-col gap-2 w-full pb-4">
+                <SidebarIcon
+                    icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+                    label={isSaving ? "Чување..." : "САЧУВАЈ"}
+                    isBlue
+                    onClick={onSave}
+                    disabled={isSaving}
+                />
+
+                <SidebarIcon
+                    icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
+                    label="ПРЕУЗМИ PDF"
+                    isBlue
+                    onClick={onDownload}
+                    disabled={isSaving}
+                />
+            </div>
+        </aside>
+    )
+}
+
+export default LeftSidebar;
