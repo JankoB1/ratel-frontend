@@ -55,12 +55,6 @@ const EditorLayout = () => {
         alert("Preuzimanje PDF-a u pripremi!");
     };
 
-    // Ova funkcija se ovde više ne šalje u LeftSidebar, jer LeftSidebar to više ne traži
-    const handleSectionChange = (id: number) => {
-        setSelectedElement(null);
-        setActiveSectionId(id);
-    };
-
     const handlePagesChange = (action: any) => {
         setSections(prevSections => prevSections.map(sec => {
             if (sec.id === activeSectionId) {
