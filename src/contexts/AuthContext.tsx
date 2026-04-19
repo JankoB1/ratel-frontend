@@ -25,44 +25,28 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
 
-    const getUser = async () => {
-        // Ako nema tokena, nema potrebe da pingujemo server
-        const token = localStorage.getItem('ACCESS_TOKEN');
-        if (!token) {
-            setUser(null);
-            return;
-        }
+    // CSRF zaštita - ovo se mora pozvati pre prvog POST zahteva (login/register)
+    const csrf = () => axiosClient.get('/sanctum/csrf-cookie');
 
+    const getUser = async () => {
         try {
             const { data } = await axiosClient.get('/api/user');
             setUser(data);
         } catch (e) {
+            // Nije ulogovan
             setUser(null);
-            localStorage.removeItem('ACCESS_TOKEN');
         }
     };
 
     const login = async (payload: any) => {
-        // Više ne zovemo csrf-cookie rutu!
-        const { data } = await axiosClient.post('/api/login', payload);
-
-        // 1. Čuvamo token
-        localStorage.setItem('ACCESS_TOKEN', data.token);
-
-        // 2. Setujemo korisnika direktno iz login responsa (štedimo jedan API poziv)
-        setUser(data.user);
+        await csrf(); // 1. Uzmi CSRF token
+        await axiosClient.post('/api/login', payload); // 2. Uloguj se
+        await getUser(); // 3. Povuci podatke o korisniku
     };
 
     const logout = async () => {
-        try {
-            await axiosClient.post('/api/logout');
-        } catch (error) {
-            console.error(error);
-        } finally {
-            // Bez obzira šta kaže server, mi lokalno brišemo sesiju
-            localStorage.removeItem('ACCESS_TOKEN');
-            setUser(null);
-        }
+        await axiosClient.post('/api/logout');
+        setUser(null);
     };
 
     return (
