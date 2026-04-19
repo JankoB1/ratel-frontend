@@ -1,55 +1,33 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-    // Prioritet ima ENV promenljiva, ako je nema ide na localhost
-    baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000',
-
-    // OBAVEZNO: Dozvoljava browseru da prima i šalje kolačiće (session i XSRF)
-    withCredentials: true,
-
+    baseURL: import.meta.env.VITE_BACKEND_URL || 'https://rat.exalt.rs',
+    // withCredentials nam VIŠE NE TREBA jer ne koristimo kolačiće!
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
 });
 
-/**
- * Robustna helper funkcija za čitanje XSRF tokena iz dokumenta.
- * Budući da Laravelov XSRF-TOKEN nije 'HttpOnly', JS može da ga pročita.
- */
-const getXsrfToken = (): string | null => {
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-        let c = ca[i].trim();
-        if (c.startsWith("XSRF-TOKEN=")) {
-            // Vraćamo dekodiran token (Laravel ga šalje URL-encoded)
-            return decodeURIComponent(c.substring("XSRF-TOKEN=".length, c.length));
-        }
-    }
-    return null;
-};
-
-// REQUEST INTERCEPTOR: Ručno lepljenje tokena u header pre svakog zahteva
+// REQUEST INTERCEPTOR: Ručno lepljenje tokena iz localStorage-a
 axiosClient.interceptors.request.use((config) => {
-    const token = getXsrfToken();
+    const token = localStorage.getItem('ACCESS_TOKEN');
 
-    // Ako šaljemo "state-changing" zahtev, moramo poslati X-XSRF-TOKEN zaglavlje
-    if (token && ['post', 'put', 'patch', 'delete'].includes(config.method || '')) {
-        config.headers['X-XSRF-TOKEN'] = token;
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
 });
 
-// RESPONSE INTERCEPTOR: Obrada grešaka (npr. istekla sesija)
+// RESPONSE INTERCEPTOR: Obrada grešaka (brisanje tokena ako je istekao/nevažeći)
 axiosClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response) {
-            // Ako dobijemo 401 (Unauthenticated), brišemo lokalni status login-a
+            // Ako dobijemo 401 (Unauthenticated), brišemo token
             if (error.response.status === 401) {
-                localStorage.removeItem('USER_LOGGED_IN');
-                // Ovde možeš dodati i: window.location.href = '/login';
+                localStorage.removeItem('ACCESS_TOKEN');
             }
         }
         return Promise.reject(error);
