@@ -4,7 +4,7 @@ import {
     ChevronDown, Bold, Italic, Underline,
     ArrowUpToLine, ArrowDownToLine, FoldVertical,
     List, ListOrdered, Quote, Link2, Trash2, Grid3X3,
-    Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart
+    Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart, Star
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 
@@ -46,7 +46,9 @@ const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode;
         icon: <Layers size={16} />,
         subtypes: [
             { id: "composed_line_bar", name: "Линија + Стубићи", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/><path d="M0,20 L10,5 L30,15 L40,5" stroke="#8b98ff" strokeWidth="2" fill="none"/><circle cx="10" cy="5" r="2" fill="#8b98ff"/><circle cx="30" cy="15" r="2" fill="#8b98ff"/></svg> },
-            { id: "composed_area_bar", name: "Површина + Стуб", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L30,20 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/></svg> }
+            { id: "composed_area_bar", name: "Површина + Стуб", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L30,20 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/></svg> },
+            { id: "composed_area_line", name: "Површина + Линија", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L25,25 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><path d="M0,25 L15,5 L25,15 L40,5" stroke="#34d399" strokeWidth="2" fill="none"/><circle cx="15" cy="5" r="2" fill="#34d399"/><circle cx="25" cy="15" r="2" fill="#34d399"/></svg> },
+            { id: "composed_stacked_line", name: "Сложени + Линија", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="20" width="8" height="10" fill="#34d399"/><rect x="5" y="10" width="8" height="10" fill="#8b98ff"/><rect x="25" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="5" width="8" height="10" fill="#8b98ff"/><path d="M0,15 L10,5 L30,10 L40,0" stroke="#f59e0b" strokeWidth="2" fill="none"/></svg> }
         ]
     },
     scatter: {
@@ -54,14 +56,19 @@ const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode;
         icon: <ScatterChart size={16} />,
         subtypes: [
             { id: "scatter_basic", name: "Тачкасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="3" fill="#34d399"/><circle cx="20" cy="10" r="3" fill="#8b98ff"/><circle cx="30" cy="25" r="3" fill="#f59e0b"/><circle cx="35" cy="15" r="3" fill="#e11d48"/></svg> },
-            { id: "bubble_basic", name: "Мехурасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="4" fill="#34d399" fillOpacity="0.7"/><circle cx="20" cy="10" r="8" fill="#8b98ff" fillOpacity="0.7"/><circle cx="30" cy="22" r="6" fill="#f59e0b" fillOpacity="0.7"/><circle cx="35" cy="15" r="3" fill="#e11d48" fillOpacity="0.7"/></svg> }
+            { id: "bubble_basic", name: "Мехурасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="4" fill="#34d399" fillOpacity="0.7"/><circle cx="20" cy="10" r="8" fill="#8b98ff" fillOpacity="0.7"/><circle cx="30" cy="22" r="6" fill="#f59e0b" fillOpacity="0.7"/><circle cx="35" cy="15" r="3" fill="#e11d48" fillOpacity="0.7"/></svg> },
+            { id: "scatter_star", name: "Звездасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M10,17 L12,22 L8,19 L13,19 L9,22 Z" fill="#34d399"/><path d="M20,7 L23,14 L17,10 L24,10 L18,14 Z" fill="#8b98ff"/><path d="M30,22 L33,28 L27,25 L34,25 L28,28 Z" fill="#f59e0b"/></svg> },
+            { id: "scatter_diamond", name: "Дијамантски", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><polygon points="10,16 14,20 10,24 6,20" fill="#34d399"/><polygon points="20,6 25,11 20,16 15,11" fill="#8b98ff"/><polygon points="30,21 33,24 30,27 27,24" fill="#f59e0b"/></svg> }
         ]
     },
     radar: {
         label: "Радарски",
         icon: <Target size={16} />,
         subtypes: [
-            { id: "radar_basic", name: "Мрежни", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> }
+            { id: "radar_basic", name: "Мрежни испуњен", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
+            { id: "radar_outline", name: "Мрежни обрис", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> },
+            { id: "radar_circular", name: "Кружни испуњен", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><circle cx="15" cy="15" r="7" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
+            { id: "radar_circular_outline", name: "Кружни обрис", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> }
         ]
     }
 };
@@ -125,7 +132,7 @@ const RightSidebar = () => {
         );
     }
 
-    const settings = selectedElement.settings;
+    const settings = selectedElement.settings || {};
 
     const formatText = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
@@ -169,6 +176,27 @@ const RightSidebar = () => {
 
     return (
         <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-[92vh] sticky top-10 custom-scrollbar z-40">
+
+            {/* --- NOVI DEO: Globalna podešavanja (Истакни) --- */}
+            <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-2 mb-[-10px]">
+                <Star size={14} /> Опште опције
+            </h3>
+
+            <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col relative z-0">
+                <label className="flex items-center justify-between cursor-pointer group">
+                    <span className="text-sm text-slate-600 font-medium">Истакни модул</span>
+                    <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.featured ? 'bg-amber-400' : 'bg-slate-200'}`}>
+                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.featured ? 'translate-x-4' : ''}`} />
+                    </div>
+                    <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={!!settings.featured}
+                        onChange={() => updateElementSettings({ featured: !settings.featured })}
+                    />
+                </label>
+            </div>
+            {/* ------------------------------------------------ */}
 
             {selectedElement.type === 'chart' && (
                 <>

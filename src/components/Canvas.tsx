@@ -8,7 +8,7 @@ import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
     RadialBarChart, RadialBar, ScatterChart, Scatter, ZAxis,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from "recharts";
 
 import addIcon from "../assets/apps-add.svg";
@@ -284,7 +284,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 const ChartComponent = isArea ? AreaChart : LineChart;
                 return (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ChartComponent data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <ChartComponent data={data} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
@@ -297,6 +297,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                         key={key} type="monotone" dataKey={key} stackId={isStackedArea ? "1" : undefined}
                                         stroke={baseColor} fill={baseColor} fillOpacity={0.6} strokeWidth={2}
                                         dot={hasDots ? { r: 4 } : false} activeDot={isArea ? { r: 5 } : false} isAnimationActive={false}
+                                        label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false}
                                     />
                                 );
                                 return (
@@ -304,6 +305,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                         key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3}
                                         dot={hasDots ? { r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' } : { r: 0 }}
                                         activeDot={{ r: 6 }} isAnimationActive={false}
+                                        label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false}
                                     />
                                 );
                             })}
@@ -321,7 +323,12 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     return (
                         <ResponsiveContainer width="100%" height="100%">
                             <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="100%" barSize={12} data={radialData}>
-                                <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={10} />
+                                <RadialBar
+                                    background={{ fill: '#f1f5f9' }}
+                                    dataKey="value"
+                                    cornerRadius={10}
+                                    label={currentSettings.showLabels ? { position: 'end', fill: '#64748b', fontSize: 11 } : false}
+                                />
                                 <Tooltip contentStyle={tooltipStyle} />
                                 {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" />}
                             </RadialBarChart>
@@ -352,10 +359,13 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 );
             }
             case 'composed': {
-                const hasArea = subType === 'composed_area_bar';
+                const isAreaBar = subType === 'composed_area_bar';
+                const isAreaLine = subType === 'composed_area_line';
+                const isStackedLine = subType === 'composed_stacked_line';
+
                 return (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <ComposedChart data={data} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
@@ -364,13 +374,23 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
+
+                                // Prva serija
                                 if (idx === 0) {
-                                    return <Bar key={key} dataKey={key} barSize={hasArea ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} />;
+                                    if (isAreaLine) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
+                                    if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} isAnimationActive={false} />;
+                                    return <Bar key={key} dataKey={key} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11 } : false} />;
                                 }
-                                if (hasArea && idx === 1) {
-                                    return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} />;
+
+                                // Druga serija
+                                if (idx === 1) {
+                                    if (isAreaBar) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
+                                    if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'insideTop', fill: '#fff', fontSize: 11 } : false} />;
+                                    return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                                 }
-                                return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} />;
+
+                                // Ostale serije (uvek linije)
+                                return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                             })}
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -378,9 +398,11 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
             }
             case 'scatter': {
                 const isBubble = subType === 'bubble_basic';
+                const shape = subType === 'scatter_star' ? 'star' : subType === 'scatter_diamond' ? 'diamond' : 'circle';
+
                 return (
                     <ResponsiveContainer width="100%" height="100%">
-                        <ScatterChart margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <ScatterChart margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis type="number" dataKey="value" tick={axisTickStyle} axisLine={false} tickLine={false} />
@@ -392,7 +414,9 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const scatterData = data.map((d: any) => ({ name: d.name, value: Number(d[key]) || 0 }));
                                 return (
-                                    <Scatter key={key} name={key} data={scatterData} fill={baseColor} fillOpacity={isBubble ? 0.7 : 1} isAnimationActive={false} />
+                                    <Scatter key={key} name={key} data={scatterData} fill={baseColor} fillOpacity={isBubble ? 0.7 : 1} shape={shape} isAnimationActive={false}>
+                                        {currentSettings.showLabels && <LabelList dataKey="value" position="top" fill="#64748b" fontSize={11} offset={10} />}
+                                    </Scatter>
                                 );
                             })}
                         </ScatterChart>
@@ -400,10 +424,13 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 );
             }
             case 'radar': {
+                const isCircular = subType === 'radar_circular' || subType === 'radar_circular_outline';
+                const isOutline = subType === 'radar_outline' || subType === 'radar_circular_outline';
+
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
-                            <PolarGrid stroke="#e2e8f0" />
+                            <PolarGrid stroke="#e2e8f0" gridType={isCircular ? "circle" : "polygon"} />
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
@@ -411,7 +438,17 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return (
-                                    <Radar key={key} name={key} dataKey={key} stroke={baseColor} fill={baseColor} fillOpacity={0.5} isAnimationActive={false} />
+                                    <Radar
+                                        key={key}
+                                        name={key}
+                                        dataKey={key}
+                                        stroke={baseColor}
+                                        strokeWidth={isOutline ? 2 : 1}
+                                        fill={isOutline ? "transparent" : baseColor}
+                                        fillOpacity={0.5}
+                                        isAnimationActive={false}
+                                        label={currentSettings.showLabels ? { fill: '#64748b', fontSize: 11 } : false}
+                                    />
                                 );
                             })}
                         </RadarChart>

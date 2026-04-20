@@ -82,14 +82,12 @@ const ChartDataEditor = () => {
     };
 
     return (
-        // NOVO: Apsolutno pozicioniran kontejner sa stopPropagation (nema više celog blura ekrana!)
         <div
             className="absolute top-[calc(100%+15px)] left-1/2 -translate-x-1/2 w-[700px] z-[99999] bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-top-4 fade-in cursor-default"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            onDragStart={(e) => e.stopPropagation()} // Sprečava da popover pokrene "drag" grafikona
+            onDragStart={(e) => e.stopPropagation()}
         >
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h2 className="text-lg font-bold text-slate-700">Уређивање података и боја</h2>
                 <button onClick={() => setIsChartModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-all">
@@ -97,7 +95,6 @@ const ChartDataEditor = () => {
                 </button>
             </div>
 
-            {/* Modal Body - Tabela */}
             <div className="p-6 overflow-x-auto max-h-[500px] overflow-y-auto custom-scrollbar">
                 <table className="w-full border-collapse">
                     <thead>
@@ -173,7 +170,6 @@ const ChartDataEditor = () => {
                 </button>
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                 <button onClick={() => setIsChartModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">
                     Откажи
