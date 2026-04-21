@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, type FC, type ClipboardEvent, typ
 import {
     Plus, Table2, Type, Image as ImageIcon, LayoutTemplate,
     UploadCloud, Trash2, GripVertical, Settings2, BarChart3, Map as MapIcon,
-    X, Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered, AlignLeft, AlignCenter, AlignRight
+    X, Bold, Italic, Underline, List, ListOrdered, AlignLeft, AlignCenter, AlignRight
 } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -43,7 +43,7 @@ export const extractFootnoteIds = (html: string) => {
     return ids;
 };
 
-const TextToolbar = ({ editorRef, onAddFootnote }: { editorRef: React.RefObject<HTMLDivElement>, onAddFootnote: () => void }) => {
+const TextToolbar = ({ editorRef, onAddFootnote }: { editorRef: React.RefObject<HTMLDivElement | null>, onAddFootnote: () => void }) => {
     const [position, setPosition] = useState({ top: -1000, left: -1000 });
     const [isVisible, setIsVisible] = useState(false);
 
