@@ -11,18 +11,18 @@ const Header = () => {
                 </div>
                 <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
                 <div>
-                    <h1 className="text-base font-extrabold uppercase">Annual Report 2026</h1>
-                    <span className="text-base text-dark-blue flex items-center gap-1 uppercase">
-                <span className="w-2 h-2 bg-orange-400 rounded-full"></span> У ИЗРАДИ
-              </span>
+                    <h1 className="font-extrabold text-[15px] leading-none tracking-[0.05em] uppercase">Annual Report 2026</h1>
+                    <span className="font-normal text-base leading-none tracking-[0.05em] uppercase">
+                        <span className="w-2 h-2 bg-orange-400 rounded-full"></span> У ИЗРАДИ
+                    </span>
                 </div>
             </div>
 
             <div className="flex items-center gap-4">
-                <div className="flex bg-white rounded-full p-1 py-[20px] px-[35px]">
-                    <button className="pr-4 text-base text-slate-500 uppercase">Хедер</button>
-                    <div className="w-[1px] bg-dark-blue"></div>
-                    <button className="pl-4 text-base text-slate-500 uppercase">Футер</button>
+                <div className="flex bg-[#e8f0f8] rounded-full p-1 py-[20px] px-[35px] border border-[#248FCF]">
+                    <button className="font-normal text-base leading-none tracking-[0.05em] uppercase">Хедер</button>
+                    <div className="w-[1px] bg-dark-blue mx-5"></div>
+                    <button className="font-normal text-base leading-none tracking-[0.05em] uppercase">Футер</button>
                 </div>
                 <div className="flex items-center bg-white rounded-[50px] px-[20px] py-[20px] gap-3">
                     <ZoomIn size={20} className="text-dark-blue" />

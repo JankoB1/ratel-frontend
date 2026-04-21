@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, type FC, type ClipboardEvent, type FormEvent, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, type FC, type ClipboardEvent, type FormEvent, type ChangeEvent } from "react";
 import {
     Plus, Table2, Type, Image as ImageIcon, LayoutTemplate,
     UploadCloud, Trash2, GripVertical, Settings2, BarChart3, Map as MapIcon,
-    X
+    X, Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered, AlignLeft, AlignCenter, AlignRight
 } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -32,6 +32,88 @@ interface RowData { id: string; columns: ColumnData[]; }
 
 const CHART_PALETTE = ['#8b98ff', '#34d399', '#fef3c7', '#2563eb', '#1e3a8a', '#f59e0b', '#e11d48'];
 
+// ПОМОЋНА ФУНКЦИЈА ЗА ВАЂЕЊЕ ФУСНОТА
+export const extractFootnoteIds = (html: string) => {
+    const regex = /data-footnote-id="([^"]+)"/g;
+    const ids = [];
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        ids.push(match[1]);
+    }
+    return ids;
+};
+
+const TextToolbar = ({ editorRef, onAddFootnote }: { editorRef: React.RefObject<HTMLDivElement>, onAddFootnote: () => void }) => {
+    const [position, setPosition] = useState({ top: -1000, left: -1000 });
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        const handleSelection = () => {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+                setIsVisible(false);
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+            const container = range.commonAncestorContainer;
+            const editorNode = editorRef.current;
+
+            if (editorNode && (editorNode === container || editorNode.contains(container))) {
+                const rect = range.getBoundingClientRect();
+                const editorRect = editorNode.getBoundingClientRect();
+
+                setPosition({
+                    top: rect.top - editorRect.top - 45,
+                    left: rect.left - editorRect.left + (rect.width / 2) - 170
+                });
+                setIsVisible(true);
+            } else {
+                setIsVisible(false);
+            }
+        };
+
+        document.addEventListener('selectionchange', handleSelection);
+        return () => document.removeEventListener('selectionchange', handleSelection);
+    }, [editorRef]);
+
+    const execCmd = (e: React.MouseEvent, command: string, value: string | undefined = undefined) => {
+        e.preventDefault();
+        document.execCommand(command, false, value);
+        if (editorRef.current) {
+            const event = new Event('input', { bubbles: true });
+            editorRef.current.dispatchEvent(event);
+        }
+    };
+
+    if (!isVisible) return null;
+
+    return (
+        <div
+            className="absolute z-[999999] flex items-center gap-1 bg-gray-900 text-white px-2 py-1.5 rounded-lg shadow-xl animate-in fade-in zoom-in-95 pointer-events-auto"
+            style={{ top: position.top, left: position.left }}
+            onMouseDown={(e) => e.preventDefault()}
+        >
+            <button onClick={(e) => execCmd(e, 'formatBlock', 'H1')} className="p-1.5 hover:bg-gray-700 rounded transition-colors text-xs font-bold" title="Naslov 1">H1</button>
+            <button onClick={(e) => execCmd(e, 'formatBlock', 'H2')} className="p-1.5 hover:bg-gray-700 rounded transition-colors text-xs font-bold" title="Naslov 2">H2</button>
+            <button onClick={(e) => execCmd(e, 'formatBlock', 'P')} className="p-1.5 hover:bg-gray-700 rounded transition-colors text-xs" title="Paragraf"><Type size={14}/></button>
+            <div className="w-px h-4 bg-gray-600 mx-1"></div>
+            <button onClick={(e) => execCmd(e, 'bold')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Podebljano"><Bold size={14}/></button>
+            <button onClick={(e) => execCmd(e, 'italic')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Kurziv"><Italic size={14}/></button>
+            <button onClick={(e) => execCmd(e, 'underline')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Podvučeno"><Underline size={14}/></button>
+            <div className="w-px h-4 bg-gray-600 mx-1"></div>
+            <button onClick={(e) => execCmd(e, 'insertUnorderedList')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Lista"><List size={14}/></button>
+            <button onClick={(e) => execCmd(e, 'insertOrderedList')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Numerisana lista"><ListOrdered size={14}/></button>
+            <div className="w-px h-4 bg-gray-600 mx-1"></div>
+            <button onClick={(e) => execCmd(e, 'justifyLeft')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Levo"><AlignLeft size={14}/></button>
+            <button onClick={(e) => execCmd(e, 'justifyCenter')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Centar"><AlignCenter size={14}/></button>
+            <button onClick={(e) => execCmd(e, 'justifyRight')} className="p-1.5 hover:bg-gray-700 rounded transition-colors" title="Desno"><AlignRight size={14}/></button>
+            <div className="w-px h-4 bg-gray-600 mx-1"></div>
+            <button onClick={(e) => { e.preventDefault(); onAddFootnote(); }} className="p-1.5 hover:bg-gray-700 rounded transition-colors text-xs font-bold text-blue-400" title="Додај фусноту">[¹]</button>
+        </div>
+    );
+};
+
 const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette }: any) => {
     return (
         <>
@@ -52,6 +134,7 @@ const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette }: any) =>
 
 const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any) => {
     const isPie = settings.chartType === 'circular';
+    const displayKeys = isPie && keys.length > 0 ? [keys[0]] : keys;
 
     const handleKeyChange = (kIdx: number, newName: string) => {
         const oldKey = keys[kIdx];
@@ -109,8 +192,13 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
         updateSettings({}, { data: [...data, newRow] });
     };
 
-    const removeRow = (idx: number) => updateSettings({}, { data: data.filter((_: any, i: number) => i !== idx) });
+    const removeRow = (idx: number) => {
+        if (data.length <= 1) return;
+        updateSettings({}, { data: data.filter((_: any, i: number) => i !== idx) });
+    };
+
     const removeColumn = (key: string) => {
+        if (keys.length <= 1) return;
         updateSettings({}, {
             keys: keys.filter((k: string) => k !== key),
             data: data.map((r: any) => { const n = {...r}; delete n[key]; return n; })
@@ -127,7 +215,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                     <tbody>
                     <tr>
                         <td className="border border-slate-200 bg-slate-50 p-0"></td>
-                        {keys.map((k: string, i: number) => (
+                        {displayKeys.map((k: string, i: number) => (
                             <td key={`color-${i}`} className="border border-slate-200 p-0 relative group">
                                 <div
                                     className="h-8 w-full cursor-pointer transition-all"
@@ -136,21 +224,30 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                                 >
                                     {!isPie && settings.activeColorKey === k && <div className="absolute inset-0 border-[3px] border-blue-600 shadow-inner" />}
                                 </div>
-                                <button onClick={() => removeColumn(k)} className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 z-10"><Trash2 size={12}/></button>
+                                <button onClick={() => removeColumn(k)} className={`absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 z-10 ${keys.length <= 1 ? 'hidden' : ''}`}><Trash2 size={12}/></button>
                             </td>
                         ))}
-                        <td className="border border-slate-200 p-0 hover:bg-slate-50 cursor-pointer" onClick={addColumn}>
-                            <div className="h-8 flex items-center justify-center text-slate-400 hover:text-blue-500"><Plus size={16} /></div>
-                        </td>
+                        {!isPie && (
+                            <td className="border border-slate-200 p-0 hover:bg-slate-50 cursor-pointer" onClick={addColumn}>
+                                <div className="h-8 flex items-center justify-center text-slate-400 hover:text-blue-500"><Plus size={16} /></div>
+                            </td>
+                        )}
                     </tr>
                     <tr>
-                        <td className="border border-slate-200 bg-slate-50 p-2 font-medium text-slate-500 w-[120px]">Регион</td>
-                        {keys.map((k: string, i: number) => (
+                        <td className="border border-slate-200 bg-slate-50 p-1 font-medium text-slate-500 w-[120px]">
+                            <input
+                                value={settings.xAxisLabel || 'Месец'}
+                                onChange={e => updateSettings({ xAxisLabel: e.target.value })}
+                                className="w-full outline-none text-center bg-transparent"
+                                placeholder="Ознака"
+                            />
+                        </td>
+                        {displayKeys.map((k: string, i: number) => (
                             <td key={`head-${i}`} className="border border-slate-200 p-1 min-w-[80px]">
                                 <input value={k} onChange={e => handleKeyChange(i, e.target.value)} className="w-full outline-none text-center bg-transparent" />
                             </td>
                         ))}
-                        <td className="border border-slate-200 bg-slate-50"></td>
+                        {!isPie && <td className="border border-slate-200 bg-slate-50"></td>}
                     </tr>
                     {data.map((row: any, rIdx: number) => (
                         <tr key={rIdx} className="hover:bg-slate-50">
@@ -165,13 +262,13 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                                 )}
                                 <input value={row.name} onChange={e => handleNameChange(rIdx, e.target.value)} className={`w-full outline-none py-2 bg-transparent ${isPie ? 'pl-5' : 'pl-2'}`} />
                             </td>
-                            {keys.map((k: string) => (
+                            {displayKeys.map((k: string) => (
                                 <td key={`cell-${rIdx}-${k}`} className="border border-slate-200 p-1">
                                     <input type="text" value={row[k] !== undefined ? row[k] : ''} onChange={e => handleValChange(rIdx, k, e.target.value)} className="w-full outline-none text-center bg-transparent" />
                                 </td>
                             ))}
                             <td className="border border-slate-200 p-1 text-center">
-                                <button onClick={() => removeRow(rIdx)} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                <button onClick={() => removeRow(rIdx)} className={`text-slate-400 hover:text-red-500 ${data.length <= 1 ? 'opacity-30 cursor-not-allowed' : ''}`} disabled={data.length <= 1}><Trash2 size={14} /></button>
                             </td>
                         </tr>
                     ))}
@@ -201,7 +298,7 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'map', settings: currentSettings });
             }}
-            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl p-2 border-2 ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
+            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
             style={{ height: '350px' }}
         >
             {isSelected && (
@@ -211,7 +308,7 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
                 </div>
             )}
 
-            <div className={`w-full h-full flex flex-col items-center justify-center pointer-events-none relative overflow-hidden ${isSelected ? 'rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-2' : ''}`}>
+            <div className={`w-full h-full flex flex-col items-center justify-center pointer-events-none relative overflow-hidden min-w-0 ${isSelected ? 'rounded-lg border-2 border-dashed border-slate-200 bg-slate-50' : ''}`}>
                 <div className="w-full h-full flex items-center justify-center relative min-h-0">
                     <MapGraphic colors={colors} />
                 </div>
@@ -244,6 +341,66 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         updateElementSettings(newSettings, newPayload);
     };
 
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [chartWidth, setChartWidth] = useState(400);
+
+    useEffect(() => {
+        if (!wrapperRef.current) return;
+        const observer = new ResizeObserver((entries) => {
+            window.requestAnimationFrame(() => {
+                if (entries[0]) {
+                    setChartWidth(entries[0].contentRect.width);
+                }
+            });
+        });
+        observer.observe(wrapperRef.current);
+        return () => observer.disconnect();
+    }, []);
+
+    const isPie = currentSettings.chartType === 'circular';
+    const isSemicircle = subType === 'semicircle_doughnut';
+    const isDoughnut = subType === 'doughnut_basic' || isSemicircle;
+
+    const baseChartHeight = isPie ? Math.max(180, Math.min(280, chartWidth)) : 280;
+
+    const legendItemCount = isPie ? data.length : keys.length;
+    const itemsPerRow = Math.max(1, Math.min(6, Math.floor(chartWidth / 85)));
+    const legendRows = Math.ceil(legendItemCount / itemsPerRow);
+    const dynamicHeight = baseChartHeight + (currentSettings.showLegend ? legendRows * 22 : 0);
+
+    const dynamicOuterRadius = Math.max(35, Math.min((chartWidth - 70) / 2, (baseChartHeight - 60) / 2));
+    const dynamicInnerRadius = isDoughnut ? dynamicOuterRadius * 0.6 : 0;
+
+    const renderLegendText = (value: string) => (
+        <span style={{ color: '#1E293B', fontWeight: 600, paddingLeft: '4px' }}>{value}</span>
+    );
+
+    const renderCustomPieLabel = (props: any) => {
+        const { cx, cy, midAngle, outerRadius, value, index } = props;
+        if (value === 0 || value === '0' || value === '') return null;
+
+        const RADIAN = Math.PI / 180;
+        const isNarrow = chartWidth < 250;
+
+        const radiusOffset = index % 2 === 0 ? (isNarrow ? 6 : 12) : (isNarrow ? 16 : 28);
+        const labelRadius = outerRadius + radiusOffset;
+
+        const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
+        const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
+
+        const lineStartX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+        const lineStartY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+
+        return (
+            <g>
+                <path d={`M${lineStartX},${lineStartY} L${x},${y}`} stroke="#cbd5e1" strokeWidth={1} fill="none" />
+                <text x={x + (x > cx ? 4 : -4)} y={y} fill="#1E293B" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={isNarrow ? 9 : 11} fontWeight="bold">
+                    {value}
+                </text>
+            </g>
+        );
+    };
+
     const renderChart = () => {
         if (!data.length || !keys.length) return <div className="flex items-center justify-center h-full text-slate-400 text-sm font-medium">Učitavanje podataka...</div>;
 
@@ -251,13 +408,15 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         const axisLineStyle = { stroke: '#cbd5e1' };
         const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
 
+        const chartMargin = { top: 25, right: 15, left: -20, bottom: 5 };
+
         switch (currentSettings.chartType) {
             case 'bar': {
                 const isStacked = subType === 'stacked_v' || subType === 'stacked_h';
                 const isHorizontal = subType === 'grouped_h' || subType === 'stacked_h';
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data} layout={isHorizontal ? "vertical" : "horizontal"} margin={{ top: 10, right: isHorizontal ? 30 : 10, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <BarChart data={data} layout={isHorizontal ? "vertical" : "horizontal"} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={isHorizontal} horizontal={!isHorizontal} stroke="#E2E8F0" />}
                             {isHorizontal ? (
                                 <>
@@ -271,7 +430,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                 </>
                             )}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <RenderBars keys={keys} colors={colors} isStacked={isStacked} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -283,13 +442,13 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 const hasDots = subType === 'line_dots';
                 const ChartComponent = isArea ? AreaChart : LineChart;
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ChartComponent data={data} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <ChartComponent data={data} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 if (isArea) return (
@@ -321,7 +480,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                         fill: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length]
                     }));
                     return (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="99%" height="100%">
                             <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="100%" barSize={12} data={radialData}>
                                 <RadialBar
                                     background={{ fill: '#f1f5f9' }}
@@ -330,25 +489,29 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                     label={currentSettings.showLabels ? { position: 'end', fill: '#64748b', fontSize: 11 } : false}
                                 />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" />}
+                                {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             </RadialBarChart>
                         </ResponsiveContainer>
                     );
                 }
 
-                const isDoughnut = subType === 'doughnut_basic' || subType === 'semicircle_doughnut';
                 const pieData = data.map((d: any) => ({ name: d.name, value: Number(d[keys[0]]) || 0 }));
+
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="99%" height="100%">
                         <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie
-                                data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                                outerRadius={100} innerRadius={isDoughnut ? 60 : 0} isAnimationActive={false}
-                                label={currentSettings.showLabels ? { fill: '#64748b', fontSize: 11 } : false}
-                                startAngle={subType === 'semicircle_doughnut' ? 180 : 0}
-                                endAngle={subType === 'semicircle_doughnut' ? 0 : 360}
+                                data={pieData} dataKey="value" nameKey="name"
+                                cx="50%" cy={isSemicircle ? "75%" : "48%"}
+                                outerRadius={dynamicOuterRadius}
+                                innerRadius={dynamicInnerRadius}
+                                isAnimationActive={false}
+                                label={currentSettings.showLabels ? renderCustomPieLabel : false}
+                                labelLine={false}
+                                startAngle={isSemicircle ? 180 : 0}
+                                endAngle={isSemicircle ? 0 : 360}
                             >
                                 {pieData.map((entry: any, index: number) => (
                                     <Cell key={`cell-${index}`} fill={colors[entry.name] || CHART_PALETTE[index % CHART_PALETTE.length]} stroke="#fff" strokeWidth={2}/>
@@ -364,32 +527,29 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 const isStackedLine = subType === 'composed_stacked_line';
 
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={data} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <ComposedChart data={data} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
 
-                                // Prva serija
                                 if (idx === 0) {
                                     if (isAreaLine) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                                     if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} isAnimationActive={false} />;
                                     return <Bar key={key} dataKey={key} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11 } : false} />;
                                 }
 
-                                // Druga serija
                                 if (idx === 1) {
                                     if (isAreaBar) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                                     if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'insideTop', fill: '#fff', fontSize: 11 } : false} />;
                                     return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                                 }
 
-                                // Ostale serije (uvek linije)
                                 return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                             })}
                         </ComposedChart>
@@ -401,14 +561,14 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 const shape = subType === 'scatter_star' ? 'star' : subType === 'scatter_diamond' ? 'diamond' : 'circle';
 
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <ScatterChart margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <ScatterChart margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis type="number" dataKey="value" tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '15px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -428,13 +588,13 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 const isOutline = subType === 'radar_outline' || subType === 'radar_circular_outline';
 
                 return (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
+                    <ResponsiveContainer width="99%" height="100%">
+                        <RadarChart cx="50%" cy="48%" outerRadius={dynamicOuterRadius * 1.3} data={data}>
                             <PolarGrid stroke="#e2e8f0" gridType={isCircular ? "circle" : "polygon"} />
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" />}
+                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return (
@@ -466,8 +626,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'chart', settings: currentSettings });
             }}
-            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl p-2 border-2 ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
-            style={{ height: '350px' }}
+            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
+            style={{ height: `${dynamicHeight}px` }}
         >
             {isSelected && (
                 <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
@@ -476,96 +636,13 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </div>
             )}
 
-            <div className={`w-full h-full flex-1 pointer-events-none ${isSelected ? 'rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-2' : ''}`}>
+            <div ref={wrapperRef} className={`w-full h-full flex-1 pointer-events-none min-w-0 overflow-hidden ${isSelected ? 'rounded-lg border-2 border-dashed border-slate-200 bg-slate-50' : ''}`}>
                 {renderChart()}
             </div>
 
             {isSelected && currentSettings.showDataEditor && (
                 <DataEditorPopover settings={currentSettings} data={data} keys={keys} colors={colors} updateSettings={updateLocalSettings} />
             )}
-        </div>
-    );
-};
-
-const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit }: any) => {
-    const defaultSettings = el.payload.settings;
-    const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
-    const editorRef = useRef<HTMLDivElement>(null);
-    const contentAreaRef = useRef<HTMLElement | null>(null);
-
-    useEffect(() => {
-        contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
-    }, [pageId]);
-
-    useEffect(() => {
-        if (editorRef.current && currentSettings.content !== editorRef.current.innerHTML) {
-            editorRef.current.innerHTML = currentSettings.content || '';
-        }
-    }, [currentSettings.content]);
-
-    const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        const text = e.clipboardData.getData('text/plain');
-        document.execCommand('insertText', false, text);
-    };
-
-    const handleInput = (e: FormEvent<HTMLDivElement>) => {
-        const html = e.currentTarget.innerHTML;
-        const contentArea = contentAreaRef.current;
-
-        if (contentArea && contentArea.scrollHeight > contentArea.clientHeight + 10) {
-            e.preventDefault();
-
-            let words = html.split(/(<[^>]*>|\s+)/).filter(Boolean);
-            let fitWords = [...words];
-            let overflowWords: string[] = [];
-
-            let maxSafety = 2000;
-
-            while (contentArea.scrollHeight > contentArea.clientHeight && fitWords.length > 0 && maxSafety > 0) {
-                let w = fitWords.pop();
-                if (w) overflowWords.unshift(w);
-                if (editorRef.current) editorRef.current.innerHTML = fitWords.join('');
-                maxSafety--;
-            }
-
-            const safeHtml = fitWords.join('');
-            const remainingText = overflowWords.join('');
-
-            if (remainingText.trim() !== '') {
-                if (editorRef.current) editorRef.current.blur();
-                updateElementSettings({ content: safeHtml });
-                onAutoSplit(pageId, el.id, remainingText);
-                return;
-            }
-        }
-
-        if (isSelected) updateElementSettings({ content: html });
-    };
-
-    return (
-        <div
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
-            onClick={(e) => {
-                e.stopPropagation();
-                setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'text', settings: { ...currentSettings, content: editorRef.current?.innerHTML || currentSettings.content } });
-            }}
-            className={`group relative cursor-text transition-all rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-inner z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
-            style={{ display: 'flex', flexDirection: 'column', justifyContent: currentSettings.verticalAlignment === 'top' ? 'flex-start' : currentSettings.verticalAlignment === 'bottom' ? 'flex-end' : 'center', textAlign: currentSettings.alignment }}
-        >
-            {isSelected && (
-                <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
-                    <div className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-slate-400 cursor-grab active:cursor-grabbing hover:bg-slate-50"><GripVertical size={14} /></div>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
-                </div>
-            )}
-            <div
-                id={`editor-${el.id}`}
-                ref={editorRef} contentEditable suppressContentEditableWarning data-placeholder="Унесите текст..."
-                onInput={handleInput} onPaste={handlePaste}
-                className={`outline-none w-full editor-content empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none empty:before:block [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 min-h-[30px]`}
-                style={{ color: currentSettings.color, fontSize: currentSettings.type === 'headline' ? '24px' : '16px', fontWeight: currentSettings.bold ? 'bold' : 'normal' }}
-            />
         </div>
     );
 };
@@ -585,14 +662,14 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
             const csrfToken = match ? decodeURIComponent(match[2]) : '';
             const response = await axiosClient.post("/api/upload-image", formData, { headers: { 'Content-Type': 'multipart/form-data', 'X-XSRF-TOKEN': csrfToken } });
             if (response.data?.url) updateElementSettings({ url: response.data.url });
-        } catch (error) { alert("Грешка pri otpremanju."); } finally { setIsUploading(false); }
+        } catch (error) { alert("Грешка при отпремању."); } finally { setIsUploading(false); }
     };
 
     return (
         <div
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'image', settings: currentSettings }); }}
-            className={`break-inside-avoid group relative cursor-pointer transition-all flex flex-col rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'} ${currentSettings.alignment === 'left' ? 'items-start text-left' : currentSettings.alignment === 'right' ? 'items-end text-right' : 'items-center text-center'}`}
+            className={`break-inside-avoid group relative cursor-pointer transition-all flex flex-col rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
         >
             {isSelected && (
                 <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
@@ -600,23 +677,231 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
                 </div>
             )}
+
             {currentSettings.url ? (
-                <div className="flex flex-col w-full"><img src={currentSettings.url} alt={currentSettings.altText} className="max-w-full h-auto object-contain mx-auto rounded-lg" />
-                    {(currentSettings.altText || isSelected) && <span className={`text-sm italic mt-2.5 block ${!currentSettings.altText ? 'text-slate-400' : 'text-slate-600'}`}>{currentSettings.altText || (isSelected ? "Назив слике (додајте у менију)" : "")}</span>}
+                <div className={`flex flex-col w-full ${
+                    currentSettings.alignment === 'left' ? 'items-start text-left' :
+                        currentSettings.alignment === 'right' ? 'items-end text-right' :
+                            'items-center text-center'
+                }`}>
+                    <img
+                        src={currentSettings.url}
+                        alt={currentSettings.altText}
+                        className="h-auto rounded-lg transition-all"
+                        style={{ width: `${currentSettings.width || 100}%` }}
+                    />
+                    {(currentSettings.altText || isSelected) && (
+                        <span className={`text-sm italic mt-2.5 block w-full ${!currentSettings.altText ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {currentSettings.altText || (isSelected ? "Назив слике (додајте у менију)" : "")}
+                        </span>
+                    )}
                 </div>
             ) : (
                 <div className="p-8 w-full min-h-[180px] bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center transition-colors group-hover:border-slate-400">
-                    {isUploading ? <span className="animate-pulse text-sm font-semibold text-blue-500">Отпремање...</span> : <label className="cursor-pointer text-slate-400 hover:text-blue-500 flex flex-col items-center gap-2"><UploadCloud size={32} /> <span className="text-xs font-semibold">Odaberi sliku</span> <input type="file" className="hidden" onChange={handleImageUpload} /></label>}
+                    {isUploading ? (
+                        <span className="animate-pulse text-sm font-semibold text-blue-500">Отпремање...</span>
+                    ) : (
+                        <label className="cursor-pointer text-slate-400 hover:text-blue-500 flex flex-col items-center gap-2">
+                            <UploadCloud size={32} />
+                            <span className="text-xs font-semibold">Одабери слику</span>
+                            <input type="file" className="hidden" onChange={handleImageUpload} />
+                        </label>
+                    )}
                 </div>
             )}
         </div>
     );
 };
 
-const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart }: any) => {
+const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap }: any) => {
+    const defaultSettings = el.payload.settings;
+    const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
+    const editorRef = useRef<HTMLDivElement>(null);
+    const contentAreaRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
+    }, [pageId]);
+
+    // Ажурирање бројева фуснота у тексту на основу глобалне мапе
+    useEffect(() => {
+        if (!editorRef.current) return;
+        const sups = editorRef.current.querySelectorAll('sup[data-footnote-id]');
+        sups.forEach(sup => {
+            const id = sup.getAttribute('data-footnote-id');
+            if (id && globalFootnoteMap[id]) {
+                const numStr = `[${globalFootnoteMap[id]}]`;
+                if (sup.innerHTML !== numStr) {
+                    sup.innerHTML = numStr;
+                }
+            }
+        });
+    }, [currentSettings.content, globalFootnoteMap]);
+
+    useEffect(() => {
+        if (editorRef.current && currentSettings.content !== editorRef.current.innerHTML) {
+            editorRef.current.innerHTML = currentSettings.content || '';
+        }
+    }, [currentSettings.content]);
+
+    const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text/plain');
+        document.execCommand('insertText', false, text);
+    };
+
+    const handleAddFootnote = () => {
+        const id = `fn-${Math.random().toString(36).substr(2, 9)}`;
+        const html = `<sup data-footnote-id="${id}" class="footnote-marker text-blue-500 cursor-pointer font-bold px-[1px] select-none" contenteditable="false">[*]</sup>`;
+        document.execCommand('insertHTML', false, html);
+
+        if (editorRef.current) {
+            const newHtml = editorRef.current.innerHTML;
+            const currentIds = extractFootnoteIds(newHtml);
+            const oldFootnotes = currentSettings.footnotes || {};
+            const newFootnotes: any = {};
+            currentIds.forEach(cid => {
+                newFootnotes[cid] = oldFootnotes[cid] || '';
+            });
+            newFootnotes[id] = 'Унесите текст фусноте...';
+            updateElementSettings({ content: newHtml, footnotes: newFootnotes });
+        }
+    };
+
+    const handleInput = (e: FormEvent<HTMLDivElement>) => {
+        const html = e.currentTarget.innerHTML;
+        const currentIds = extractFootnoteIds(html);
+        const oldFootnotes = currentSettings.footnotes || {};
+        const newFootnotes: any = {};
+
+        // Аутоматско чишћење обрисаних фуснота
+        currentIds.forEach(id => {
+            newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '';
+        });
+
+        const contentArea = contentAreaRef.current;
+
+        if (contentArea && contentArea.scrollHeight > contentArea.clientHeight + 10) {
+            e.preventDefault();
+
+            let words = html.split(/(<[^>]*>|\s+)/).filter(Boolean);
+            let fitWords = [...words];
+            let overflowWords: string[] = [];
+            let maxSafety = 2000;
+
+            while (contentArea.scrollHeight > contentArea.clientHeight && fitWords.length > 0 && maxSafety > 0) {
+                let w = fitWords.pop();
+                if (w) overflowWords.unshift(w);
+                if (editorRef.current) editorRef.current.innerHTML = fitWords.join('');
+                maxSafety--;
+            }
+
+            const safeHtml = fitWords.join('');
+            const remainingText = overflowWords.join('');
+
+            if (remainingText.trim() !== '') {
+                if (editorRef.current) editorRef.current.blur();
+
+                // Раздвајање фуснота за обе странице
+                const safeHtmlIds = extractFootnoteIds(safeHtml);
+                const remainingIds = extractFootnoteIds(remainingText);
+
+                const safeFootnotes: any = {};
+                const remainingFootnotes: any = {};
+
+                safeHtmlIds.forEach(id => safeFootnotes[id] = newFootnotes[id]);
+                remainingIds.forEach(id => remainingFootnotes[id] = newFootnotes[id]);
+
+                onAutoSplit({
+                    sourcePageId: pageId,
+                    elementId: el.id,
+                    remainingContent: remainingText,
+                    safeHtml: safeHtml,
+                    safeFootnotes,
+                    remainingFootnotes
+                });
+                return;
+            }
+        }
+
+        if (isSelected) updateElementSettings({ content: html, footnotes: newFootnotes });
+    };
+
+    return (
+        <div
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            onClick={(e) => {
+                e.stopPropagation();
+                setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'text', settings: { ...currentSettings, content: editorRef.current?.innerHTML || currentSettings.content } });
+            }}
+            className={`group relative cursor-text transition-all rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-inner z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
+        >
+            {isSelected && (
+                <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
+                    <div className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-slate-400 cursor-grab active:cursor-grabbing hover:bg-slate-50"><GripVertical size={14} /></div>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
+                </div>
+            )}
+
+            {isSelected && <TextToolbar editorRef={editorRef} onAddFootnote={handleAddFootnote} />}
+
+            <div
+                id={`editor-${el.id}`}
+                ref={editorRef} contentEditable suppressContentEditableWarning data-placeholder="Унесите текст..."
+                onInput={handleInput} onPaste={handlePaste}
+                className={`outline-none w-full editor-content empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none empty:before:block [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-4 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-3 [&_p]:mb-2 min-h-[30px]`}
+                style={{ color: currentSettings.color, textAlign: currentSettings.alignment }}
+            />
+        </div>
+    );
+};
+
+const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const content = el.payload.sr?.content || {};
+
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const contentAreaRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
+    }, [pageId]);
+
+    useEffect(() => {
+        if (!tableContainerRef.current || !contentAreaRef.current) return;
+
+        const pageContent = contentAreaRef.current;
+
+        if (pageContent.scrollHeight > pageContent.clientHeight + 10) {
+            const totalRows = currentSettings.rows || 1;
+            if (totalRows <= 1) return;
+
+            const rowsToKeep = totalRows - 1;
+
+            const newContent: any = {};
+            const newCells: any = {};
+            const oldCells = currentSettings.cells || {};
+            const cols = currentSettings.columns || 1;
+
+            for (let c = 0; c < cols; c++) {
+                const oldKey = `${rowsToKeep}_${c}`;
+                const newKey = `0_${c}`;
+                if (content[oldKey]) newContent[newKey] = content[oldKey];
+                if (oldCells[oldKey]) newCells[newKey] = oldCells[oldKey];
+            }
+
+            const newTableSettings = { ...currentSettings, rows: 1, cells: newCells };
+
+            onAutoSplit({
+                sourcePageId: pageId,
+                elementId: el.id,
+                remainingContent: "TABLE_SPLIT",
+                tableSettings: newTableSettings,
+                tableContent: newContent
+            });
+        }
+    }, [currentSettings.rows, currentSettings.columns, content]);
 
     const handleCellChange = (rIdx: number, cIdx: number, html: string) => {
         const cellKey = `${rIdx}_${cIdx}`;
@@ -625,8 +910,9 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
 
     return (
         <div
+            ref={tableContainerRef}
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
-            className={`break-inside-avoid group relative transition-all rounded-xl p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
+            className={`break-inside-avoid group relative transition-all rounded-xl p-1.5 border-2 w-full max-w-full ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'table', settings: currentSettings }); }}
         >
             {isSelected && (
@@ -635,36 +921,58 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="p-1.5 bg-white shadow-md border border-slate-200 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
                 </div>
             )}
-            <table className="w-full border-collapse border border-slate-300 bg-white shadow-sm rounded-lg overflow-hidden relative z-0">
-                <tbody>
-                {Array.from({ length: currentSettings.rows || 1 }).map((_, rIdx) => (
-                    <tr key={`row-${rIdx}`}>
-                        {Array.from({ length: currentSettings.columns || 1 }).map((_, cIdx) => {
-                            const key = `${rIdx}_${cIdx}`;
-                            const cellSt = currentSettings.cells?.[key] || {};
-                            return (
-                                <EditableCell
-                                    key={`cell-${key}`} value={content[key] || ''} cellSt={cellSt} isActive={selectedElement?.activeCell === key}
-                                    style={{ backgroundColor: cellSt.backgroundColor || '#ffffff', textAlign: cellSt.alignment || 'left', verticalAlign: cellSt.verticalAlignment || 'top' }}
-                                    onClick={(e: any) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'cell', activeCell: key, settings: currentSettings }); }}
-                                    onBlur={(html: string) => handleCellChange(rIdx, cIdx, html)}
-                                />
-                            );
-                        })}
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+
+            <div className="w-full max-w-full overflow-hidden rounded-lg">
+                <table className="w-full table-fixed border-collapse border border-slate-300 bg-white shadow-sm rounded-lg overflow-hidden relative z-0">
+                    <tbody>
+                    {Array.from({ length: currentSettings.rows || 1 }).map((_, rIdx) => (
+                        <tr key={`row-${rIdx}`}>
+                            {Array.from({ length: currentSettings.columns || 1 }).map((_, cIdx) => {
+                                const key = `${rIdx}_${cIdx}`;
+                                const cellSt = currentSettings.cells?.[key] || {};
+
+                                if (cellSt.hidden) return null;
+
+                                return (
+                                    <EditableCell
+                                        key={`cell-${key}`}
+                                        value={content[key] || ''}
+                                        cellSt={cellSt}
+                                        isActive={selectedElement?.activeCell === key}
+                                        style={{
+                                            backgroundColor: cellSt.backgroundColor || '#ffffff',
+                                            textAlign: cellSt.alignment || 'left',
+                                            verticalAlign: cellSt.verticalAlignment || 'top',
+                                            color: cellSt.textColor || '#1E293B'
+                                        }}
+                                        colSpan={cellSt.colSpan || 1}
+                                        rowSpan={cellSt.rowSpan || 1}
+                                        onClick={(e: any) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'cell', activeCell: key, settings: currentSettings }); }}
+                                        onBlur={(html: string) => handleCellChange(rIdx, cIdx, html)}
+                                    />
+                                );
+                            })}
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
 
-const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt }: any) => {
+const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan, rowSpan }: any) => {
     const cellRef = useRef<HTMLDivElement>(null);
     useEffect(() => { if (cellRef.current && value !== cellRef.current.innerHTML) { cellRef.current.innerHTML = value || ''; } }, [value]);
     return (
-        <td onClick={onClick} className={`border border-slate-200 p-3 min-w-[100px] transition-all relative ${isActive ? 'ring-2 ring-blue-400 ring-inset bg-blue-50/30' : ''}`} style={style}>
-            <div ref={cellRef} contentEditable suppressContentEditableWarning onInput={(e) => onBlur(e.currentTarget.innerHTML)} className="outline-none min-h-[24px] text-sm text-slate-700" style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px' }} />
+        <td
+            onClick={onClick}
+            className={`border border-slate-200 p-2 transition-all relative ${isActive ? 'ring-2 ring-blue-400 ring-inset bg-blue-50/30' : ''}`}
+            style={style}
+            colSpan={colSpan}
+            rowSpan={rowSpan}
+        >
+            <div ref={cellRef} contentEditable suppressContentEditableWarning onInput={(e) => onBlur(e.currentTarget.innerHTML)} className="outline-none min-h-[24px] text-sm break-words" style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px' }} />
         </td>
     );
 };
@@ -682,18 +990,14 @@ const LayoutSelector = ({ onSelect, position = "bottom" }: any) => {
             <button onClick={() => onSelect('1/1')} className="flex items-center gap-3 w-full p-2.5 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm text-slate-600 font-bold transition-colors">
                 <LayoutTemplate size={18} /><span>Пуна ширина</span>
             </button>
-
             <div className="w-full h-px bg-slate-100 my-1"></div>
-
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Две колоне</div>
             <div className="grid grid-cols-2 gap-1.5">
                 {['1:1', '1:2', '2:1', '1:3', '3:1'].map(l => (
                     <button key={l} onClick={() => onSelect(l)} className="py-2 hover:bg-slate-50 hover:text-blue-500 rounded-md text-[13px] font-bold text-slate-500 text-center border border-slate-100 hover:border-blue-200 transition-colors shadow-sm">{l}</button>
                 ))}
             </div>
-
             <div className="w-full h-px bg-slate-100 my-1 mt-1"></div>
-
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Три колоне</div>
             <div className="grid grid-cols-2 gap-1.5">
                 {['1:1:1', '2:1:1', '1:1:2', '1:2:1'].map(l => (
@@ -717,9 +1021,33 @@ const ElementSelector = ({ onSelect }: any) => (
     </div>
 );
 
-const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu }: any) => {
+const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
+
+    // Извлачење фуснота само за ову страницу
+    const pageFootnotes = useMemo(() => {
+        const fns: any[] = [];
+        page.rows.forEach((row: any) => {
+            row.columns.forEach((col: any) => {
+                col.elements.forEach((el: any) => {
+                    if (el.type === 'text') {
+                        const content = el.payload.settings.content || '';
+                        const footnotesDict = el.payload.settings.footnotes || {};
+                        const ids = extractFootnoteIds(content);
+                        ids.forEach(id => {
+                            fns.push({
+                                id,
+                                number: globalFootnoteMap[id],
+                                text: footnotesDict[id] || ''
+                            });
+                        });
+                    }
+                });
+            });
+        });
+        return fns.sort((a, b) => (a.number || 0) - (b.number || 0));
+    }, [page, globalFootnoteMap]);
 
     useEffect(() => {
         if (!innerContentRef.current) return;
@@ -788,9 +1116,9 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                             return (
                                                 <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(page.id, row.id, col.id)} className={`${col.widthClass} min-h-[40px] border border-transparent hover:border-blue-100 rounded-xl transition-all relative group/col p-1 ${isColActive ? 'z-[99999]' : 'z-10'}`}>
                                                     {col.elements.map((el: any) => {
-                                                        if (el.type === 'text') return <TextElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} />;
+                                                        if (el.type === 'text') return <TextElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
                                                         if (el.type === 'image') return <ImageElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
-                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
+                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} />;
                                                         if (el.type === 'chart') return <ChartElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
                                                         if (el.type === 'map') return <MapElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
                                                         return null;
@@ -815,8 +1143,22 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                 )}
             </div>
 
-            <div className="h-[100px] w-full relative shrink-0 mt-auto z-0">
-                <div className="absolute bottom-[45px] right-[50px]">
+            {/* ПРИКАЗ ФУСНОТА НА ДНУ СТРАНИЦЕ */}
+            <div className="w-full px-[50px] shrink-0 z-10">
+                {pageFootnotes.length > 0 && (
+                    <div className="border-t-[1.5px] border-slate-200 pt-3 mb-2 flex flex-col gap-1.5 w-1/3">
+                        {pageFootnotes.map((fn) => (
+                            <div key={fn.id} className="text-[10px] text-slate-500 flex gap-1.5 leading-tight">
+                                <span className="font-bold shrink-0">{fn.number}.</span>
+                                <span className="break-words" dangerouslySetInnerHTML={{ __html: fn.text || '...' }} />
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="h-[50px] w-full relative shrink-0 mt-auto z-0">
+                <div className="absolute bottom-[20px] right-[50px]">
                     <div className="flex items-center text-blue-300 font-extrabold text-sm border-l-2 border-blue-50 pl-3 py-1">
                         {pageIndex + 1}.
                     </div>
@@ -839,8 +1181,50 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     const [draggedItem, setDraggedItem] = useState<any>(null);
 
     const lastSplitTime = useRef(0);
+    const initialPagesRef = useRef<any>(null);
 
-    // Sinhronizacija editovanog elementa
+    // ГЛОБАЛНИ РЕДОСЛЕД И НУМЕРАЦИЈА ФУСНОТА
+    const globalFootnoteOrder = useMemo(() => {
+        const order: string[] = [];
+        pages.forEach(page => {
+            page.rows.forEach((row: any) => {
+                row.columns.forEach((col: any) => {
+                    col.elements.forEach((el: any) => {
+                        if (el.type === 'text' && el.payload.settings.content) {
+                            const ids = extractFootnoteIds(el.payload.settings.content);
+                            order.push(...ids);
+                        }
+                    });
+                });
+            });
+        });
+        return order;
+    }, [pages]);
+
+    const globalFootnoteMap = useMemo(() => {
+        const map: any = {};
+        globalFootnoteOrder.forEach((id, index) => {
+            map[id] = index + 1; // Креће од 1 унутар целе секције (svih stranica)
+        });
+        return map;
+    }, [globalFootnoteOrder]);
+
+    useEffect(() => {
+        if (!initialPagesRef.current && pages.length > 0) {
+            initialPagesRef.current = JSON.stringify(pages);
+        }
+
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (initialPagesRef.current !== JSON.stringify(pages)) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [pages]);
+
     useEffect(() => {
         if (selectedElement) {
             setPages((prev: any[]) => prev.map(page => {
@@ -859,7 +1243,9 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
         }
     }, [selectedElement]);
 
-    const handleAutoSplit = (sourcePageId: string, _rowId: string, _colId: string, elementId: string, remainingText: string) => {
+    const handleAutoSplit = (params: any) => {
+        const { sourcePageId, elementId, remainingContent, safeHtml, tableSettings, tableContent, safeFootnotes, remainingFootnotes } = params;
+
         const now = Date.now();
         if (now - lastSplitTime.current < 500) return;
         lastSplitTime.current = now;
@@ -872,46 +1258,80 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
             const pageIndex = prev.findIndex(p => p.id === sourcePageId);
             if (pageIndex === -1) return prev;
 
-            let originalSettings = {};
-            prev[pageIndex].rows.forEach((r: any) => r.columns.forEach((c: any) => c.elements.forEach((e: any) => { if (e.id === elementId) originalSettings = e.payload.settings; })));
+            let originalSettings: any = {};
+            let isTableSplit = remainingContent === "TABLE_SPLIT";
+
+            const updatedPages = prev.map((page, idx) => {
+                if (idx !== pageIndex) return page;
+                return {
+                    ...page,
+                    rows: page.rows.map((row: any) => ({
+                        ...row, columns: row.columns.map((col: any) => ({
+                            ...col, elements: col.elements.map((e: any) => {
+                                if (e.id === elementId) {
+                                    originalSettings = e.payload.settings;
+                                    if (isTableSplit) {
+                                        return { ...e, payload: { ...e.payload, settings: { ...e.payload.settings, rows: Math.max(1, (e.payload.settings.rows || 1) - 1) } } };
+                                    } else {
+                                        return { ...e, payload: { ...e.payload, settings: { ...e.payload.settings, content: safeHtml, footnotes: safeFootnotes } } };
+                                    }
+                                }
+                                return e;
+                            })
+                        }))
+                    }))
+                };
+            });
+
+            let newElementPayload: any = {};
+            if (isTableSplit && tableSettings) {
+                newElementPayload = {
+                    settings: tableSettings,
+                    sr: { content: tableContent || {} }
+                };
+            } else {
+                newElementPayload = { settings: { ...originalSettings, content: remainingContent, footnotes: remainingFootnotes } };
+            }
 
             const newRow: RowData = {
                 id: newRowId,
                 columns: [{
                     id: newColId, widthClass: 'col-span-12',
-                    elements: [{ id: newElementId, type: 'text', payload: { settings: { ...originalSettings, content: remainingText } } }]
+                    elements: [{ id: newElementId, type: isTableSplit ? 'table' : 'text', payload: newElementPayload }]
                 }]
             };
 
             const nextPageIndex = pageIndex + 1;
-            const pageExists = nextPageIndex < prev.length;
+            const pageExists = nextPageIndex < updatedPages.length;
 
             if (pageExists) {
-                return prev.map((page, idx) => {
+                return updatedPages.map((page, idx) => {
                     if (idx === nextPageIndex) {
                         return { ...page, rows: [newRow, ...page.rows] };
                     }
                     return page;
                 });
             } else {
-                return [...prev, { id: `page-${Math.random().toString(36).substr(2, 9)}`, rows: [newRow] }];
+                return [...updatedPages, { id: `page-${Math.random().toString(36).substr(2, 9)}`, rows: [newRow] }];
             }
         });
 
-        setTimeout(() => {
-            const newElNode = document.getElementById(`editor-${newElementId}`);
-            if (newElNode) {
-                newElNode.focus();
-                try {
-                    const selection = window.getSelection();
-                    const range = document.createRange();
-                    range.selectNodeContents(newElNode);
-                    range.collapse(false);
-                    selection?.removeAllRanges();
-                    selection?.addRange(range);
-                } catch(e) {}
-            }
-        }, 200);
+        if (remainingContent !== "TABLE_SPLIT") {
+            setTimeout(() => {
+                const newElNode = document.getElementById(`editor-${newElementId}`);
+                if (newElNode) {
+                    newElNode.focus();
+                    try {
+                        const selection = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(newElNode);
+                        range.collapse(false);
+                        selection?.removeAllRanges();
+                        selection?.addRange(range);
+                    } catch(e) {}
+                }
+            }, 200);
+        }
     };
 
     const getGridCols = (layout: string): ColumnData[] => {
@@ -924,14 +1344,14 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
         const id = Math.random().toString(36).substr(2, 9);
         let payload: any = { settings: {} };
 
-        if (type === 'text') payload.settings = { type: 'paragraph', alignment: 'left', content: '', color: '#1E293B', bold: false };
+        if (type === 'text') payload.settings = { type: 'paragraph', alignment: 'left', content: '', color: '#1E293B', bold: false, footnotes: {} };
         else if (type === 'image') payload.settings = { url: '', altText: '', alignment: 'center' };
         else if (type === 'table') {
             payload.settings = { rows: 3, columns: 2, cells: { "0_0": { backgroundColor: "#f3f4f6", type: "headline" }, "0_1": { backgroundColor: "#f3f4f6", type: "headline" } } };
             payload.sr = { content: { "0_0": "Prihodi", "0_1": "Rashodi" } };
         }
         else if (type === 'chart') {
-            payload.settings = { chartType: 'bar', subChartType: 'grouped_v', showLegend: true, showGrid: true, showLabels: false, showDataEditor: true };
+            payload.settings = { chartType: 'bar', subChartType: 'grouped_v', showLegend: true, showGrid: true, showLabels: false, showDataEditor: true, xAxisLabel: 'Месец' };
             payload.data = [{ name: 'Јануар', 'Prihodi': 400, 'Rashodi': 240 }, { name: 'Фебруар', 'Prihodi': 300, 'Rashodi': 139 }, { name: 'Март', 'Prihodi': 200, 'Rashodi': 980 }];
             payload.keys = ['Prihodi', 'Rashodi'];
             payload.colors = { 'Prihodi': '#8b98ff', 'Rashodi': '#34d399' };
@@ -979,6 +1399,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
             return cleanPages.map(page => page.id === targetPageId ? { ...page, rows: page.rows.map((row: any) => row.id === targetRowId ? { ...row, columns: row.columns.map((col: any) => col.id === targetColId ? { ...col, elements: [...col.elements, item] } : col) } : row) } : page);
         });
         setDraggedItem(null);
+        setSelectedElement(null);
     };
 
     return (
@@ -998,6 +1419,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
                     handleDeleteElement={handleDeleteElement} handleDeleteRow={handleDeleteRow} onDeletePage={handleDeletePage}
                     getGridCols={getGridCols} handleAddElement={handleAddElement}
                     activeRowMenu={activeRowMenu} setActiveRowMenu={setActiveRowMenu} activeColMenu={activeColMenu} setActiveColMenu={setActiveColMenu}
+                    globalFootnoteMap={globalFootnoteMap}
                 />
             ))}
             <button onClick={(e) => { e.stopPropagation(); setPages((prev: any[]) => [...prev, { id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }]); }} className="px-7 py-3.5 bg-white border border-slate-200 shadow-md rounded-full text-slate-500 font-bold hover:text-blue-600 hover:border-blue-300 hover:shadow-lg transition-all flex gap-2.5 items-center active:scale-95 mb-10">
