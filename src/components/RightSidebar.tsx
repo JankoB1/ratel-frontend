@@ -10,7 +10,6 @@ import {
 import { useEditor } from "../contexts/EditorContext";
 
 // --- KONSTANTE I PODACI ZA NOVI GRAFIKON DIZAJN ---
-
 const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode; subtypes: { id: string; name: string; icon: React.ReactNode }[] }> = {
     bar: {
         label: "Стубичасти",
@@ -242,8 +241,6 @@ const RightSidebar = () => {
     if (selectedElement.type === 'text') {
         activeFootnoteIds = extractFootnoteIds(settings.content || '');
     } else if (selectedElement.type === 'table') {
-        // Пошто се у Canvas компоненти непостојеће фусноте аутоматски бришу из footnotesDict,
-        // можемо безбедно узети све кључеве који тренутно постоје у речнику за ову табелу.
         activeFootnoteIds = Object.keys(footnotesDict);
     }
 
@@ -505,7 +502,6 @@ const RightSidebar = () => {
                                 </div>
                             </div>
 
-                            {/* НОВО ДУГМЕ ЗА ФУСНОТУ У ТАБЕЛИ */}
                             <button
                                 onClick={(e) => {
                                     e.preventDefault();
@@ -562,15 +558,28 @@ const RightSidebar = () => {
                                 <Heading2 size={14} /> H2
                             </button>
                             <button
-                                onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'P'); }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    formatText('formatBlock', 'P');
+                                    formatText('fontSize', '3'); // Vraća na normalnu veličinu fonta
+                                }}
                                 className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
                                 title="Обичан текст"
                             >
                                 <Type size={12} /> Текст
                             </button>
+                            <button
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    formatText('fontSize', '2'); // Smanjuje tekst na oko 12-13px
+                                }}
+                                className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
+                                title="Ситан текст"
+                            >
+                                <span className="text-[10px] font-black">Aa</span> 12px
+                            </button>
                         </div>
 
-                        {/* НОВО ДУГМЕ ЗА ФУСНОТУ */}
                         <button
                             onClick={(e) => {
                                 e.preventDefault();
@@ -631,7 +640,6 @@ const RightSidebar = () => {
                 </>
             )}
 
-            {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА (За Текст и Табеле) */}
             {activeFootnoteIds.length > 0 && (
                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
                     <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>

@@ -293,7 +293,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     const legendRows = Math.ceil(legendItemCount / itemsPerRow);
     const dynamicHeight = baseChartHeight + (currentSettings.showLegend ? legendRows * 22 : 0);
 
-    const dynamicOuterRadius = Math.max(35, Math.min((chartWidth - 70) / 2, (baseChartHeight - 60) / 2));
+    // OVO JE ISPRAVLJENO: Smanjili smo radijus za 15% (* 0.85) da bi labele izvan kruga imale mesta!
+    const dynamicOuterRadius = Math.max(35, Math.min((chartWidth - 70) / 2, (baseChartHeight - 60) / 2)) * 0.85;
     const dynamicInnerRadius = isDoughnut ? dynamicOuterRadius * 0.6 : 0;
 
     const renderLegendText = (value: string) => (
@@ -333,8 +334,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         const axisLineStyle = { stroke: '#cbd5e1' };
         const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
 
-        // Dodata margina za Pie chart grafike da ne bi bilo isecanja labela na vrhu
-        const chartMargin = currentSettings.chartType === 'circular' ? { top: 20, right: 20, left: 20, bottom: 20 } : { top: 25, right: 15, left: -20, bottom: 5 };
+        // OVO JE ISPRAVLJENO: Vraćene normalne margine kako se ne bi seklo SVG platno.
+        const chartMargin = currentSettings.chartType === 'circular' ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: -20, bottom: 5 };
 
         switch (currentSettings.chartType) {
             case 'bar': {
@@ -430,7 +431,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
-                                cx="50%" cy={isSemicircle ? "75%" : "50%"}
+                                cx="50%"
+                                cy={isSemicircle ? "75%" : "45%"} // OVO JE ISPRAVLJENO: pomereno blago nagore da bi legenda imala mesta na dnu
                                 outerRadius={dynamicOuterRadius}
                                 innerRadius={dynamicInnerRadius}
                                 isAnimationActive={false}
