@@ -748,7 +748,6 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
             const remainingText = words.slice(bestFitIndex).join('');
 
             if (remainingText.trim() !== '') {
-                const currentIds = extractFootnoteIds(htmlToCheck);
                 const oldFootnotes = currentSettings.footnotes || {};
 
                 const safeIds = extractFootnoteIds(safeHtml);
@@ -1386,11 +1385,13 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
         // NOVI BLOK: Sinhronizacija context-a sa resetovanim elementom kako se ne bi desilo overwrite-ovanje!
         if (selectedElement && selectedElement.elementId === elementId) {
             let updatedSettings = { ...selectedElement.settings };
-            let updatedExtra = selectedElement.extraPayload ? { ...selectedElement.extraPayload } : {};
+
+            // DODATO: : any ovde da bismo zaobišli TS grešku za 'sr'
+            let updatedExtra: any = selectedElement.extraPayload ? { ...selectedElement.extraPayload } : {};
 
             if (remainingContent === "TABLE_SPLIT") {
                 updatedSettings = { ...updatedSettings, ...originalTableSettings };
-                updatedExtra = { sr: { content: originalTableContent } };
+                updatedExtra = { sr: { content: originalTableContent } }; // Sada se TS neće buniti
             } else {
                 updatedSettings = { ...updatedSettings, content: safeHtml, footnotes: safeFootnotes };
             }
