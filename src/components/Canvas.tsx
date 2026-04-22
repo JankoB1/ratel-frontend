@@ -17,7 +17,7 @@ import axiosClient from "../axios-client.ts";
 import MapGraphic from "./MapGraphic";
 
 const SERBIAN_DISTRICTS = [
-    "Град Београд", "Севернобачки", "Средњобачки", "Севернобанатски",
+    "Град Београд", "Северобачки", "Средњобачки", "Севернобанатски",
     "Средњобанатски", "Јужнобанатски", "Западнобачки", "Јужнобачки",
     "Сремски", "Мачвански", "Колубарски", "Подунавски", "Браничевски",
     "Шумадијски", "Поморавски", "Борски", "Зајечарски", "Златиборски",
@@ -293,7 +293,6 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     const legendRows = Math.ceil(legendItemCount / itemsPerRow);
     const dynamicHeight = baseChartHeight + (currentSettings.showLegend ? legendRows * 22 : 0);
 
-    // OVO JE ISPRAVLJENO: Smanjili smo radijus za 15% (* 0.85) da bi labele izvan kruga imale mesta!
     const dynamicOuterRadius = Math.max(35, Math.min((chartWidth - 70) / 2, (baseChartHeight - 60) / 2)) * 0.85;
     const dynamicInnerRadius = isDoughnut ? dynamicOuterRadius * 0.6 : 0;
 
@@ -334,7 +333,6 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         const axisLineStyle = { stroke: '#cbd5e1' };
         const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
 
-        // OVO JE ISPRAVLJENO: Vraćene normalne margine kako se ne bi seklo SVG platno.
         const chartMargin = currentSettings.chartType === 'circular' ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: -20, bottom: 5 };
 
         switch (currentSettings.chartType) {
@@ -431,8 +429,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
-                                cx="50%"
-                                cy={isSemicircle ? "75%" : "45%"} // OVO JE ISPRAVLJENO: pomereno blago nagore da bi legenda imala mesta na dnu
+                                cx="50%" cy={isSemicircle ? "75%" : "45%"}
                                 outerRadius={dynamicOuterRadius}
                                 innerRadius={dynamicInnerRadius}
                                 isAnimationActive={false}
@@ -751,6 +748,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
             const remainingText = words.slice(bestFitIndex).join('');
 
             if (remainingText.trim() !== '') {
+                const currentIds = extractFootnoteIds(htmlToCheck);
                 const oldFootnotes = currentSettings.footnotes || {};
 
                 const safeIds = extractFootnoteIds(safeHtml);
@@ -946,7 +944,6 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         return () => clearTimeout(timer);
     }, [currentSettings.rows, currentSettings.columns, content]);
 
-    // OVO JE ISPRAVLJENO DA CUVANJE RADI KAKO TREBA I DA UPDATE-UJE FUSNOTE
     const handleCellChange = (rIdx: number, cIdx: number, html: string, newFnId?: string) => {
         const cellKey = `${rIdx}_${cIdx}`;
         const newContent = { ...content, [cellKey]: html };
@@ -966,7 +963,6 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
 
         newSettings.footnotes = finalFootnotes;
 
-        // Sada ispravno šalje sadržaj unutar sr objekta umesto extraPayload
         updateElementSettings(newSettings, { sr: { content: newContent } });
     };
 
@@ -1037,7 +1033,6 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
         }
     };
 
-    // Podrška za ubacivanje fusnota unutar tabele
     useEffect(() => {
         const handleInsertFn = (e: any) => {
             if (e.detail?.elementId === elId && isActive) {
@@ -1080,7 +1075,7 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
                     }
 
                     const newHtml = cellRef.current.innerHTML;
-                    onBlur(newHtml, id); // Prosleđujemo novi ID fusnote
+                    onBlur(newHtml, id);
                 }
             }
         };
@@ -1387,6 +1382,25 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
             safeFootnotes,
             remainingFootnotes
         } = params;
+
+        // NOVI BLOK: Sinhronizacija context-a sa resetovanim elementom kako se ne bi desilo overwrite-ovanje!
+        if (selectedElement && selectedElement.elementId === elementId) {
+            let updatedSettings = { ...selectedElement.settings };
+            let updatedExtra = selectedElement.extraPayload ? { ...selectedElement.extraPayload } : {};
+
+            if (remainingContent === "TABLE_SPLIT") {
+                updatedSettings = { ...updatedSettings, ...originalTableSettings };
+                updatedExtra = { sr: { content: originalTableContent } };
+            } else {
+                updatedSettings = { ...updatedSettings, content: safeHtml, footnotes: safeFootnotes };
+            }
+
+            setSelectedElement({
+                ...selectedElement,
+                settings: updatedSettings,
+                extraPayload: updatedExtra
+            });
+        }
 
         const newElementId = Math.random().toString(36).substr(2, 9);
         const newRowId = Math.random().toString(36).substr(2, 9);
