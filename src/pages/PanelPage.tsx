@@ -3,7 +3,7 @@ import LeftSidebar from "../components/LeftSidebar";
 import Header from "../components/Header";
 import RightSidebar from "../components/RightSidebar";
 import ContentList from "../components/ContentList";
-import Canvas from "../components/Canvas";
+import Canvas from "../components/Canvas.tsx";
 
 import axiosClient from "../axios-client";
 import { Loader2 } from "lucide-react";
@@ -122,7 +122,7 @@ const PanelPage = () => {
                     isSaving={isSaving}
                 />
 
-                <div className="flex-1 flex p-10 gap-10 justify-center overflow-y-auto custom-scrollbar relative">
+                <div className="flex-1 flex p-10 pt-0 gap-10 justify-center overflow-y-auto custom-scrollbar relative">
 
                     <ContentList
                         sections={sections}

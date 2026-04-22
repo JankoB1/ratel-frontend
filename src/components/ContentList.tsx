@@ -8,7 +8,7 @@ interface ContentListProps {
 
 const ContentList: React.FC<ContentListProps> = ({ sections, activeSectionId, onSectionChange }) => {
     return (
-        <div className="w-56 shrink-0 text-dark-blue sticky top-12 h-[92vh] overflow-y-auto custom-scrollbar">
+        <div className="w-60 shrink-0 text-dark-blue sticky top-0 h-[92vh] overflow-y-auto overflow-x-hidden pr-6 custom-scrollbar pb-20">
             <ul className="space-y-4 text-[14px] font-bold uppercase tracking-tight">
                 {sections.map((section, index) => {
                     const isActive = activeSectionId === section.id;

@@ -13,3 +13,229 @@
         @apply text-dark-blue font-sans;
     }
 }
+
+/* =========================================
+   CANVAS EDITOR - CUSTOM CSS
+   ========================================= */
+
+/* --- База и Контејнери --- */
+.canvas-wrapper {
+    padding: 0 0 2.5rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3rem;
+    min-height: 100%;
+}
+
+/* --- Страница (А4 формат) --- */
+.canvas-page {
+    width: 794px;
+    height: 1123px;
+    background-color: #ffffff;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex-shrink: 0;
+    transition: box-shadow 0.3s ease;
+    border-radius: 2px;
+    border: 1px solid #f1f5f9;
+}
+
+.page-delete-btn {
+    position: absolute;
+    right: -3rem;
+    top: 0;
+    padding: 0.5rem;
+    background-color: #fef2f2;
+    color: #ef4444;
+    border-radius: 50%;
+    opacity: 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    z-index: 50;
+}
+.canvas-page:hover .page-delete-btn { opacity: 1; }
+.page-delete-btn:hover { background-color: #fee2e2; transform: scale(1.1); }
+
+.page-header { height: 100px; width: 100%; position: relative; flex-shrink: 0; z-index: 0; }
+.page-header-inner { position: absolute; top: 45px; left: 50px; right: 50px; text-align: right; font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 2px solid #eff6ff; padding-bottom: 0.5rem; }
+.page-footer { height: 50px; width: 100%; position: relative; flex-shrink: 0; margin-top: auto; z-index: 0; }
+.page-footer-inner { position: absolute; bottom: 20px; right: 50px; display: flex; align-items: center; color: #93c5fd; font-weight: 800; font-size: 14px; border-left: 2px solid #eff6ff; padding-left: 0.75rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.page-content { flex: 1; padding: 0 50px; display: flex; flex-direction: column; position: relative; max-height: 923px; }
+.page-footnotes { width: 100%; padding: 0 50px; flex-shrink: 0; z-index: 10; }
+.footnotes-container { border-top: 1.5px solid #e2e8f0; padding-top: 0.75rem; margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.375rem; width: 33.333%; }
+.footnote-item { font-size: 10px; color: #64748b; display: flex; gap: 0.375rem; line-height: 1.2; }
+
+/* --- Редови и Колоне --- */
+.canvas-row {
+    position: relative;
+    width: 100%;
+    border: 1px dashed transparent;
+    min-height: 40px;
+    transition: all 0.2s ease;
+    border-radius: 0.75rem;
+    padding: 0.25rem;
+    z-index: 10;
+}
+.canvas-row:hover { border-color: #e2e8f0; }
+.canvas-row.is-active { z-index: 99999; }
+
+.row-actions-menu {
+    position: absolute;
+    left: -3.5rem;
+    top: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    z-index: 30;
+}
+.canvas-row:hover .row-actions-menu { opacity: 1; }
+
+.canvas-col {
+    min-height: 40px;
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+    position: relative;
+    padding: 0.25rem;
+    z-index: 10;
+}
+.canvas-col:hover { border-color: #dbeafe; }
+.canvas-col.is-active { z-index: 99999; }
+
+.col-add-btn {
+    position: absolute;
+    left: 50%;
+    bottom: -0.75rem;
+    transform: translateX(-50%);
+    opacity: 0;
+    z-index: 30;
+    transition: all 0.2s ease;
+    padding: 0.375rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 50%;
+    color: #94a3b8;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+}
+.canvas-col:hover .col-add-btn { opacity: 1; }
+.col-add-btn:hover { color: #3b82f6; background: #f8fafc; transform: translateX(-50%) scale(1.1); }
+
+/* --- Празни редови и Додавање --- */
+.empty-row-container {
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(248, 250, 252, 0.5);
+    border-radius: 1rem;
+    border: 2px dashed #e2e8f0;
+    transition: border-color 0.2s ease;
+    position: relative;
+}
+.empty-row-container:hover { border-color: #cbd5e1; }
+.empty-row-delete { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.5rem; background: white; border: 1px solid #e2e8f0; border-radius: 50%; color: #94a3b8; opacity: 0; transition: all 0.2s ease; cursor: pointer; }
+.empty-row-container:hover .empty-row-delete { opacity: 1; }
+.empty-row-delete:hover { color: #ef4444; background: #fef2f2; }
+.add-icon-btn { cursor: pointer; transition: transform 0.2s ease; background: none; border: none; }
+.add-icon-btn:hover { transform: scale(1.1); }
+
+.add-row-btn-main {
+    width: 100%; padding: 1rem 0; border: 2px dashed #e2e8f0; border-radius: 1rem; color: #94a3b8; background: transparent; cursor: pointer; transition: all 0.2s ease; display: flex; justify-content: center; align-items: center; gap: 0.5rem; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;
+}
+.add-row-btn-main:hover { border-color: #93c5fd; color: #2563eb; background-color: rgba(239, 246, 255, 0.5); }
+
+/* --- Елементи (Блокови) --- */
+.element-block {
+    position: relative;
+    transition: all 0.2s ease;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.75rem;
+    border: 2px solid transparent;
+    width: 100%;
+    z-index: 10;
+    cursor: pointer;
+    padding: 0.375rem;
+}
+.element-block:hover { border-color: #e2e8f0; }
+.element-block.is-selected { border-color: #60a5fa; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); background-color: #f8fafc; z-index: 99999; }
+.element-block-map, .element-block-chart { height: 350px; }
+
+.element-actions { position: absolute; top: -0.75rem; right: 0.5rem; display: none; gap: 0.25rem; z-index: 20; }
+.element-block:hover .element-actions { display: flex; }
+
+/* --- Заједнички дугмићи --- */
+.action-btn { padding: 0.375rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; color: #94a3b8; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; }
+.action-btn:hover { background: #f8fafc; transform: scale(1.1); }
+.action-btn.danger:hover { color: #ef4444; background: #fef2f2; }
+.action-btn.grab { cursor: grab; }
+.action-btn.grab:active { cursor: grabbing; }
+
+/* --- Text Editor --- */
+.editor-content {
+    outline: none; width: 100%; min-height: 30px;
+}
+.editor-content:empty::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; display: block; }
+.editor-content ul { list-style-type: disc; margin-left: 1.25rem; }
+.editor-content ol { list-style-type: decimal; margin-left: 1.25rem; }
+.editor-content h1 { font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem; }
+.editor-content h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+.editor-content p { margin-bottom: 0.5rem; }
+
+.text-toolbar { position: absolute; z-index: 999999; display: flex; align-items: center; gap: 0.25rem; background-color: #111827; color: white; padding: 0.375rem 0.5rem; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); pointer-events: auto; }
+.toolbar-btn { padding: 0.375rem; border-radius: 0.25rem; transition: background-color 0.2s ease; font-size: 0.75rem; background: none; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;}
+.toolbar-btn:hover { background-color: #374151; }
+.toolbar-btn.bold { font-weight: 700; }
+.toolbar-btn.blue { color: #60a5fa; font-weight: 700; }
+.toolbar-divider { width: 1px; height: 1rem; background-color: #4b5563; margin: 0 0.25rem; }
+
+/* --- Поповери (Менији) --- */
+.popover-menu {
+    position: absolute; z-index: 99999; background: white; border-radius: 0.75rem; box-shadow: 0 15px 50px rgba(0,0,0,0.15); border: 1px solid #f1f5f9; padding: 0.625rem; width: 14rem; display: flex; flex-direction: column; gap: 0.25rem;
+}
+.popover-menu.bottom { top: 100%; margin-top: 0.5rem; left: 50%; transform: translateX(-50%); }
+.popover-menu.right { top: 0; left: 100%; margin-left: 0.75rem; }
+.menu-btn { display: flex; align-items: center; gap: 0.875rem; width: 100%; padding: 0.625rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 700; color: #475569; background: transparent; border: none; cursor: pointer; transition: all 0.2s ease; text-align: left;}
+.menu-btn:hover { background-color: #f8fafc; }
+.menu-btn.blue:hover { background-color: #eff6ff; color: #2563eb; }
+.menu-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 0.25rem; margin-top: 0.25rem; }
+.layout-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.375rem; }
+.layout-btn { padding: 0.5rem 0; border-radius: 0.375rem; font-size: 13px; font-weight: 700; color: #64748b; background: white; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s ease;}
+.layout-btn:hover { background-color: #f8fafc; color: #3b82f6; border-color: #bfdbfe; }
+.divider { width: 100%; height: 1px; background-color: #f1f5f9; margin: 0.25rem 0; }
+
+/* --- Data Editor Table --- */
+.data-editor-popover { position: absolute; top: calc(100% + 15px); left: 0; width: 600px; z-index: 99999; background: white; border-radius: 0.75rem; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); border: 1px solid #f1f5f9; overflow: hidden; cursor: default; }
+.data-table-wrap { padding: 1rem; overflow-x: auto; }
+.data-table { width: 100%; font-size: 13px; color: #475569; border-collapse: collapse; border: 1px solid #e2e8f0; }
+.data-table td { border: 1px solid #e2e8f0; padding: 0.25rem; position: relative; }
+.data-table td.bg-light { background-color: #f8fafc; }
+.data-input { width: 100%; outline: none; text-align: center; background: transparent; border: none; font-family: inherit;}
+.data-input-left { text-align: left; padding: 0.5rem 0 0.5rem 0.5rem; }
+.add-row-btn-small { margin-top: 0.75rem; font-size: 0.75rem; font-weight: 700; color: #3b82f6; background: transparent; border: none; cursor: pointer; padding: 0.375rem 0.75rem; border-radius: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+.add-row-btn-small:hover { background-color: #eff6ff; }
+
+/* --- Utilities & Grid System (Замена за Tailwind Grid) --- */
+.grid { display: grid; }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.col-span-12 { grid-column: span 12 / span 12; }
+.col-span-9 { grid-column: span 9 / span 9; }
+.col-span-8 { grid-column: span 8 / span 8; }
+.col-span-6 { grid-column: span 6 / span 6; }
+.col-span-4 { grid-column: span 4 / span 4; }
+.col-span-3 { grid-column: span 3 / span 3; }
+.gap-0 { gap: 0; }
+
+.break-inside-avoid { break-inside: avoid; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }

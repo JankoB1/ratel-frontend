@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import LeftSidebar from './LeftSidebar';
-import Canvas from './Canvas';
+import Canvas from './Canvas.tsx';
 import axiosClient from '../axios-client';
 import { Loader2 } from 'lucide-react';
 

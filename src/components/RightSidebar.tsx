@@ -4,7 +4,8 @@ import {
     ChevronDown, Bold, Italic, Underline, Superscript, Subscript,
     ArrowUpToLine, ArrowDownToLine, FoldVertical, ArrowRightToLine, ArrowDownToLine as ArrowDownMerge, SplitSquareHorizontal,
     List, ListOrdered, Quote, Link2, Trash2, Grid3X3,
-    Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart, Star, Heading1, Heading2, MessageSquareQuote
+    Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart, Star, Heading1, Heading2, MessageSquareQuote,
+    PlusCircle
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 
@@ -548,6 +549,20 @@ const RightSidebar = () => {
                             </button>
                         </div>
 
+                        {/* НОВО ДУГМЕ ЗА ФУСНОТУ */}
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                window.dispatchEvent(new CustomEvent('insert-footnote', {
+                                    detail: { elementId: selectedElement?.elementId }
+                                }));
+                            }}
+                            className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
+                        >
+                            <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
+                            ДОДАЈ НОВУ ФУСНОТУ
+                        </button>
+
                         <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100">
                             <div className="flex gap-1 w-full justify-between px-1">
                                 <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
@@ -596,11 +611,11 @@ const RightSidebar = () => {
                     {/* СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА */}
                     {footnoteIdsInText.length > 0 && (
                         <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
-                            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Фусноте у овом блоку</h3>
+                            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
 
                             {footnoteIdsInText.map((id: string) => (
                                 <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
-                                    <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Ознака у тексту: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
+                                    <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
                                     <textarea
                                         className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
                                         rows={2}
