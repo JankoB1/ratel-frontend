@@ -235,10 +235,17 @@ const RightSidebar = () => {
         updateElementSettings({ cells: newCellsSettings });
     }
 
-    // --- ЛОГИКА ЗА ФУСНОТЕ У ДЕСНОМ МЕНИЈУ ---
-    const textContent = settings.content || '';
-    const footnoteIdsInText = selectedElement.type === 'text' ? extractFootnoteIds(textContent) : [];
+    // --- ЛОГИКА ЗА ФУСНОТЕ (УНИВЕРЗАЛНА ЗА ТЕКСТ И ТАБЕЛЕ) ---
     const footnotesDict = settings.footnotes || {};
+    let activeFootnoteIds: string[] = [];
+
+    if (selectedElement.type === 'text') {
+        activeFootnoteIds = extractFootnoteIds(settings.content || '');
+    } else if (selectedElement.type === 'table') {
+        // Пошто се у Canvas компоненти непостојеће фусноте аутоматски бришу из footnotesDict,
+        // можемо безбедно узети све кључеве који тренутно постоје у речнику за ову табелу.
+        activeFootnoteIds = Object.keys(footnotesDict);
+    }
 
     return (
         <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-[92vh] sticky top-10 custom-scrollbar z-40 pb-20">
@@ -498,6 +505,20 @@ const RightSidebar = () => {
                                 </div>
                             </div>
 
+                            {/* НОВО ДУГМЕ ЗА ФУСНОТУ У ТАБЕЛИ */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    window.dispatchEvent(new CustomEvent('insert-footnote', {
+                                        detail: { elementId: selectedElement?.elementId }
+                                    }));
+                                }}
+                                className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm mt-1"
+                            >
+                                <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
+                                ДОДАЈ НОВУ ФУСНОТУ
+                            </button>
+
                             <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-slate-100">
                                 <span className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
                                 <div className="flex gap-1.5 px-1 ml-auto">
@@ -607,35 +628,36 @@ const RightSidebar = () => {
                             </div>
                         </div>
                     </div>
-
-                    {/* СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА */}
-                    {footnoteIdsInText.length > 0 && (
-                        <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
-                            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
-
-                            {footnoteIdsInText.map((id: string) => (
-                                <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
-                                    <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
-                                    <textarea
-                                        className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
-                                        rows={2}
-                                        placeholder="Унесите текст фусноте овде..."
-                                        value={footnotesDict[id] || ''}
-                                        onChange={(e) => {
-                                            updateElementSettings({
-                                                footnotes: {
-                                                    ...footnotesDict,
-                                                    [id]: e.target.value
-                                                }
-                                            });
-                                        }}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </>
             )}
+
+            {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА (За Текст и Табеле) */}
+            {activeFootnoteIds.length > 0 && (
+                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
+
+                    {activeFootnoteIds.map((id: string) => (
+                        <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
+                            <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
+                            <textarea
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
+                                rows={2}
+                                placeholder="Унесите текст фусноте овде..."
+                                value={footnotesDict[id] || ''}
+                                onChange={(e) => {
+                                    updateElementSettings({
+                                        footnotes: {
+                                            ...footnotesDict,
+                                            [id]: e.target.value
+                                        }
+                                    });
+                                }}
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
         </aside>
     );
 };

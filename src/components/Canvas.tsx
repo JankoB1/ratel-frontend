@@ -333,7 +333,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         const axisLineStyle = { stroke: '#cbd5e1' };
         const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
 
-        const chartMargin = { top: 25, right: 15, left: -20, bottom: 5 };
+        // Dodata margina za Pie chart grafike da ne bi bilo isecanja labela na vrhu
+        const chartMargin = currentSettings.chartType === 'circular' ? { top: 20, right: 20, left: 20, bottom: 20 } : { top: 25, right: 15, left: -20, bottom: 5 };
 
         switch (currentSettings.chartType) {
             case 'bar': {
@@ -424,12 +425,12 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
 
                 return (
                     <ResponsiveContainer width="99%" height="100%">
-                        <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                        <PieChart margin={chartMargin}>
                             <Tooltip contentStyle={tooltipStyle} />
                             {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
-                                cx="50%" cy={isSemicircle ? "75%" : "48%"}
+                                cx="50%" cy={isSemicircle ? "75%" : "50%"}
                                 outerRadius={dynamicOuterRadius}
                                 innerRadius={dynamicInnerRadius}
                                 isAnimationActive={false}
@@ -639,7 +640,6 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
     const editorRef = useRef<HTMLDivElement>(null);
     const contentAreaRef = useRef<HTMLElement | null>(null);
 
-    // Lokalni ref za timeout kako ne bi bilo konflikata ako se više stranica učitava
     const overflowTimeoutRef = useRef<any>(null);
     const isSplitting = useRef(false);
     const savedRangeRef = useRef<Range | null>(null);
@@ -658,13 +658,11 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
     }, [pageId]);
 
-    // OVO JE DODATO ZA KASKADNO PREBACIVANJE
     useEffect(() => {
         if (editorRef.current && currentSettings.content !== undefined) {
             if (editorRef.current.innerHTML !== currentSettings.content) {
                 editorRef.current.innerHTML = currentSettings.content;
             }
-            // Automatski proverava overflow kada dobije novi content (npr sa prethodne stranice)
             if (overflowTimeoutRef.current) clearTimeout(overflowTimeoutRef.current);
             overflowTimeoutRef.current = setTimeout(() => {
                 checkOverflow(currentSettings.content);
@@ -719,13 +717,11 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
 
         const areaRect = contentArea.getBoundingClientRect();
 
-        // Provera da li uopšte preliva
         if (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom + 5) {
             isSplitting.current = true;
 
             let words = htmlToCheck.split(/(<[^>]*>|\s+)/).filter(Boolean);
 
-            // OPTIMIZACIJA BRZINE: Binarna pretraga (Binary Search) umesto brisanja 1 po 1 reči
             let low = 0;
             let high = words.length;
             let bestFitIndex = 0;
@@ -735,19 +731,15 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
                 editorRef.current.innerHTML = words.slice(0, mid).join('');
 
                 if (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom) {
-                    // Preliva, treba nam manje teksta
                     high = mid - 1;
                 } else {
-                    // Staje, vidi da li može da stane još teksta
                     bestFitIndex = mid;
                     low = mid + 1;
                 }
             }
 
-            // Vrati tekst na najbolji proračun
             editorRef.current.innerHTML = words.slice(0, bestFitIndex).join('');
 
-            // Failsafe fino podešavanje (obično skine samo max 1-2 reči ako je binarna granica zapela oko preloma reda)
             while (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom && bestFitIndex > 0) {
                 bestFitIndex--;
                 editorRef.current.innerHTML = words.slice(0, bestFitIndex).join('');
@@ -757,6 +749,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
             const remainingText = words.slice(bestFitIndex).join('');
 
             if (remainingText.trim() !== '') {
+                const currentIds = extractFootnoteIds(htmlToCheck);
                 const oldFootnotes = currentSettings.footnotes || {};
 
                 const safeIds = extractFootnoteIds(safeHtml);
@@ -838,7 +831,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         if (overflowTimeoutRef.current) clearTimeout(overflowTimeoutRef.current);
         overflowTimeoutRef.current = setTimeout(() => {
             checkOverflow(html);
-        }, 50); // Ovde sam smanjio na 50ms zbog bržeg responsa dok kucaš
+        }, 50);
     };
 
     return (
@@ -876,7 +869,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
     );
 };
 
-const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit }: any) => {
+const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const content = el.payload.sr?.content || {};
@@ -952,9 +945,28 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         return () => clearTimeout(timer);
     }, [currentSettings.rows, currentSettings.columns, content]);
 
-    const handleCellChange = (rIdx: number, cIdx: number, html: string) => {
+    // OVO JE ISPRAVLJENO DA CUVANJE RADI KAKO TREBA I DA UPDATE-UJE FUSNOTE
+    const handleCellChange = (rIdx: number, cIdx: number, html: string, newFnId?: string) => {
         const cellKey = `${rIdx}_${cIdx}`;
-        updateElementSettings(currentSettings, { extraPayload: { sr: { content: { ...content, [cellKey]: html } } } });
+        const newContent = { ...content, [cellKey]: html };
+
+        let newSettings = { ...currentSettings };
+        if (newFnId) {
+            newSettings.footnotes = { ...(newSettings.footnotes || {}), [newFnId]: 'Унесите текст фусноте...' };
+        }
+
+        const allHtml = Object.values(newContent).join(' ');
+        const currentIds = extractFootnoteIds(allHtml);
+        const finalFootnotes: any = {};
+        const oldFootnotes = newSettings.footnotes || {};
+        currentIds.forEach(id => {
+            finalFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '';
+        });
+
+        newSettings.footnotes = finalFootnotes;
+
+        // Sada ispravno šalje sadržaj unutar sr objekta umesto extraPayload
+        updateElementSettings(newSettings, { sr: { content: newContent } });
     };
 
     return (
@@ -983,9 +995,11 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                 return (
                                     <EditableCell
                                         key={`cell-${key}`}
+                                        elId={el.id}
                                         value={content[key] || ''}
                                         cellSt={cellSt}
                                         isActive={selectedElement?.activeCell === key}
+                                        globalFootnoteMap={globalFootnoteMap}
                                         style={{
                                             backgroundColor: cellSt.backgroundColor || '#ffffff',
                                             textAlign: cellSt.alignment || 'left',
@@ -995,7 +1009,7 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                         colSpan={cellSt.colSpan || 1}
                                         rowSpan={cellSt.rowSpan || 1}
                                         onClick={(e: any) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'cell', activeCell: key, settings: currentSettings }); }}
-                                        onBlur={(html: string) => handleCellChange(rIdx, cIdx, html)}
+                                        onBlur={(html: string, fnId?: string) => handleCellChange(rIdx, cIdx, html, fnId)}
                                     />
                                 );
                             })}
@@ -1008,9 +1022,91 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     );
 };
 
-const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan, rowSpan }: any) => {
+const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan, rowSpan, elId, globalFootnoteMap }: any) => {
     const cellRef = useRef<HTMLDivElement>(null);
-    useEffect(() => { if (cellRef.current && value !== cellRef.current.innerHTML) { cellRef.current.innerHTML = value || ''; } }, [value]);
+    const savedRangeRef = useRef<Range | null>(null);
+
+    const saveSelection = () => {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (cellRef.current?.contains(range.commonAncestorContainer)) {
+                savedRangeRef.current = range.cloneRange();
+            }
+        }
+    };
+
+    // Podrška za ubacivanje fusnota unutar tabele
+    useEffect(() => {
+        const handleInsertFn = (e: any) => {
+            if (e.detail?.elementId === elId && isActive) {
+                if (cellRef.current) {
+                    cellRef.current.focus();
+
+                    const selection = window.getSelection();
+                    if (savedRangeRef.current && selection) {
+                        selection.removeAllRanges();
+                        selection.addRange(savedRangeRef.current);
+                    } else {
+                        const range = document.createRange();
+                        range.selectNodeContents(cellRef.current);
+                        range.collapse(false);
+                        selection?.removeAllRanges();
+                        selection?.addRange(range);
+                    }
+
+                    const id = `fn-${Math.random().toString(36).substr(2, 9)}`;
+                    const sup = document.createElement('sup');
+                    sup.setAttribute('data-footnote-id', id);
+                    sup.setAttribute('contenteditable', 'false');
+                    sup.style.color = '#3b82f6';
+                    sup.style.cursor = 'pointer';
+                    sup.style.fontWeight = 'bold';
+                    sup.style.padding = '0 1px';
+                    sup.style.userSelect = 'none';
+                    sup.style.display = 'inline';
+                    sup.innerHTML = '[*]';
+
+                    const range2 = window.getSelection()?.getRangeAt(0);
+                    if (range2) {
+                        range2.deleteContents();
+                        range2.insertNode(sup);
+                        range2.setStartAfter(sup);
+                        range2.setEndAfter(sup);
+                        const sel = window.getSelection();
+                        sel?.removeAllRanges();
+                        sel?.addRange(range2);
+                    }
+
+                    const newHtml = cellRef.current.innerHTML;
+                    onBlur(newHtml, id); // Prosleđujemo novi ID fusnote
+                }
+            }
+        };
+        window.addEventListener('insert-footnote', handleInsertFn);
+        return () => window.removeEventListener('insert-footnote', handleInsertFn);
+    }, [isActive, elId, onBlur]);
+
+    useEffect(() => {
+        if (cellRef.current && value !== cellRef.current.innerHTML) {
+            cellRef.current.innerHTML = value || '';
+        }
+    }, [value]);
+
+    useEffect(() => {
+        if (!cellRef.current) return;
+        const sups = cellRef.current.querySelectorAll('sup[data-footnote-id]');
+        sups.forEach(sup => {
+            const id = sup.getAttribute('data-footnote-id');
+            if (id && globalFootnoteMap && globalFootnoteMap[id]) {
+                const numStr = `[${globalFootnoteMap[id]}]`;
+                if (sup.innerHTML !== numStr) {
+                    sup.innerHTML = numStr;
+                }
+            }
+        });
+    }, [value, globalFootnoteMap]);
+
     return (
         <td
             onClick={onClick}
@@ -1018,7 +1114,17 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
             colSpan={colSpan}
             rowSpan={rowSpan}
         >
-            <div ref={cellRef} contentEditable suppressContentEditableWarning onInput={(e) => onBlur(e.currentTarget.innerHTML)} className="outline-none min-h-[24px] text-sm break-words" style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px', outline: 'none', minHeight: '24px', wordBreak: 'break-word' }} />
+            <div
+                ref={cellRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => onBlur(e.currentTarget.innerHTML)}
+                onBlur={saveSelection}
+                onMouseUp={saveSelection}
+                onKeyUp={saveSelection}
+                className="outline-none min-h-[24px] text-sm break-words"
+                style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px', outline: 'none', minHeight: '24px', wordBreak: 'break-word' }}
+            />
         </td>
     );
 };
@@ -1073,11 +1179,26 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
         page.rows.forEach((row: any) => {
             row.columns.forEach((col: any) => {
                 col.elements.forEach((el: any) => {
-                    if (el.type === 'text') {
-                        const content = el.payload.settings.content || '';
+                    if (el.type === 'text' && el.payload.settings.content) {
+                        const content = el.payload.settings.content;
                         const footnotesDict = el.payload.settings.footnotes || {};
                         const ids = extractFootnoteIds(content);
                         ids.forEach(id => { fns.push({ id, number: globalFootnoteMap[id], text: footnotesDict[id] || '' }); });
+                    } else if (el.type === 'table') {
+                        const contentObj = el.payload.sr?.content || {};
+                        const footnotesDict = el.payload.settings.footnotes || {};
+                        const sortedKeys = Object.keys(contentObj).sort((a, b) => {
+                            const [rA, cA] = a.split('_').map(Number);
+                            const [rB, cB] = b.split('_').map(Number);
+                            return rA !== rB ? rA - rB : cA - cB;
+                        });
+                        sortedKeys.forEach(key => {
+                            const html = contentObj[key];
+                            if (typeof html === 'string') {
+                                const ids = extractFootnoteIds(html);
+                                ids.forEach(id => { fns.push({ id, number: globalFootnoteMap[id], text: footnotesDict[id] || '' }); });
+                            }
+                        });
                     }
                 });
             });
@@ -1149,7 +1270,7 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                                     {col.elements.map((el: any) => {
                                                         if (el.type === 'text') return <TextElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
                                                         if (el.type === 'image') return <ImageElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
-                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} />;
+                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
                                                         if (el.type === 'chart') return <ChartElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
                                                         if (el.type === 'map') return <MapElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
                                                         return null;
@@ -1207,6 +1328,19 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
                     col.elements.forEach((el: any) => {
                         if (el.type === 'text' && el.payload.settings.content) {
                             order.push(...extractFootnoteIds(el.payload.settings.content));
+                        } else if (el.type === 'table') {
+                            const contentObj = el.payload.sr?.content || {};
+                            const sortedKeys = Object.keys(contentObj).sort((a, b) => {
+                                const [rA, cA] = a.split('_').map(Number);
+                                const [rB, cB] = b.split('_').map(Number);
+                                return rA !== rB ? rA - rB : cA - cB;
+                            });
+                            sortedKeys.forEach(key => {
+                                const html = contentObj[key];
+                                if (typeof html === 'string') {
+                                    order.push(...extractFootnoteIds(html));
+                                }
+                            });
                         }
                     });
                 });
