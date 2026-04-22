@@ -77,7 +77,7 @@
     border: 1px dashed transparent;
     min-height: 40px;
     transition: all 0.2s ease;
-    border-radius: 0.75rem;
+    border-radius: 0;
     padding: 0.25rem;
     z-index: 10;
 }
@@ -100,7 +100,7 @@
 .canvas-col {
     min-height: 40px;
     border: 1px solid transparent;
-    border-radius: 0.75rem;
+    border-radius: 0;
     transition: all 0.2s ease;
     position: relative;
     padding: 0.25rem;
@@ -159,7 +159,7 @@
     background: white;
     display: flex;
     flex-direction: column;
-    border-radius: 0.75rem;
+    border-radius: 0;
     border: 2px solid transparent;
     width: 100%;
     z-index: 10;
@@ -174,7 +174,7 @@
 .element-block:hover .element-actions { display: flex; }
 
 /* --- Заједнички дугмићи --- */
-.action-btn { padding: 0.375rem; background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; color: #94a3b8; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; }
+.action-btn { padding: 0.375rem; background: white; border: 1px solid #e2e8f0; border-radius: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; color: #94a3b8; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; }
 .action-btn:hover { background: #f8fafc; transform: scale(1.1); }
 .action-btn.danger:hover { color: #ef4444; background: #fef2f2; }
 .action-btn.grab { cursor: grab; }
@@ -191,7 +191,7 @@
 .editor-content h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
 .editor-content p { margin-bottom: 0.5rem; }
 
-.text-toolbar { position: absolute; z-index: 999999; display: flex; align-items: center; gap: 0.25rem; background-color: #111827; color: white; padding: 0.375rem 0.5rem; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); pointer-events: auto; }
+.text-toolbar { position: absolute; z-index: 999999; display: flex; align-items: center; gap: 0.25rem; background-color: #111827; color: white; padding: 0.375rem 0.5rem; border-radius: 0; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); pointer-events: auto; }
 .toolbar-btn { padding: 0.375rem; border-radius: 0.25rem; transition: background-color 0.2s ease; font-size: 0.75rem; background: none; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;}
 .toolbar-btn:hover { background-color: #374151; }
 .toolbar-btn.bold { font-weight: 700; }
@@ -200,11 +200,11 @@
 
 /* --- Поповери (Менији) --- */
 .popover-menu {
-    position: absolute; z-index: 99999; background: white; border-radius: 0.75rem; box-shadow: 0 15px 50px rgba(0,0,0,0.15); border: 1px solid #f1f5f9; padding: 0.625rem; width: 14rem; display: flex; flex-direction: column; gap: 0.25rem;
+    position: absolute; z-index: 99999; background: white; border-radius: 0; box-shadow: 0 15px 50px rgba(0,0,0,0.15); border: 1px solid #f1f5f9; padding: 0.625rem; width: 14rem; display: flex; flex-direction: column; gap: 0.25rem;
 }
 .popover-menu.bottom { top: 100%; margin-top: 0.5rem; left: 50%; transform: translateX(-50%); }
 .popover-menu.right { top: 0; left: 100%; margin-left: 0.75rem; }
-.menu-btn { display: flex; align-items: center; gap: 0.875rem; width: 100%; padding: 0.625rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 700; color: #475569; background: transparent; border: none; cursor: pointer; transition: all 0.2s ease; text-align: left;}
+.menu-btn { display: flex; align-items: center; gap: 0.875rem; width: 100%; padding: 0.625rem; border-radius: 0; font-size: 0.875rem; font-weight: 700; color: #475569; background: transparent; border: none; cursor: pointer; transition: all 0.2s ease; text-align: left;}
 .menu-btn:hover { background-color: #f8fafc; }
 .menu-btn.blue:hover { background-color: #eff6ff; color: #2563eb; }
 .menu-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 0.25rem; margin-top: 0.25rem; }
@@ -214,7 +214,7 @@
 .divider { width: 100%; height: 1px; background-color: #f1f5f9; margin: 0.25rem 0; }
 
 /* --- Data Editor Table --- */
-.data-editor-popover { position: absolute; top: calc(100% + 15px); left: 0; width: 600px; z-index: 99999; background: white; border-radius: 0.75rem; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); border: 1px solid #f1f5f9; overflow: hidden; cursor: default; }
+.data-editor-popover { position: absolute; top: calc(100% + 15px); left: 0; width: 600px; z-index: 99999; background: white; border-radius: 0; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); border: 1px solid #f1f5f9; overflow: hidden; cursor: default; }
 .data-table-wrap { padding: 1rem; overflow-x: auto; }
 .data-table { width: 100%; font-size: 13px; color: #475569; border-collapse: collapse; border: 1px solid #e2e8f0; }
 .data-table td { border: 1px solid #e2e8f0; padding: 0.25rem; position: relative; }

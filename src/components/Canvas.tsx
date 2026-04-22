@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useMemo, type FC, type ClipboardEvent, type FormEvent, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, type FC, type FormEvent, type ChangeEvent } from "react";
 import {
     Plus, Table2, Type, Image as ImageIcon, LayoutTemplate,
     UploadCloud, Trash2, GripVertical, Settings2, BarChart3, Map as MapIcon,
-    X, Bold, Italic, Underline, List, ListOrdered, AlignLeft, AlignCenter, AlignRight
+    X
 } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -608,7 +608,7 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     <img
                         src={currentSettings.url}
                         alt={currentSettings.altText}
-                        style={{ width: `${currentSettings.width || 100}%`, height: 'auto', borderRadius: '0.5rem', transition: 'all 0.2s' }}
+                        style={{ width: `${currentSettings.width || 100}%`, height: 'auto', borderRadius: '0', transition: 'all 0.2s' }}
                     />
                     {(currentSettings.altText || isSelected) && (
                         <span style={{ fontSize: '14px', fontStyle: 'italic', marginTop: '10px', display: 'block', width: '100%', color: !currentSettings.altText ? '#94a3b8' : '#475569' }}>
@@ -617,7 +617,7 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     )}
                 </div>
             ) : (
-                <div style={{ padding: '2rem', width: '100%', minHeight: '180px', backgroundColor: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ padding: '2rem', width: '100%', minHeight: '180px', backgroundColor: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     {isUploading ? (
                         <span style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', fontSize: '14px', fontWeight: 600, color: '#3b82f6' }}>Отпремање...</span>
                     ) : (
@@ -930,8 +930,8 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </div>
             )}
 
-            <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0.5rem' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0.5rem', position: 'relative', zIndex: 0 }}>
+            <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0' }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>
                     <tbody>
                     {Array.from({ length: currentSettings.rows || 1 }).map((_, rIdx) => (
                         <tr key={`row-${rIdx}`}>
