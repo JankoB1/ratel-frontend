@@ -32,7 +32,6 @@ interface RowData { id: string; columns: ColumnData[]; }
 
 const CHART_PALETTE = ['#8b98ff', '#34d399', '#fef3c7', '#2563eb', '#1e3a8a', '#f59e0b', '#e11d48'];
 
-// ПОМОЋНА ФУНКЦИЈА ЗА ВАЂЕЊЕ ФУСНОТА
 export const extractFootnoteIds = (html: string) => {
     const regex = /data-footnote-id="([^"]+)"/g;
     const ids = [];
@@ -298,7 +297,7 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'map', settings: currentSettings });
             }}
-            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
+            className={`break-inside-avoid group relative transition-colors bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
             style={{ height: '350px' }}
         >
             {isSelected && (
@@ -626,7 +625,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'chart', settings: currentSettings });
             }}
-            className={`break-inside-avoid group relative transition-all bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
+            className={`break-inside-avoid group relative transition-colors bg-white flex flex-col rounded-xl border-2 w-full min-w-0 max-w-full ${isSelected ? 'border-blue-400 shadow-md ring-4 ring-blue-50 z-[99999]' : 'border-transparent hover:border-slate-200 z-10'}`}
             style={{ height: `${dynamicHeight}px` }}
         >
             {isSelected && (
@@ -669,7 +668,7 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         <div
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'image', settings: currentSettings }); }}
-            className={`break-inside-avoid group relative cursor-pointer transition-all flex flex-col rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
+            className={`break-inside-avoid group relative cursor-pointer transition-colors flex flex-col rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
         >
             {isSelected && (
                 <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
@@ -719,11 +718,14 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
     const editorRef = useRef<HTMLDivElement>(null);
     const contentAreaRef = useRef<HTMLElement | null>(null);
 
+    // Блокирамо паралелне провере док се једна не заврши
+    const isSplitting = useRef(false);
+
     useEffect(() => {
         contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
     }, [pageId]);
 
-    // Ажурирање бројева фуснота у тексту на основу глобалне мапе
+    // Ажурирање бројева фуснота
     useEffect(() => {
         if (!editorRef.current) return;
         const sups = editorRef.current.querySelectorAll('sup[data-footnote-id]');
@@ -738,10 +740,99 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         });
     }, [currentSettings.content, globalFootnoteMap]);
 
+    // НАЈБИТНИЈА ФУНКЦИЈА: Провера и пребацивање текста користећи getBoundingClientRect
+    const checkOverflow = (htmlToCheck: string) => {
+        if (isSplitting.current) return;
+
+        const contentArea = contentAreaRef.current;
+        if (!contentArea || !editorRef.current) return;
+
+        const editorRect = editorRef.current.getBoundingClientRect();
+        const areaRect = contentArea.getBoundingClientRect();
+
+        // Ако дно едитора прелази дно контејнера странице (уз 5px толеранције)
+        if (editorRect.bottom > areaRect.bottom + 5) {
+            isSplitting.current = true;
+
+            let words = htmlToCheck.split(/(<[^>]*>|\s+)/).filter(Boolean);
+            let fitWords = [...words];
+            let overflowWords: string[] = [];
+            let maxSafety = 10000;
+
+            // Користимо прецизно DOM мерење уместо scrollHeight да би избегли infinite loop због транзиција
+            while (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom && fitWords.length > 0 && maxSafety > 0) {
+                let w = fitWords.pop();
+                if (w) overflowWords.unshift(w);
+                editorRef.current.innerHTML = fitWords.join('');
+                maxSafety--;
+            }
+
+            // ЗАШТИТА: Ако се све обрише, враћамо бар прву видљиву реч да не би несло са екрана
+            if (fitWords.length === 0 && words.length > 0) {
+                let i = 0;
+                while (i < words.length && words[i].match(/<[^>]*>|\s+/)) {
+                    fitWords.push(words[i]);
+                    overflowWords.shift();
+                    i++;
+                }
+                if (i < words.length) {
+                    fitWords.push(words[i]);
+                    overflowWords.shift();
+                }
+                editorRef.current.innerHTML = fitWords.join('');
+            }
+
+            const safeHtml = fitWords.join('');
+            const remainingText = overflowWords.join('');
+
+            if (remainingText.trim() !== '') {
+                // Склањамо фокус током пресецања да не скаче екран
+                if (document.activeElement === editorRef.current) {
+                    editorRef.current.blur();
+                }
+
+                const currentIds = extractFootnoteIds(htmlToCheck);
+                const oldFootnotes = currentSettings.footnotes || {};
+                const newFootnotes: any = {};
+                currentIds.forEach(id => newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '');
+
+                const safeHtmlIds = extractFootnoteIds(safeHtml);
+                const remainingIds = extractFootnoteIds(remainingText);
+
+                const safeFootnotes: any = {};
+                const remainingFootnotes: any = {};
+
+                safeHtmlIds.forEach(id => safeFootnotes[id] = newFootnotes[id]);
+                remainingIds.forEach(id => remainingFootnotes[id] = newFootnotes[id]);
+
+                // Позив за креирање нове странице са остатком текста
+                onAutoSplit({
+                    sourcePageId: pageId,
+                    elementId: el.id,
+                    remainingContent: remainingText,
+                    safeHtml: safeHtml,
+                    safeFootnotes,
+                    remainingFootnotes
+                });
+            }
+
+            setTimeout(() => { isSplitting.current = false; }, 150);
+        }
+    };
+
+    // Ослушкивач за промене текста
     useEffect(() => {
         if (editorRef.current && currentSettings.content !== editorRef.current.innerHTML) {
-            editorRef.current.innerHTML = currentSettings.content || '';
+            if (document.activeElement !== editorRef.current || currentSettings.content.length < editorRef.current.innerHTML.length) {
+                editorRef.current.innerHTML = currentSettings.content || '';
+            }
         }
+
+        const timer = setTimeout(() => {
+            if (editorRef.current) checkOverflow(editorRef.current.innerHTML);
+        }, 150);
+
+        return () => clearTimeout(timer);
     }, [currentSettings.content]);
 
     const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
@@ -770,61 +861,16 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
 
     const handleInput = (e: FormEvent<HTMLDivElement>) => {
         const html = e.currentTarget.innerHTML;
+
         const currentIds = extractFootnoteIds(html);
         const oldFootnotes = currentSettings.footnotes || {};
         const newFootnotes: any = {};
-
-        // Аутоматско чишћење обрисаних фуснота
         currentIds.forEach(id => {
             newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '';
         });
 
-        const contentArea = contentAreaRef.current;
-
-        if (contentArea && contentArea.scrollHeight > contentArea.clientHeight + 10) {
-            e.preventDefault();
-
-            let words = html.split(/(<[^>]*>|\s+)/).filter(Boolean);
-            let fitWords = [...words];
-            let overflowWords: string[] = [];
-            let maxSafety = 2000;
-
-            while (contentArea.scrollHeight > contentArea.clientHeight && fitWords.length > 0 && maxSafety > 0) {
-                let w = fitWords.pop();
-                if (w) overflowWords.unshift(w);
-                if (editorRef.current) editorRef.current.innerHTML = fitWords.join('');
-                maxSafety--;
-            }
-
-            const safeHtml = fitWords.join('');
-            const remainingText = overflowWords.join('');
-
-            if (remainingText.trim() !== '') {
-                if (editorRef.current) editorRef.current.blur();
-
-                // Раздвајање фуснота за обе странице
-                const safeHtmlIds = extractFootnoteIds(safeHtml);
-                const remainingIds = extractFootnoteIds(remainingText);
-
-                const safeFootnotes: any = {};
-                const remainingFootnotes: any = {};
-
-                safeHtmlIds.forEach(id => safeFootnotes[id] = newFootnotes[id]);
-                remainingIds.forEach(id => remainingFootnotes[id] = newFootnotes[id]);
-
-                onAutoSplit({
-                    sourcePageId: pageId,
-                    elementId: el.id,
-                    remainingContent: remainingText,
-                    safeHtml: safeHtml,
-                    safeFootnotes,
-                    remainingFootnotes
-                });
-                return;
-            }
-        }
-
         if (isSelected) updateElementSettings({ content: html, footnotes: newFootnotes });
+        checkOverflow(html);
     };
 
     return (
@@ -834,7 +880,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'text', settings: { ...currentSettings, content: editorRef.current?.innerHTML || currentSettings.content } });
             }}
-            className={`group relative cursor-text transition-all rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-inner z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
+            className={`group relative cursor-text transition-colors shadow-sm rounded p-1.5 border-2 ${isSelected ? 'border-blue-400 bg-slate-50 shadow-inner z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
         >
             {isSelected && (
                 <div className="absolute -top-3 right-2 hidden group-hover:flex gap-1 z-20">
@@ -912,7 +958,7 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
         <div
             ref={tableContainerRef}
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
-            className={`break-inside-avoid group relative transition-all rounded-xl p-1.5 border-2 w-full max-w-full ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
+            className={`break-inside-avoid group relative transition-colors rounded-xl p-1.5 border-2 w-full max-w-full ${isSelected ? 'border-blue-400 bg-slate-50 shadow-md z-[99999]' : 'border-transparent hover:border-slate-200 bg-transparent z-10'}`}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'table', settings: currentSettings }); }}
         >
             {isSelected && (
@@ -967,7 +1013,7 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
     return (
         <td
             onClick={onClick}
-            className={`border border-slate-200 p-2 transition-all relative ${isActive ? 'ring-2 ring-blue-400 ring-inset bg-blue-50/30' : ''}`}
+            className={`border border-slate-200 p-2 transition-colors relative ${isActive ? 'ring-2 ring-blue-400 ring-inset bg-blue-50/30' : ''}`}
             style={style}
             colSpan={colSpan}
             rowSpan={rowSpan}
@@ -1025,7 +1071,6 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
 
-    // Извлачење фуснота само за ову страницу
     const pageFootnotes = useMemo(() => {
         const fns: any[] = [];
         page.rows.forEach((row: any) => {
@@ -1061,8 +1106,11 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
         return () => observer.disconnect();
     }, [page.rows]);
 
+    // Провера да ли је последњи ред потпуно празан
+    const lastRowEmpty = page.rows.length > 0 && page.rows[page.rows.length - 1].columns.length === 0;
+
     return (
-        <div className="w-[794px] h-[1123px] bg-white shadow-2xl flex flex-col relative shrink-0 transition-all rounded-sm border border-slate-100 group/page">
+        <div className="w-[794px] h-[1123px] bg-white shadow-2xl flex flex-col relative shrink-0 transition-shadow rounded-sm border border-slate-100 group/page">
 
             {totalPages > 1 && (
                 <button
@@ -1091,7 +1139,7 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                             (selectedElement?.pageId === page.id && selectedElement?.rowId === row.id);
 
                         return (
-                            <div key={row.id} className={`group/row relative w-full border border-dashed border-transparent hover:border-slate-200 min-h-[40px] transition-all break-inside-avoid rounded-xl p-1 ${isRowActive ? 'z-[99999]' : 'z-10'}`}>
+                            <div key={row.id} className={`group/row relative w-full border border-dashed border-transparent hover:border-slate-200 min-h-[40px] transition-colors break-inside-avoid rounded-xl p-1 ${isRowActive ? 'z-[99999]' : 'z-10'}`}>
                                 {row.columns.length > 0 && (
                                     <div className="absolute -left-14 top-1 opacity-0 group-hover/row:opacity-100 transition-opacity flex flex-col gap-2.5 z-30 animate-in fade-in zoom-in-90">
                                         <button onClick={(e) => { e.stopPropagation(); setActiveRowMenu(activeRowMenu?.rowId === row.id ? null : { pageId: page.id, rowId: row.id }); }} className="p-2.5 bg-white border border-slate-200 rounded-full shadow-md text-slate-400 hover:text-blue-500 hover:scale-110 transition-all"><Settings2 size={16} /></button>
@@ -1099,8 +1147,18 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                         {activeRowMenu?.rowId === row.id && <LayoutSelector onSelect={(l: string) => { const newCols = getGridCols(l); setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: newCols.map((nc: ColumnData, i: number) => ({ ...nc, elements: r.columns[i]?.elements || [] })) } : r) } : p)); setActiveRowMenu(null); }} position="right" />}
                                     </div>
                                 )}
+
                                 {row.columns.length === 0 ? (
-                                    <div className="h-[120px] flex items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-slate-300 transition-colors relative">
+                                    <div className="h-[120px] flex items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-slate-300 transition-colors relative group/emptyrow">
+                                        {/* Дугме за брисање празног реда (Решава проблем гомилања елемената који заузимају простор) */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteRow(page.id, row.id); }}
+                                            className="absolute top-2 right-2 p-2 bg-white border border-slate-200 shadow-sm rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover/emptyrow:opacity-100 transition-all z-10"
+                                            title="Обриши празан ред"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+
                                         <div className="relative flex flex-col items-center">
                                             <button onClick={(e) => { e.stopPropagation(); setActiveRowMenu({ pageId: page.id, rowId: row.id }); }} className="hover:scale-110 transition-transform active:scale-95"><img src={addIcon} alt="Add" className="w-12 h-12" /></button>
                                             {activeRowMenu?.rowId === row.id && <LayoutSelector onSelect={(l: string) => { setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: getGridCols(l) } : r) } : p)); setActiveRowMenu(null); }} position="bottom" />}
@@ -1114,7 +1172,7 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                                 (selectedElement?.pageId === page.id && selectedElement?.colId === col.id);
 
                                             return (
-                                                <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(page.id, row.id, col.id)} className={`${col.widthClass} min-h-[40px] border border-transparent hover:border-blue-100 rounded-xl transition-all relative group/col p-1 ${isColActive ? 'z-[99999]' : 'z-10'}`}>
+                                                <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(page.id, row.id, col.id)} className={`${col.widthClass} min-h-[40px] border border-transparent hover:border-blue-100 rounded-xl transition-colors relative group/col p-1 ${isColActive ? 'z-[99999]' : 'z-10'}`}>
                                                     {col.elements.map((el: any) => {
                                                         if (el.type === 'text') return <TextElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
                                                         if (el.type === 'image') return <ImageElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
@@ -1136,14 +1194,15 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                         );
                     })}
                 </div>
-                {showAddBtn && (
+
+                {/* Ово дугме се сада приказује САМО ако последњи ред НИЈЕ празан */}
+                {showAddBtn && !lastRowEmpty && (
                     <div className="w-full pt-4 pb-8 shrink-0 relative z-10">
-                        <button onClick={() => setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: [...p.rows, { id: Math.random().toString(36).substr(2, 9), columns: [] }] } : p))} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex justify-center items-center gap-2 font-bold uppercase text-xs tracking-wider active:scale-[0.99]"><Plus size={18} /> Додај нови ред</button>
+                        <button onClick={() => setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: [...p.rows, { id: Math.random().toString(36).substr(2, 9), columns: [] }] } : p))} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-colors flex justify-center items-center gap-2 font-bold uppercase text-xs tracking-wider active:scale-[0.99]"><Plus size={18} /> Додај нови ред</button>
                     </div>
                 )}
             </div>
 
-            {/* ПРИКАЗ ФУСНОТА НА ДНУ СТРАНИЦЕ */}
             <div className="w-full px-[50px] shrink-0 z-10">
                 {pageFootnotes.length > 0 && (
                     <div className="border-t-[1.5px] border-slate-200 pt-3 mb-2 flex flex-col gap-1.5 w-1/3">
@@ -1180,10 +1239,8 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     const [activeColMenu, setActiveColMenu] = useState<{pageId: string, colId: string} | null>(null);
     const [draggedItem, setDraggedItem] = useState<any>(null);
 
-    const lastSplitTime = useRef(0);
     const initialPagesRef = useRef<any>(null);
 
-    // ГЛОБАЛНИ РЕДОСЛЕД И НУМЕРАЦИЈА ФУСНОТА
     const globalFootnoteOrder = useMemo(() => {
         const order: string[] = [];
         pages.forEach(page => {
@@ -1204,7 +1261,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     const globalFootnoteMap = useMemo(() => {
         const map: any = {};
         globalFootnoteOrder.forEach((id, index) => {
-            map[id] = index + 1; // Креће од 1 унутар целе секције (svih stranica)
+            map[id] = index + 1;
         });
         return map;
     }, [globalFootnoteOrder]);
@@ -1245,10 +1302,6 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
 
     const handleAutoSplit = (params: any) => {
         const { sourcePageId, elementId, remainingContent, safeHtml, tableSettings, tableContent, safeFootnotes, remainingFootnotes } = params;
-
-        const now = Date.now();
-        if (now - lastSplitTime.current < 500) return;
-        lastSplitTime.current = now;
 
         const newElementId = Math.random().toString(36).substr(2, 9);
         const newRowId = Math.random().toString(36).substr(2, 9);
