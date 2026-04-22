@@ -749,7 +749,6 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
             const remainingText = words.slice(bestFitIndex).join('');
 
             if (remainingText.trim() !== '') {
-                const currentIds = extractFootnoteIds(htmlToCheck);
                 const oldFootnotes = currentSettings.footnotes || {};
 
                 const safeIds = extractFootnoteIds(safeHtml);
