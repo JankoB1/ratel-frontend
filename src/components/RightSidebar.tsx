@@ -177,7 +177,7 @@ const RightSidebar = () => {
             if (isSmall) {
                 // Tačno dodajemo 12px uz 1.5 line-height (18px prored)
                 node.style.setProperty('font-size', '12px', 'important');
-                node.style.setProperty('line-height', '1.5', 'important');
+                node.style.setProperty('line-height', '1.2', 'important');
             } else {
                 // Brisanje u slučaju da korisnik vrati na običan H1, H2 ili standardni P
                 node.style.removeProperty('font-size');
