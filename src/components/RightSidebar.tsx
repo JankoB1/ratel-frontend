@@ -10,6 +10,7 @@ import {
 import { useEditor } from "../contexts/EditorContext";
 
 // --- KONSTANTE I PODACI ZA NOVI GRAFIKON DIZAJN ---
+
 const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode; subtypes: { id: string; name: string; icon: React.ReactNode }[] }> = {
     bar: {
         label: "Стубичасти",
@@ -147,6 +148,53 @@ const RightSidebar = () => {
     const formatText = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
     };
+
+    // --- LOGIKA ZA PRECIZNO STILIZOVANJE TYPOGRAFIJE ---
+    const getBlockElement = () => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        let node: any = selection.getRangeAt(0).commonAncestorContainer;
+        if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+
+        while (node && node.getAttribute?.('contenteditable') !== 'true') {
+            const tag = node.nodeName.toUpperCase();
+            if (['P', 'DIV', 'H1', 'H2', 'TD', 'TH', 'BLOCKQUOTE', 'LI'].includes(tag)) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        if (node && node.getAttribute?.('contenteditable') === 'true') {
+            return node;
+        }
+        return null;
+    };
+
+    const handleFormatBlock = (tag: string, isSmall: boolean = false) => {
+        formatText('formatBlock', tag);
+
+        const node = getBlockElement();
+        if (node) {
+            if (isSmall) {
+                // Tačno dodajemo 12px uz 1.5 line-height (18px prored)
+                node.style.setProperty('font-size', '12px', 'important');
+                node.style.setProperty('line-height', '1.5', 'important');
+            } else {
+                // Brisanje u slučaju da korisnik vrati na običan H1, H2 ili standardni P
+                node.style.removeProperty('font-size');
+                node.style.removeProperty('line-height');
+            }
+        }
+
+        // Trigger za render editora, radi i za glavne tekst blokove i za tabele
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.getAttribute('contenteditable') === 'true') {
+            activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            const editor = document.getElementById(`editor-${selectedElement?.elementId}`);
+            if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+    // ----------------------------------------------------
 
     const handleAddLink = () => {
         const url = prompt("Унесите URL линка (нпр. https://google.com):", "https://");
@@ -544,35 +592,28 @@ const RightSidebar = () => {
 
                         <div className="flex bg-[#F8FAFC] p-1 rounded-xl border border-slate-100 w-full gap-1">
                             <button
-                                onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'H1'); }}
+                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H1'); }}
                                 className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
                                 title="Велики наслов"
                             >
                                 <Heading1 size={14} /> H1
                             </button>
                             <button
-                                onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'H2'); }}
+                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H2'); }}
                                 className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
                                 title="Мали наслов"
                             >
                                 <Heading2 size={14} /> H2
                             </button>
                             <button
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    formatText('formatBlock', 'P');
-                                    formatText('fontSize', '3'); // Vraća na normalnu veličinu fonta
-                                }}
+                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P'); }}
                                 className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
                                 title="Обичан текст"
                             >
                                 <Type size={12} /> Текст
                             </button>
                             <button
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    formatText('fontSize', '2'); // Smanjuje tekst na oko 12-13px
-                                }}
+                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P', true); }}
                                 className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
                                 title="Ситан текст"
                             >
@@ -632,7 +673,7 @@ const RightSidebar = () => {
                                 <button onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><ListOrdered size={16} /></button>
                             </div>
                             <div className="flex-1 bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-2 gap-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('formatBlock', 'BLOCKQUOTE'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Quote size={16} /></button>
+                                <button onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('BLOCKQUOTE'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Quote size={16} /></button>
                                 <button onMouseDown={(e) => { e.preventDefault(); handleAddLink(); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Link2 size={16} /></button>
                             </div>
                         </div>
@@ -640,6 +681,7 @@ const RightSidebar = () => {
                 </>
             )}
 
+            {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА (За Текст и Табеле) */}
             {activeFootnoteIds.length > 0 && (
                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
                     <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
