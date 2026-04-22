@@ -639,10 +639,11 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
     const editorRef = useRef<HTMLDivElement>(null);
     const contentAreaRef = useRef<HTMLElement | null>(null);
 
+    // Lokalni ref za timeout kako ne bi bilo konflikata ako se više stranica učitava
+    const overflowTimeoutRef = useRef<any>(null);
     const isSplitting = useRef(false);
     const savedRangeRef = useRef<Range | null>(null);
 
-    // Čuvanje pozicije kursora
     const saveSelection = () => {
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -657,7 +658,20 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
     }, [pageId]);
 
-    // Listener za ubacivanje fusnote iz RightSidebar-a
+    // OVO JE DODATO ZA KASKADNO PREBACIVANJE
+    useEffect(() => {
+        if (editorRef.current && currentSettings.content !== undefined) {
+            if (editorRef.current.innerHTML !== currentSettings.content) {
+                editorRef.current.innerHTML = currentSettings.content;
+            }
+            // Automatski proverava overflow kada dobije novi content (npr sa prethodne stranice)
+            if (overflowTimeoutRef.current) clearTimeout(overflowTimeoutRef.current);
+            overflowTimeoutRef.current = setTimeout(() => {
+                checkOverflow(currentSettings.content);
+            }, 100);
+        }
+    }, [currentSettings.content]);
+
     useEffect(() => {
         const handleInsertFn = (e: any) => {
             if (e.detail?.elementId === el.id && isSelected) {
@@ -670,7 +684,6 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
                         selection.addRange(savedRangeRef.current);
                         handleAddFootnote();
                     } else {
-                        // Ako nema sačuvanog ranga, baci na kraj teksta
                         const range = document.createRange();
                         range.selectNodeContents(editorRef.current);
                         range.collapse(false);
@@ -683,7 +696,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         };
         window.addEventListener('insert-footnote', handleInsertFn);
         return () => window.removeEventListener('insert-footnote', handleInsertFn);
-    }, [isSelected, el.id, currentSettings.footnotes]); // Dodat dependency
+    }, [isSelected, el.id, currentSettings.footnotes]);
 
     useEffect(() => {
         if (!editorRef.current) return;
@@ -703,47 +716,69 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         if (isSplitting.current) return;
         const contentArea = contentAreaRef.current;
         if (!contentArea || !editorRef.current) return;
-        const editorRect = editorRef.current.getBoundingClientRect();
+
         const areaRect = contentArea.getBoundingClientRect();
 
-        if (editorRect.bottom > areaRect.bottom + 5) {
+        // Provera da li uopšte preliva
+        if (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom + 5) {
             isSplitting.current = true;
-            let words = htmlToCheck.split(/(<[^>]*>|\s+)/).filter(Boolean);
-            let fitWords = [...words];
-            let overflowWords: string[] = [];
 
-            while (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom && fitWords.length > 0) {
-                let w = fitWords.pop();
-                if (w) overflowWords.unshift(w);
-                editorRef.current.innerHTML = fitWords.join('');
+            let words = htmlToCheck.split(/(<[^>]*>|\s+)/).filter(Boolean);
+
+            // OPTIMIZACIJA BRZINE: Binarna pretraga (Binary Search) umesto brisanja 1 po 1 reči
+            let low = 0;
+            let high = words.length;
+            let bestFitIndex = 0;
+
+            while (low <= high) {
+                let mid = Math.floor((low + high) / 2);
+                editorRef.current.innerHTML = words.slice(0, mid).join('');
+
+                if (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom) {
+                    // Preliva, treba nam manje teksta
+                    high = mid - 1;
+                } else {
+                    // Staje, vidi da li može da stane još teksta
+                    bestFitIndex = mid;
+                    low = mid + 1;
+                }
             }
 
-            const safeHtml = fitWords.join('');
-            const remainingText = overflowWords.join('');
+            // Vrati tekst na najbolji proračun
+            editorRef.current.innerHTML = words.slice(0, bestFitIndex).join('');
+
+            // Failsafe fino podešavanje (obično skine samo max 1-2 reči ako je binarna granica zapela oko preloma reda)
+            while (editorRef.current.getBoundingClientRect().bottom > areaRect.bottom && bestFitIndex > 0) {
+                bestFitIndex--;
+                editorRef.current.innerHTML = words.slice(0, bestFitIndex).join('');
+            }
+
+            const safeHtml = words.slice(0, bestFitIndex).join('');
+            const remainingText = words.slice(bestFitIndex).join('');
 
             if (remainingText.trim() !== '') {
                 const currentIds = extractFootnoteIds(htmlToCheck);
                 const oldFootnotes = currentSettings.footnotes || {};
-                const newFootnotes: any = {};
-                currentIds.forEach(id => newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '');
 
-                const safeHtmlIds = extractFootnoteIds(safeHtml);
-                const remainingIds = extractFootnoteIds(remainingText);
-                const safeFootnotes: any = {};
-                const remainingFootnotes: any = {};
+                const safeIds = extractFootnoteIds(safeHtml);
+                const remIds = extractFootnoteIds(remainingText);
 
-                safeHtmlIds.forEach(id => safeFootnotes[id] = newFootnotes[id]);
-                remainingIds.forEach(id => remainingFootnotes[id] = newFootnotes[id]);
+                const safeFns: any = {};
+                const remFns: any = {};
+
+                safeIds.forEach(id => safeFns[id] = oldFootnotes[id] || '');
+                remIds.forEach(id => remFns[id] = oldFootnotes[id] || '');
 
                 onAutoSplit({
                     sourcePageId: pageId,
                     elementId: el.id,
                     remainingContent: remainingText,
                     safeHtml: safeHtml,
-                    safeFootnotes,
-                    remainingFootnotes
+                    safeFootnotes: safeFns,
+                    remainingFootnotes: remFns
                 });
             }
+
             setTimeout(() => { isSplitting.current = false; }, 150);
         }
     };
@@ -755,7 +790,6 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         const range = selection.getRangeAt(0);
         const id = `fn-${Math.random().toString(36).substr(2, 9)}`;
 
-        // Kreiramo element fusnote direktno preko DOM-a
         const sup = document.createElement('sup');
         sup.setAttribute('data-footnote-id', id);
         sup.setAttribute('contenteditable', 'false');
@@ -764,14 +798,12 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         sup.style.fontWeight = 'bold';
         sup.style.padding = '0 1px';
         sup.style.userSelect = 'none';
-        sup.style.display = 'inline'; // Forsiramo inline prikaz
+        sup.style.display = 'inline';
         sup.innerHTML = '[*]';
 
-        // Ubacujemo na tačnu poziciju kursora
         range.deleteContents();
         range.insertNode(sup);
 
-        // Pomeramo kursor odmah nakon ubačene fusnote
         range.setStartAfter(sup);
         range.setEndAfter(sup);
         selection.removeAllRanges();
@@ -795,9 +827,19 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
         const currentIds = extractFootnoteIds(html);
         const oldFootnotes = currentSettings.footnotes || {};
         const newFootnotes: any = {};
-        currentIds.forEach(id => { newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : ''; });
-        if (isSelected) updateElementSettings({ content: html, footnotes: newFootnotes });
-        checkOverflow(html);
+
+        currentIds.forEach(id => {
+            newFootnotes[id] = oldFootnotes[id] !== undefined ? oldFootnotes[id] : '';
+        });
+
+        if (isSelected) {
+            updateElementSettings({ content: html, footnotes: newFootnotes });
+        }
+
+        if (overflowTimeoutRef.current) clearTimeout(overflowTimeoutRef.current);
+        overflowTimeoutRef.current = setTimeout(() => {
+            checkOverflow(html);
+        }, 50); // Ovde sam smanjio na 50ms zbog bržeg responsa dok kucaš
     };
 
     return (
@@ -1082,7 +1124,21 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteRow(page.id, row.id); }} className="empty-row-delete" title="Обриши празан ред"><Trash2 size={16} /></button>
                                         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                             <button onClick={(e) => { e.stopPropagation(); setActiveRowMenu({ pageId: page.id, rowId: row.id }); }} className="add-icon-btn"><img src={addIcon} alt="Add" style={{ width: '48px', height: '48px' }} /></button>
-                                            {activeRowMenu?.rowId === row.id && <LayoutSelector onSelect={(l: string) => { setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: getGridCols(l) } : r) } : p)); setActiveRowMenu(null); }} position="bottom" />}
+                                            {activeRowMenu?.rowId === row.id && (
+                                                <LayoutSelector
+                                                    onSelect={(l: string) => {
+                                                        setPages((prev: any) => prev.map((p: any) => {
+                                                            if (p.id !== page.id) return p;
+                                                            return {
+                                                                ...p,
+                                                                rows: p.rows.map((r: any) => r.id === row.id ? { ...r, columns: getGridCols(l) } : r)
+                                                            };
+                                                        }));
+                                                        setActiveRowMenu(null);
+                                                    }}
+                                                    position="bottom"
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 ) : (
@@ -1185,28 +1241,71 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     }, [selectedElement]);
 
     const handleAutoSplit = (params: any) => {
-        const { sourcePageId, elementId, remainingContent, safeHtml, tableSettings, tableContent, originalTableSettings, originalTableContent, safeFootnotes, remainingFootnotes } = params;
+        const {
+            sourcePageId,
+            elementId,
+            remainingContent,
+            safeHtml,
+            tableSettings,
+            tableContent,
+            originalTableSettings,
+            originalTableContent,
+            safeFootnotes,
+            remainingFootnotes
+        } = params;
+
         const newElementId = Math.random().toString(36).substr(2, 9);
         const newRowId = Math.random().toString(36).substr(2, 9);
         const newColId = Math.random().toString(36).substr(2, 9);
+
         setPages((prev: any[]) => {
             const pageIndex = prev.findIndex(p => p.id === sourcePageId);
             if (pageIndex === -1) return prev;
+
             let originalSettings: any = {};
-            let isTableSplit = remainingContent === "TABLE_SPLIT";
+            const isTableSplit = remainingContent === "TABLE_SPLIT";
+
             const updatedPages = prev.map((page, idx) => {
                 if (idx !== pageIndex) return page;
-                return { ...page, rows: page.rows.map((row: any) => ({ ...row, columns: row.columns.map((col: any) => ({ ...col, elements: col.elements.map((e: any) => {
+                return {
+                    ...page,
+                    rows: page.rows.map((row: any) => ({
+                        ...row,
+                        columns: row.columns.map((col: any) => ({
+                            ...col,
+                            elements: col.elements.map((e: any) => {
                                 if (e.id === elementId) {
                                     originalSettings = e.payload.settings;
-                                    if (isTableSplit) return { ...e, payload: { ...e.payload, settings: originalTableSettings, sr: { ...e.payload.sr, content: originalTableContent } } };
+                                    if (isTableSplit) {
+                                        return { ...e, payload: { ...e.payload, settings: originalTableSettings, sr: { content: originalTableContent } } };
+                                    }
                                     return { ...e, payload: { ...e.payload, settings: { ...e.payload.settings, content: safeHtml, footnotes: safeFootnotes } } };
                                 }
                                 return e;
-                            }) })) })) };
+                            })
+                        }))
+                    }))
+                };
             });
-            let newElementPayload: any = isTableSplit && tableSettings ? { settings: tableSettings, sr: { content: tableContent || {} } } : { settings: { ...originalSettings, content: remainingContent, footnotes: remainingFootnotes } };
-            const newRow: RowData = { id: newRowId, columns: [{ id: newColId, widthClass: 'col-span-12', elements: [{ id: newElementId, type: isTableSplit ? 'table' : 'text', payload: newElementPayload }] }] };
+
+            let newElementPayload: any;
+            if (isTableSplit) {
+                newElementPayload = { settings: tableSettings, sr: { content: tableContent || {} } };
+            } else {
+                newElementPayload = {
+                    settings: {
+                        ...originalSettings,
+                        content: remainingContent,
+                        footnotes: remainingFootnotes
+                    }
+                };
+            }
+
+            const newRow: RowData = {
+                id: newRowId,
+                columns: [{ id: newColId, widthClass: 'col-span-12', elements: [{ id: newElementId, type: isTableSplit ? 'table' : 'text', payload: newElementPayload }] }]
+            };
+
             const nextPageIndex = pageIndex + 1;
             if (nextPageIndex < updatedPages.length) {
                 return updatedPages.map((page, idx) => idx === nextPageIndex ? { ...page, rows: [newRow, ...page.rows] } : page);
@@ -1214,11 +1313,20 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
                 return [...updatedPages, { id: `page-${Math.random().toString(36).substr(2, 9)}`, rows: [newRow] }];
             }
         });
+
         if (remainingContent !== "TABLE_SPLIT") {
             setTimeout(() => {
                 const newElNode = document.getElementById(`editor-${newElementId}`);
-                if (newElNode) { newElNode.focus(); try { const selection = window.getSelection(); const range = document.createRange(); range.selectNodeContents(newElNode); range.collapse(false); selection?.removeAllRanges(); selection?.addRange(range); } catch(e) {} }
-            }, 200);
+                if (newElNode) {
+                    newElNode.focus();
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(newElNode);
+                    range.collapse(true);
+                    sel?.removeAllRanges();
+                    sel?.addRange(range);
+                }
+            }, 50);
         }
     };
 
