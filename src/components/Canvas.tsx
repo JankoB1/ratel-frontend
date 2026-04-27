@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, type FC, type FormEvent, type Cha
 import {
     Plus, Table2, Type, Image as ImageIcon, LayoutTemplate,
     UploadCloud, Trash2, GripVertical, Settings2, BarChart3, Map as MapIcon,
-    X
+    X, AlignLeft, AlignCenter, AlignRight
 } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -17,7 +17,7 @@ import axiosClient from "../axios-client.ts";
 import MapGraphic from "./MapGraphic";
 
 const SERBIAN_DISTRICTS = [
-    "Град Београд", "Северобачки", "Средњобачки", "Севернобанатски",
+    "Град Београд", "Севернобачки", "Средњобачки", "Севернобанатски",
     "Средњобанатски", "Јужнобанатски", "Западнобачки", "Јужнобачки",
     "Сремски", "Мачвански", "Колубарски", "Подунавски", "Браничевски",
     "Шумадијски", "Поморавски", "Борски", "Зајечарски", "Златиборски",
@@ -42,6 +42,17 @@ export const extractFootnoteIds = (html: string) => {
     return ids;
 };
 
+const hexToRgba = (hex: string, opacity: number) => {
+    let cleanHex = hex.replace('#', '');
+    if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(c => c + c).join('');
+    }
+    const r = parseInt(cleanHex.slice(0, 2), 16) || 59;
+    const g = parseInt(cleanHex.slice(2, 4), 16) || 130;
+    const b = parseInt(cleanHex.slice(4, 6), 16) || 246;
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette }: any) => {
     return (
         <>
@@ -62,6 +73,7 @@ const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette }: any) =>
 
 const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any) => {
     const isPie = settings.chartType === 'circular';
+    const isComposed = settings.chartType === 'composed';
     const displayKeys = isPie && keys.length > 0 ? [keys[0]] : keys;
 
     const handleKeyChange = (kIdx: number, newName: string) => {
@@ -82,7 +94,13 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
             delete newColors[oldKey];
         }
 
-        updateSettings({ activeColorKey: newName }, { keys: newKeys, data: newData, colors: newColors });
+        const newSeriesTypes = { ...(settings.seriesTypes || {}) };
+        if (newSeriesTypes[oldKey]) {
+            newSeriesTypes[newName] = newSeriesTypes[oldKey];
+            delete newSeriesTypes[oldKey];
+        }
+
+        updateSettings({ activeColorKey: newName, seriesTypes: newSeriesTypes }, { keys: newKeys, data: newData, colors: newColors });
     };
 
     const handleNameChange = (rIdx: number, newName: string) => {
@@ -111,7 +129,13 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
         const newKey = `Ново ${keys.length + 1}`;
         const newKeys = [...keys, newKey];
         const newData = data.map((r: any) => ({ ...r, [newKey]: 0 }));
-        updateSettings({}, { keys: newKeys, data: newData });
+
+        let newSettingsParams = {};
+        if (isComposed) {
+            newSettingsParams = { seriesTypes: { ...(settings.seriesTypes || {}), [newKey]: 'line' } };
+        }
+
+        updateSettings(newSettingsParams, { keys: newKeys, data: newData });
     };
 
     const addRow = () => {
@@ -127,7 +151,10 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
 
     const removeColumn = (key: string) => {
         if (keys.length <= 1) return;
-        updateSettings({}, {
+        const newSeriesTypes = { ...(settings.seriesTypes || {}) };
+        delete newSeriesTypes[key];
+
+        updateSettings({ seriesTypes: newSeriesTypes }, {
             keys: keys.filter((k: string) => k !== key),
             data: data.map((r: any) => { const n = {...r}; delete n[key]; return n; })
         });
@@ -144,14 +171,21 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                     <tr>
                         <td className="bg-light"></td>
                         {displayKeys.map((k: string, i: number) => (
-                            <td key={`color-${i}`} className="group" style={{ padding: 0 }}>
+                            <td key={`color-${i}`} className="group" style={{ padding: 0, position: 'relative' }}>
                                 <div
                                     style={{ height: '32px', width: '100%', cursor: 'pointer', backgroundColor: !isPie ? (colors[k] || CHART_PALETTE[i % CHART_PALETTE.length]) : '#f8fafc' }}
                                     onClick={() => !isPie && updateSettings({ activeColorKey: k })}
                                 >
                                     {!isPie && settings.activeColorKey === k && <div style={{position:'absolute', inset:0, border:'3px solid #2563eb', boxShadow:'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'}} />}
                                 </div>
-                                <button onClick={() => removeColumn(k)} className={`empty-row-delete ${keys.length <= 1 ? 'hidden' : ''}`} style={{top:'-8px', right:'-8px'}}><Trash2 size={12}/></button>
+                                <button
+                                    onClick={() => removeColumn(k)}
+                                    className={keys.length <= 1 ? 'hidden' : ''}
+                                    style={{position: 'absolute', top: '-8px', right: '-8px', background: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e2e8f0', color: '#ef4444', zIndex: 50, cursor: 'pointer'}}
+                                    title="Обриши колону"
+                                >
+                                    <Trash2 size={12}/>
+                                </button>
                             </td>
                         ))}
                         {!isPie && (
@@ -161,7 +195,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                         )}
                     </tr>
                     <tr>
-                        <td className="bg-light" style={{ width: '120px', fontWeight: 500 }}>
+                        <td className="bg-light" style={{ width: '120px', fontWeight: 500, verticalAlign: 'top', paddingTop: '8px' }}>
                             <input
                                 value={settings.xAxisLabel || 'Месец'}
                                 onChange={e => updateSettings({ xAxisLabel: e.target.value })}
@@ -169,11 +203,40 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                                 placeholder="Ознака"
                             />
                         </td>
-                        {displayKeys.map((k: string, i: number) => (
-                            <td key={`head-${i}`} style={{ minWidth: '80px' }}>
-                                <input value={k} onChange={e => handleKeyChange(i, e.target.value)} className="data-input" />
-                            </td>
-                        ))}
+                        {displayKeys.map((k: string, i: number) => {
+                            const isAreaBar = settings.subChartType === 'composed_area_bar';
+                            const isAreaLine = settings.subChartType === 'composed_area_line';
+                            const isStackedLine = settings.subChartType === 'composed_stacked_line';
+
+                            let currentType = settings.seriesTypes?.[k];
+                            if (!currentType) {
+                                if (i === 0) currentType = isAreaLine || isAreaBar ? 'area' : 'bar';
+                                else if (i === 1) currentType = isAreaBar ? 'area' : (isStackedLine ? 'bar' : 'line');
+                                else currentType = 'line';
+                            }
+
+                            return (
+                                <td key={`head-${i}`} style={{ minWidth: '80px', verticalAlign: 'top', padding: '4px' }}>
+                                    <input value={k} onChange={e => handleKeyChange(i, e.target.value)} className="data-input" style={{ width: '100%' }} />
+
+                                    {isComposed && (
+                                        <select
+                                            value={currentType}
+                                            onChange={e => {
+                                                const newTypes = { ...(settings.seriesTypes || {}) };
+                                                newTypes[k] = e.target.value;
+                                                updateSettings({ seriesTypes: newTypes });
+                                            }}
+                                            style={{ width: '100%', fontSize: '11px', padding: '2px', marginTop: '4px', border: '1px solid #cbd5e1', borderRadius: '4px', outline: 'none', background: '#f8fafc', color: '#475569', cursor: 'pointer' }}
+                                        >
+                                            <option value="bar">Stubić</option>
+                                            <option value="line">Linija</option>
+                                            <option value="area">Površina</option>
+                                        </select>
+                                    )}
+                                </td>
+                            );
+                        })}
                         {!isPie && <td className="bg-light"></td>}
                     </tr>
                     {data.map((row: any, rIdx: number) => (
@@ -213,7 +276,28 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
     const data = el.payload.data || currentSettings.data || [];
-    const colors = el.payload.colors || currentSettings.colors || {};
+    const baseColor = currentSettings.baseColor || '#3b82f6';
+    const width = currentSettings.width || 100;
+
+    const values = data.map((d: any) => parseFloat(d['Вредност'])).filter((v: number) => !isNaN(v));
+    const min = values.length > 0 ? Math.min(...values) : 0;
+    const max = values.length > 0 ? Math.max(...values) : 0;
+
+    const calculatedColors: any = {};
+    data.forEach((d: any) => {
+        const val = parseFloat(d['Вредност']);
+        if (isNaN(val) || d['Вредност'] === '' || d['Вредност'] === undefined) {
+            calculatedColors[d.name] = '#f1f5f9';
+        } else {
+            let opacity = 0.2;
+            if (max > min) {
+                opacity = 0.2 + 0.8 * ((val - min) / (max - min));
+            } else if (max === min && values.length > 0) {
+                opacity = 1;
+            }
+            calculatedColors[d.name] = hexToRgba(baseColor, opacity);
+        }
+    });
 
     const activeDistrictsForLegend = data.filter((d: any) => d['Вредност'] && String(d['Вредност']).trim() !== '0' && String(d['Вредност']).trim() !== '');
 
@@ -225,6 +309,7 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'map', settings: currentSettings });
             }}
             className={`element-block element-block-map break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
+            style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
         >
             {isSelected && (
                 <div className="element-actions">
@@ -234,15 +319,15 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
             )}
 
             <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', overflow: 'hidden', pointerEvents: 'none' }}>
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                    <MapGraphic colors={colors} />
+                <div style={{ width: `${width}%`, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'width 0.2s' }}>
+                    <MapGraphic colors={calculatedColors} />
                 </div>
 
                 {currentSettings.showLegend && activeDistrictsForLegend.length > 0 && (
                     <div style={{ position: 'absolute', bottom: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255,255,255,0.9)', padding: '8px', borderRadius: '4px', border: '1px solid #f1f5f9', zIndex: 10 }}>
                         {activeDistrictsForLegend.map((row: any, i: number) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '12px', height: '12px', borderRadius: '4px', backgroundColor: colors[row.name] || '#e2e8f0' }} />
+                                <div style={{ width: '12px', height: '12px', borderRadius: '4px', backgroundColor: calculatedColors[row.name] || '#e2e8f0' }} />
                                 <span style={{ fontSize: '10px', color: '#475569', fontWeight: 500 }}>{row.name} ({row['Вредност']})</span>
                             </div>
                         ))}
@@ -355,7 +440,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                 </>
                             )}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <RenderBars keys={keys} colors={colors} isStacked={isStacked} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -373,7 +458,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 if (isArea) return (
@@ -414,7 +499,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                                     label={currentSettings.showLabels ? { position: 'end', fill: '#64748b', fontSize: 11 } : false}
                                 />
                                 <Tooltip contentStyle={tooltipStyle} />
-                                {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                                {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             </RadialBarChart>
                         </ResponsiveContainer>
                     );
@@ -426,7 +511,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     <ResponsiveContainer width="99%" height="100%">
                         <PieChart margin={chartMargin}>
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
                                 cx="50%" cy={isSemicircle ? "75%" : "45%"}
@@ -458,23 +543,24 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             <XAxis dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
                             <YAxis tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
 
-                                if (idx === 0) {
-                                    if (isAreaLine) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
-                                    if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} isAnimationActive={false} />;
-                                    return <Bar key={key} dataKey={key} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11 } : false} />;
+                                let typeToRender = currentSettings.seriesTypes?.[key];
+                                if (!typeToRender) {
+                                    if (idx === 0) typeToRender = isAreaLine || isAreaBar ? 'area' : 'bar';
+                                    else if (idx === 1) typeToRender = isAreaBar ? 'area' : (isStackedLine ? 'bar' : 'line');
+                                    else typeToRender = 'line';
                                 }
 
-                                if (idx === 1) {
-                                    if (isAreaBar) return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
-                                    if (isStackedLine) return <Bar key={key} dataKey={key} stackId="a" fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'insideTop', fill: '#fff', fontSize: 11 } : false} />;
-                                    return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
+                                if (typeToRender === 'area') {
+                                    return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                                 }
-
+                                if (typeToRender === 'bar') {
+                                    return <Bar key={key} dataKey={key} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} label={currentSettings.showLabels ? { position: isStackedLine ? 'insideTop' : 'top', fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 } : false} />;
+                                }
                                 return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={currentSettings.showLabels ? { position: 'top', fill: '#64748b', fontSize: 11, dy: -10 } : false} />;
                             })}
                         </ComposedChart>
@@ -493,7 +579,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             <YAxis type="number" dataKey="value" tick={axisTickStyle} axisLine={false} tickLine={false} />
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px', paddingTop: '5px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -519,7 +605,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
-                            {currentSettings.showLegend && <Legend wrapperStyle={{ fontSize: '12px' }} iconType="circle" formatter={renderLegendText} />}
+                            {currentSettings.showLegend && <Legend align="left" wrapperStyle={{ fontSize: '12px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return (
@@ -552,7 +638,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'chart', settings: currentSettings });
             }}
             className={`element-block element-block-chart break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
-            style={{ height: `${dynamicHeight}px` }}
+            style={{ height: `${dynamicHeight}px`, marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
         >
             {isSelected && (
                 <div className="element-actions">
@@ -595,6 +681,7 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'image', settings: currentSettings }); }}
             className={`element-block break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
+            style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
         >
             {isSelected && (
                 <div className="element-actions">
@@ -840,6 +927,13 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'text', settings: { ...currentSettings, content: editorRef.current?.innerHTML || currentSettings.content } });
             }}
             className={`element-block cursor-text ${isSelected ? 'is-selected' : ''}`}
+            style={{
+                marginTop: `${currentSettings.marginTop || 0}px`,
+                marginBottom: `${currentSettings.marginBottom || 0}px`,
+                backgroundColor: currentSettings.backgroundColor || 'transparent',
+                padding: currentSettings.backgroundColor ? '16px' : '0px',
+                borderRadius: currentSettings.backgroundColor ? '8px' : '0px'
+            }}
         >
             {isSelected && (
                 <div className="element-actions">
@@ -875,6 +969,77 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const contentAreaRef = useRef<HTMLElement | null>(null);
     const isSplitting = useRef(false);
+
+    const colsCount = currentSettings.columns || 1;
+    const defaultWidths = Array(colsCount).fill(100 / colsCount);
+    const [localWidths, setLocalWidths] = useState<number[]>(currentSettings.columnWidths || defaultWidths);
+    const startDragRef = useRef<{ startX: number, startWidths: number[], index: number } | null>(null);
+
+    useEffect(() => {
+        if (currentSettings.columnWidths && currentSettings.columnWidths.length === colsCount) {
+            setLocalWidths(currentSettings.columnWidths);
+        } else {
+            setLocalWidths(Array(colsCount).fill(100 / colsCount));
+        }
+    }, [currentSettings.columnWidths, colsCount]);
+
+    const onResizeMouseDown = (e: React.MouseEvent, index: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startDragRef.current = {
+            startX: e.clientX,
+            startWidths: [...localWidths],
+            index
+        };
+        document.addEventListener('mousemove', onResizeMouseMove);
+        document.addEventListener('mouseup', onResizeMouseUp);
+    };
+
+    const onResizeMouseMove = (e: MouseEvent) => {
+        if (!startDragRef.current || !tableContainerRef.current) return;
+        const { startX, startWidths, index } = startDragRef.current;
+        const tableWidth = tableContainerRef.current.offsetWidth;
+        const deltaX = e.clientX - startX;
+        const deltaPct = (deltaX / tableWidth) * 100;
+
+        const newWidths = [...startWidths];
+        const maxDelta = startWidths[index] - 5;
+        const minDelta = -(startWidths[index + 1] - 5);
+        const clampedDelta = Math.max(minDelta, Math.min(maxDelta, deltaPct));
+
+        newWidths[index] = startWidths[index] + clampedDelta;
+        newWidths[index + 1] = startWidths[index + 1] - clampedDelta;
+
+        setLocalWidths(newWidths);
+    };
+
+    const onResizeMouseUp = () => {
+        if (startDragRef.current) {
+            setLocalWidths((currentLocal) => {
+                updateElementSettings({ ...currentSettings, columnWidths: currentLocal });
+                return currentLocal;
+            });
+        }
+        startDragRef.current = null;
+        document.removeEventListener('mousemove', onResizeMouseMove);
+        document.removeEventListener('mouseup', onResizeMouseUp);
+    };
+
+    const updateCellSetting = (prop: string, value: string) => {
+        if (!selectedElement?.activeCell) return;
+        const key = selectedElement.activeCell;
+        const currentCells = currentSettings.cells || {};
+        const cellSt = currentCells[key] || {};
+
+        const newSettings = {
+            ...currentSettings,
+            cells: {
+                ...currentCells,
+                [key]: { ...cellSt, [prop]: value }
+            }
+        };
+        updateElementSettings(newSettings);
+    };
 
     useEffect(() => {
         contentAreaRef.current = document.getElementById(`page-content-${pageId}`);
@@ -971,6 +1136,7 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             className={`element-block break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'table', settings: currentSettings }); }}
+            style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
         >
             {isSelected && (
                 <div className="element-actions">
@@ -979,8 +1145,27 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </div>
             )}
 
-            <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0' }}>
+            {isSelected && selectedElement?.activeCell && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white border border-slate-200 rounded-lg shadow-xl p-1 flex gap-1 z-[70] items-center" style={{ width: 'max-content' }}>
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('alignment', 'left'); }} className={`p-1.5 rounded hover:bg-slate-100 ${currentSettings.cells?.[selectedElement.activeCell]?.alignment === 'left' || !currentSettings.cells?.[selectedElement.activeCell]?.alignment ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Poravnaj levo"><AlignLeft size={16}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('alignment', 'center'); }} className={`p-1.5 rounded hover:bg-slate-100 ${currentSettings.cells?.[selectedElement.activeCell]?.alignment === 'center' ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Centriraj horizontalno"><AlignCenter size={16}/></button>
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('alignment', 'right'); }} className={`p-1.5 rounded hover:bg-slate-100 ${currentSettings.cells?.[selectedElement.activeCell]?.alignment === 'right' ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Poravnaj desno"><AlignRight size={16}/></button>
+
+                    <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('verticalAlignment', 'top'); }} className={`p-1.5 px-2 rounded hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wider ${currentSettings.cells?.[selectedElement.activeCell]?.verticalAlignment === 'top' || !currentSettings.cells?.[selectedElement.activeCell]?.verticalAlignment ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Poravnaj gore">Gore</button>
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('verticalAlignment', 'middle'); }} className={`p-1.5 px-2 rounded hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wider ${currentSettings.cells?.[selectedElement.activeCell]?.verticalAlignment === 'middle' ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Centriraj vertikalno">Sredina</button>
+                    <button onClick={(e) => { e.stopPropagation(); updateCellSetting('verticalAlignment', 'bottom'); }} className={`p-1.5 px-2 rounded hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wider ${currentSettings.cells?.[selectedElement.activeCell]?.verticalAlignment === 'bottom' ? 'bg-blue-50 text-blue-500' : 'text-slate-600'}`} title="Poravnaj dole">Dole</button>
+                </div>
+            )}
+
+            <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>
+                    <colgroup>
+                        {localWidths.map((w, i) => (
+                            <col key={i} style={{ width: `${w}%` }} />
+                        ))}
+                    </colgroup>
                     <tbody>
                     {Array.from({ length: currentSettings.rows || 1 }).map((_, rIdx) => (
                         <tr key={`row-${rIdx}`}>
@@ -1013,6 +1198,29 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     ))}
                     </tbody>
                 </table>
+
+                {isSelected && localWidths.map((w, i) => {
+                    if (i === localWidths.length - 1) return null;
+                    const leftPct = localWidths.slice(0, i + 1).reduce((a, b) => a + b, 0);
+                    return (
+                        <div
+                            key={`resizer-${i}`}
+                            onMouseDown={(e) => onResizeMouseDown(e, i)}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                bottom: 0,
+                                left: `calc(${leftPct}% - 3px)`,
+                                width: '6px',
+                                cursor: 'col-resize',
+                                zIndex: 20,
+                                backgroundColor: startDragRef.current?.index === i ? '#3b82f6' : 'transparent',
+                            }}
+                            className="hover:bg-blue-400 transition-colors"
+                            title="Povuci za promenu širine"
+                        />
+                    );
+                })}
             </div>
         </div>
     );
@@ -1117,8 +1325,8 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
                 onBlur={saveSelection}
                 onMouseUp={saveSelection}
                 onKeyUp={saveSelection}
-                className="outline-none min-h-[24px] text-sm break-words"
-                style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px', outline: 'none', minHeight: '24px', wordBreak: 'break-word' }}
+                className="outline-none text-sm break-words"
+                style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px', outline: 'none', wordBreak: 'break-word', display: 'inline-block', minHeight: '24px', width: '100%' }}
             />
         </td>
     );
@@ -1382,16 +1590,13 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
             remainingFootnotes
         } = params;
 
-        // NOVI BLOK: Sinhronizacija context-a sa resetovanim elementom kako se ne bi desilo overwrite-ovanje!
         if (selectedElement && selectedElement.elementId === elementId) {
             let updatedSettings = { ...selectedElement.settings };
-
-            // DODATO: : any ovde da bismo zaobišli TS grešku za 'sr'
             let updatedExtra: any = selectedElement.extraPayload ? { ...selectedElement.extraPayload } : {};
 
             if (remainingContent === "TABLE_SPLIT") {
                 updatedSettings = { ...updatedSettings, ...originalTableSettings };
-                updatedExtra = { sr: { content: originalTableContent } }; // Sada se TS neće buniti
+                updatedExtra = { sr: { content: originalTableContent } };
             } else {
                 updatedSettings = { ...updatedSettings, content: safeHtml, footnotes: safeFootnotes };
             }
@@ -1492,7 +1697,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
         else if (type === 'image') payload.settings = { url: '', altText: '', alignment: 'center' };
         else if (type === 'table') { payload.settings = { rows: 3, columns: 2, cells: { "0_0": { backgroundColor: "#f3f4f6", type: "headline" }, "0_1": { backgroundColor: "#f3f4f6", type: "headline" } } }; payload.sr = { content: { "0_0": "Prihodi", "0_1": "Rashodi" } }; }
         else if (type === 'chart') { payload.settings = { chartType: 'bar', subChartType: 'grouped_v', showLegend: true, showGrid: true, showLabels: false, showDataEditor: true, xAxisLabel: 'Месец' }; payload.data = [{ name: 'Јануар', 'Prihodi': 400, 'Rashodi': 240 }, { name: 'Фебруар', 'Prihodi': 300, 'Rashodi': 139 }, { name: 'Март', 'Prihodi': 200, 'Rashodi': 980 }]; payload.keys = ['Prihodi', 'Rashodi']; payload.colors = { 'Prihodi': '#8b98ff', 'Rashodi': '#34d399' }; }
-        else if (type === 'map') { payload.settings = { showLegend: true }; payload.keys = ['Вредност']; payload.data = SERBIAN_DISTRICTS.map(d => ({ name: d, 'Вредност': '' })); payload.colors = {}; }
+        else if (type === 'map') { payload.settings = { showLegend: true, width: 100, baseColor: '#3b82f6' }; payload.keys = ['Вредност']; payload.data = SERBIAN_DISTRICTS.map(d => ({ name: d, 'Вредност': '' })); }
 
         setPages((prev: any[]) => prev.map(page => page.id === pageId ? { ...page, rows: page.rows.map((row: any) => row.id === rowId ? { ...row, columns: row.columns.map((col: any) => col.id === colId ? { ...col, elements: [...col.elements, { id, type, payload }] } : col) } : row) } : page));
         setActiveColMenu(null);
