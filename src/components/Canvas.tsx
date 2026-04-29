@@ -1242,6 +1242,7 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </table>
 
                 {isSelected && localWidths.map((w, i) => {
+                    console.log(w);
                     if (i === localWidths.length - 1) return null;
                     const leftPct = localWidths.slice(0, i + 1).reduce((a, b) => a + b, 0);
                     return (
