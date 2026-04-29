@@ -299,13 +299,18 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
     const baseColor = currentSettings.baseColor || '#3b82f6';
     const width = currentSettings.width || 100;
 
+    // Pronalazimo min i max vrednosti za računanje opsega
     const values = data.map((d: any) => parseFloat(d['Вредност'])).filter((v: number) => !isNaN(v));
     const min = values.length > 0 ? Math.min(...values) : 0;
     const max = values.length > 0 ? Math.max(...values) : 0;
 
     const calculatedColors: any = {};
+    const calculatedValues: any = {};
+
     data.forEach((d: any) => {
         const val = parseFloat(d['Вредност']);
+        calculatedValues[d.name] = d['Вредност'];
+
         if (isNaN(val) || d['Вредност'] === '' || d['Вредност'] === undefined) {
             calculatedColors[d.name] = '#f1f5f9';
         } else {
@@ -319,7 +324,40 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
         }
     });
 
-    const activeDistrictsForLegend = data.filter((d: any) => d['Вредност'] && String(d['Вредност']).trim() !== '0' && String(d['Вредност']).trim() !== '');
+    // Pomoćna funkcija za lepši ispis brojeva (ako imaju decimale, ograničava na 1)
+    const formatVal = (val: number) => {
+        return new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 1 }).format(val);
+    };
+
+    // --- LOGIKA ZA LEGENDE ---
+    const legendItems = [];
+    if (values.length > 0) {
+        if (max === min) {
+            legendItems.push({ color: hexToRgba(baseColor, 1), label: `${formatVal(min)}` });
+        } else {
+            const step = (max - min) / 3;
+            // 3 Opsega - koristimo opacitete 0.4, 0.7 i 1.0 da bi vizuelno odgovarali mapiranim podacima
+            legendItems.push({
+                color: hexToRgba(baseColor, 0.4),
+                label: `${formatVal(min)} - ${formatVal(min + step)}`
+            });
+            legendItems.push({
+                color: hexToRgba(baseColor, 0.7),
+                label: `${formatVal(min + step)} - ${formatVal(min + 2 * step)}`
+            });
+            legendItems.push({
+                color: hexToRgba(baseColor, 1),
+                label: `${formatVal(min + 2 * step)} - ${formatVal(max)}`
+            });
+        }
+    }
+
+    // Dodajemo "Nema podataka" na kraj
+    legendItems.push({
+        color: '#f1f5f9',
+        label: 'Нема података',
+        isNoData: true
+    });
 
     return (
         <div
@@ -347,16 +385,48 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
             )}
 
             <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', overflow: 'hidden', pointerEvents: 'none' }}>
-                <div style={{ width: `${width}%`, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'width 0.2s' }}>
-                    <MapGraphic colors={calculatedColors} />
+                <div style={{
+                    width: `${width}%`,
+                    margin: '0 auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    transition: 'width 0.2s',
+                    pointerEvents: 'auto'
+                }}>
+                    <MapGraphic colors={calculatedColors} values={calculatedValues} />
                 </div>
 
-                {currentSettings.showLegend && activeDistrictsForLegend.length > 0 && (
-                    <div style={{ position: 'absolute', bottom: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255,255,255,0.9)', padding: '8px', borderRadius: '4px', border: '1px solid #f1f5f9', zIndex: 10 }}>
-                        {activeDistrictsForLegend.map((row: any, i: number) => (
+                {/* --- AŽURIRANA LEGENDA --- */}
+                {currentSettings.showLegend && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '16px',
+                        left: '16px',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: '16px',
+                        background: 'rgba(255,255,255,0.95)',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                        zIndex: 10
+                    }}>
+                        {legendItems.map((item, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '12px', height: '12px', borderRadius: '4px', backgroundColor: calculatedColors[row.name] || '#e2e8f0' }} />
-                                <span style={{ fontSize: '10px', color: '#475569', fontWeight: 500 }}>{row.name} ({row['Вредност']})</span>
+                                <div style={{
+                                    width: '14px',
+                                    height: '14px',
+                                    borderRadius: '50%',
+                                    backgroundColor: item.isNoData ? '#ffffff' : item.color, // Bela pozadina za "Nema podataka"
+                                    border: item.isNoData ? '1px solid #cbd5e1' : 'none'
+                                }} />
+                                <span style={{ fontSize: '11px', color: '#475569', fontWeight: 500 }}>
+                                    {item.label}
+                                </span>
                             </div>
                         ))}
                     </div>
