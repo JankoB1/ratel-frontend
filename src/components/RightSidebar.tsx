@@ -334,6 +334,17 @@ const RightSidebar = () => {
 
             {selectedElement.type === 'chart' && (
                 <>
+                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20 mt-3">
+                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив графикона (наслов)</label>
+                        <input
+                            type="text"
+                            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                            placeholder="Унесите назив..."
+                            value={settings.title || ''}
+                            onChange={(e) => updateElementSettings({ title: e.target.value })}
+                        />
+                    </div>
+
                     <div className="flex flex-col gap-3">
                         <label className="flex items-center justify-between cursor-pointer group">
                             <span className="text-sm text-slate-600 font-medium">Прикажи вредности</span>
@@ -437,7 +448,19 @@ const RightSidebar = () => {
 
                         <div className="flex flex-col max-h-[350px] overflow-y-auto custom-scrollbar">
                             {SERBIAN_DISTRICTS.map((district) => {
-                                const rowData = mapData.find((d: any) => d.name === district) || { 'Вредност': '' };
+                                const rowData = mapData.find((d: any) => d.name === district);
+
+                                let valToDisplay = '';
+                                if (rowData) {
+                                    if (rowData['Вредност'] !== undefined) {
+                                        valToDisplay = rowData['Вредност'];
+                                    } else {
+                                        const valueKey = Object.keys(rowData).find(k => k !== 'name');
+                                        if (valueKey) {
+                                            valToDisplay = rowData[valueKey];
+                                        }
+                                    }
+                                }
 
                                 return (
                                     <div key={district} className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
@@ -446,7 +469,7 @@ const RightSidebar = () => {
                                         </span>
                                         <input
                                             type="number"
-                                            value={rowData['Вредност']}
+                                            value={valToDisplay}
                                             onChange={(e) => handleMapValueChange(district, e.target.value)}
                                             placeholder="0"
                                             className="w-20 text-xs text-right bg-transparent border-b border-slate-200 focus:border-blue-400 outline-none p-1 text-slate-700 font-medium"
@@ -535,8 +558,20 @@ const RightSidebar = () => {
             {selectedElement.type === 'table' && (
                 <>
                     <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Подешавања табеле</h3>
+
                     <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4">
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив табеле (наслов)</label>
+                            <input
+                                type="text"
+                                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                                placeholder="Унесите назив табеле..."
+                                value={settings.title || ''}
+                                onChange={(e) => updateElementSettings({ title: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-3 mt-2">
                             <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Димензије табеле</label>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-1.5">

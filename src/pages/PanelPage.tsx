@@ -107,6 +107,9 @@ const PanelPage = () => {
     const activeSection = sections.find(s => s.id === activeSectionId);
     const canvasData = activeSection?.canvas_data || [{ id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }];
 
+    const activeSectionIndex = sections.findIndex(s => s.id === activeSectionId);
+    const sectionNum = activeSectionIndex !== -1 ? activeSectionIndex + 1 : 1;
+
     return (
         <div className="bg-background-grey text-dark-blue font-sans h-screen flex flex-col overflow-hidden">
 
@@ -131,7 +134,7 @@ const PanelPage = () => {
                     />
 
                     {activeSection ? (
-                        <Canvas pages={canvasData} setPages={handlePagesChange} />
+                        <Canvas pages={canvasData} setPages={handlePagesChange} sectionNum={sectionNum} />
                     ) : (
                         <div className="flex items-center justify-center h-full text-slate-400 w-full">
                             Изаберите секцију.

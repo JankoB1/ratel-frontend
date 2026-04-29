@@ -71,6 +71,26 @@ const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette }: any) =>
     );
 };
 
+// Komponenta za prikaz labela (Tabela 1.1, Slika 1.2...)
+const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
+    if (!label) return null;
+    return (
+        <div style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#1e293b',
+            marginBottom: '8px',
+            textAlign: 'left',
+            borderLeft: '3px solid #3b82f6',
+            paddingLeft: '8px',
+            width: '100%',
+            wordBreak: 'break-word'
+        }}>
+            {label}{title ? `: ${title}` : ''}
+        </div>
+    );
+};
+
 const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any) => {
     const isPie = settings.chartType === 'circular';
     const isComposed = settings.chartType === 'composed';
@@ -306,7 +326,15 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => {
                 e.stopPropagation();
-                setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'map', settings: currentSettings });
+                setSelectedElement({
+                    pageId,
+                    rowId,
+                    colId,
+                    elementId: el.id,
+                    type: 'map',
+                    settings: currentSettings,
+                    extraPayload: { data: el.payload.data }
+                });
             }}
             className={`element-block element-block-map break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
             style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
@@ -338,7 +366,7 @@ const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement
     );
 };
 
-const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart }: any) => {
+const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, elementLabel }: any) => {
     const defaultSettings = el.payload.settings || {};
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
@@ -635,7 +663,20 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => {
                 e.stopPropagation();
-                setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'chart', settings: currentSettings });
+                setSelectedElement({
+                    pageId,
+                    rowId,
+                    colId,
+                    elementId: el.id,
+                    type: 'chart',
+                    settings: currentSettings,
+                    extraPayload: {
+                        data: el.payload.data,
+                        keys: el.payload.keys,
+                        colors: el.payload.colors,
+                        subChartType: el.payload.subChartType
+                    }
+                });
             }}
             className={`element-block element-block-chart break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
             style={{ height: `${dynamicHeight}px`, marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}
@@ -646,6 +687,8 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                     <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="action-btn danger"><Trash2 size={14} /></button>
                 </div>
             )}
+
+            <ElementLabel label={elementLabel} title={currentSettings.title} />
 
             <div ref={wrapperRef} style={{ width: '100%', height: '100%', flex: 1, pointerEvents: 'none', minWidth: 0, overflow: 'hidden' }}>
                 {renderChart()}
@@ -658,7 +701,7 @@ const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
     );
 };
 
-const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart }: any) => {
+const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, elementLabel }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const [isUploading, setIsUploading] = useState(false);
@@ -690,6 +733,8 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </div>
             )}
 
+            <ElementLabel label={elementLabel} title={currentSettings.altText} />
+
             {currentSettings.url ? (
                 <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: currentSettings.alignment === 'left' ? 'flex-start' : currentSettings.alignment === 'right' ? 'flex-end' : 'center', textAlign: currentSettings.alignment === 'left' ? 'left' : currentSettings.alignment === 'right' ? 'right' : 'center' }}>
                     <img
@@ -697,11 +742,6 @@ const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                         alt={currentSettings.altText}
                         style={{ width: `${currentSettings.width || 100}%`, height: 'auto', borderRadius: '0', transition: 'all 0.2s' }}
                     />
-                    {(currentSettings.altText || isSelected) && (
-                        <span style={{ fontSize: '14px', fontStyle: 'italic', marginTop: '10px', display: 'block', width: '100%', color: !currentSettings.altText ? '#94a3b8' : '#475569' }}>
-                            {currentSettings.altText || (isSelected ? "Назив слике (додајте у менију)" : "")}
-                        </span>
-                    )}
                 </div>
             ) : (
                 <div style={{ padding: '2rem', width: '100%', minHeight: '180px', backgroundColor: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -961,7 +1001,7 @@ const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElemen
     );
 };
 
-const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap }: any) => {
+const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap, elementLabel }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const content = el.payload.sr?.content || {};
@@ -1159,6 +1199,8 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </div>
             )}
 
+            <ElementLabel label={elementLabel} title={currentSettings.title} />
+
             <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>
                     <colgroup>
@@ -1200,7 +1242,6 @@ const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedEleme
                 </table>
 
                 {isSelected && localWidths.map((w, i) => {
-                    console.log(w);
                     if (i === localWidths.length - 1) return null;
                     const leftPct = localWidths.slice(0, i + 1).reduce((a, b) => a + b, 0);
                     return (
@@ -1374,7 +1415,7 @@ const ElementSelector = ({ onSelect }: any) => (
     </div>
 );
 
-const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap }: any) => {
+const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
 
@@ -1473,9 +1514,9 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
                                                 <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(page.id, row.id, col.id)} className={`canvas-col ${col.widthClass} ${isColActive ? 'is-active' : ''}`}>
                                                     {col.elements.map((el: any) => {
                                                         if (el.type === 'text') return <TextElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
-                                                        if (el.type === 'image') return <ImageElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
-                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />;
-                                                        if (el.type === 'chart') return <ChartElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
+                                                        if (el.type === 'image') return <ImageElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} elementLabel={elementLabelMap[el.id]} />;
+                                                        if (el.type === 'table') return <TableElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} elementLabel={elementLabelMap[el.id]} />;
+                                                        if (el.type === 'chart') return <ChartElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} elementLabel={elementLabelMap[el.id]} />;
                                                         if (el.type === 'map') return <MapElementBlock key={el.id} el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />;
                                                         return null;
                                                     })}
@@ -1515,14 +1556,40 @@ const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selecte
     );
 };
 
-interface CanvasProps { pages: any[]; setPages: (action: any) => void; }
+interface CanvasProps { pages: any[]; setPages: (action: any) => void; sectionNum?: number; }
 
-const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
+const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
     const { setSelectedElement, selectedElement, updateElementSettings } = useEditor();
     const [activeRowMenu, setActiveRowMenu] = useState<{pageId: string, rowId: string} | null>(null);
     const [activeColMenu, setActiveColMenu] = useState<{pageId: string, colId: string} | null>(null);
     const [draggedItem, setDraggedItem] = useState<any>(null);
     const initialPagesRef = useRef<any>(null);
+
+    // KREIRANA LOGIKA ZA KONTINUIRANO BROJANJE KROZ CELU SEKCIJU
+    const elementLabelMap = useMemo(() => {
+        const map: Record<string, string> = {};
+
+        let tableCount = 1;
+        let mediaCount = 1; // Zajednički brojač za slike i grafikone
+
+        pages.forEach((page) => {
+            page.rows.forEach((row: any) => {
+                row.columns.forEach((col: any) => {
+                    col.elements.forEach((el: any) => {
+                        if (el.type === 'table') {
+                            map[el.id] = `Tabela ${sectionNum}.${tableCount}`;
+                            tableCount++;
+                        } else if (el.type === 'image' || el.type === 'chart') {
+                            map[el.id] = `Slika ${sectionNum}.${mediaCount}`;
+                            mediaCount++;
+                        }
+                    });
+                });
+            });
+        });
+
+        return map;
+    }, [pages, sectionNum]);
 
     const globalFootnoteOrder = useMemo(() => {
         const order: string[] = [];
@@ -1723,7 +1790,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages }) => {
     return (
         <div className="canvas-wrapper" onClick={() => { setSelectedElement(null); setActiveRowMenu(null); setActiveColMenu(null); }}>
             {pages?.map((page, index) => (
-                <PageItem key={page.id} page={page} pageIndex={index} totalPages={pages.length} setPages={setPages} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} handleAutoSplit={handleAutoSplit} onDragStart={onDragStart} onDrop={onDrop} handleDeleteElement={handleDeleteElement} handleDeleteRow={handleDeleteRow} onDeletePage={handleDeletePage} getGridCols={getGridCols} handleAddElement={handleAddElement} activeRowMenu={activeRowMenu} setActiveRowMenu={setActiveRowMenu} activeColMenu={activeColMenu} setActiveColMenu={setActiveColMenu} globalFootnoteMap={globalFootnoteMap} />
+                <PageItem key={page.id} page={page} pageIndex={index} totalPages={pages.length} setPages={setPages} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} handleAutoSplit={handleAutoSplit} onDragStart={onDragStart} onDrop={onDrop} handleDeleteElement={handleDeleteElement} handleDeleteRow={handleDeleteRow} onDeletePage={handleDeletePage} getGridCols={getGridCols} handleAddElement={handleAddElement} activeRowMenu={activeRowMenu} setActiveRowMenu={setActiveRowMenu} activeColMenu={activeColMenu} setActiveColMenu={setActiveColMenu} globalFootnoteMap={globalFootnoteMap} elementLabelMap={elementLabelMap} />
             ))}
             <button onClick={(e) => { e.stopPropagation(); setPages((prev: any[]) => [...prev, { id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }]); }} style={{ padding: '0.875rem 1.75rem', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '9999px', color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '2.5rem' }}>
                 <Plus size={20} /> Нова страница
