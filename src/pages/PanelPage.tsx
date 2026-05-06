@@ -79,8 +79,26 @@ const PanelPage = () => {
         }
     };
 
-    const handleSectionChange = (id: number) => {
+    const handleSectionChange = async (id: number) => {
+        // Opciono: Možeš automatski da sačuvaš trenutnu sekciju pre nego što korisnik pređe na drugu
+        // await handleSave();
+
         setSelectedElement(null);
+
+        try {
+            // Povlačimo isključivo NAJSVEŽIJE podatke za sekciju na koju korisnik želi da pređe
+            const response = await axiosClient.get(`/api/sections/${id}`);
+            const freshSection = response.data.section;
+
+            // Ažuriramo SAMO tu sekciju u lokalnom state-u, kako bismo pregazili stare podatke iz memorije
+            setSections(prevSections => prevSections.map(sec =>
+                sec.id === id ? freshSection : sec
+            ));
+        } catch (error) {
+            console.error("Greška pri osvežavanju sekcije:", error);
+        }
+
+        // Menjamo aktivnu sekciju i prikazujemo je u Canvasu
         setActiveSectionId(id);
     };
 
