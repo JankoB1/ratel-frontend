@@ -107,11 +107,13 @@ const ViewPage = () => {
     }, []);
 
     useEffect(() => {
+        // Wait until main content is rendered (after loading) before attaching listener
+        if (isLoading) return;
         const el = mainAreaRef.current;
         if (!el) return;
         el.addEventListener('scroll', handleMainScroll, { passive: true });
         return () => el.removeEventListener('scroll', handleMainScroll);
-    }, [handleMainScroll]);
+    }, [isLoading, handleMainScroll]);
 
     // Auto-scroll thumbnail sidebar to keep current thumbnail visible
     useEffect(() => {
