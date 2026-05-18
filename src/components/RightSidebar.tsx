@@ -698,20 +698,13 @@ const RightSidebar = () => {
                                         <input type="checkbox" className="hidden" checked={settings.showLegend} onChange={() => updateElementSettings({ showLegend: !settings.showLegend })} />
                                     </label>
 
-                                    {['bar', 'line', 'composed'].includes(settings.chartType) && (() => {
-                                        const subType = selectedElement?.extraPayload?.subChartType || settings.subChartType || '';
-                                        const isHorizontalBar = settings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
-                                        if (isHorizontalBar) return null;
-                                        return (
-                                            <label className="flex items-center justify-between cursor-pointer group">
-                                                <span className="text-sm text-slate-600 font-medium">Прикажи табелу са подацима</span>
-                                                <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showDataTable ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showDataTable ? 'translate-x-4' : ''}`} />
-                                                </div>
-                                                <input type="checkbox" className="hidden" checked={!!settings.showDataTable} onChange={() => updateElementSettings({ showDataTable: !settings.showDataTable })} />
-                                            </label>
-                                        );
-                                    })()}
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Прикажи табелу са подацима</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showDataTable ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showDataTable ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={!!settings.showDataTable} onChange={() => updateElementSettings({ showDataTable: !settings.showDataTable })} />
+                                    </label>
 
                                     {settings.showLegend && (
                                         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-3">

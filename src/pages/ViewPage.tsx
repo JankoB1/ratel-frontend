@@ -50,12 +50,28 @@ const ViewPage = () => {
     const totalPages = activePages.length;
 
     // --- Section change ---
+    // Track which section's scroll listener should be ignored (during transition)
+    const isChangingSectionRef = useRef(false);
+
     const handleSectionChange = useCallback((sectionId: number) => {
+        isChangingSectionRef.current = true;
         setActiveSectionId(sectionId);
         setCurrentPage(0);
-        mainAreaRef.current?.scrollTo({ top: 0 });
-        thumbSidebarRef.current?.scrollTo({ top: 0 });
     }, []);
+
+    // After section changes and React re-renders new pages, scroll to top
+    useEffect(() => {
+        if (activeSectionId == null) return;
+        // Defer to next frame so new pages are mounted before we scroll/measure
+        const raf = requestAnimationFrame(() => {
+            mainAreaRef.current?.scrollTo({ top: 0 });
+            thumbSidebarRef.current?.scrollTo({ top: 0 });
+            setCurrentPage(0);
+            // Re-enable scroll-driven page tracking shortly after
+            setTimeout(() => { isChangingSectionRef.current = false; }, 150);
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [activeSectionId]);
 
     // --- Zoom ---
     const zoomIn  = useCallback(() => setZoom(z => Math.min(200, z + 25)), []);
@@ -74,12 +90,16 @@ const ViewPage = () => {
 
     // --- Scroll tracking (main area → update current page) ---
     const handleMainScroll = useCallback(() => {
+        // Ignore scroll events while a section change is in flight (DOM may be stale)
+        if (isChangingSectionRef.current) return;
         const container = mainAreaRef.current;
         if (!container) return;
+        const pageEls = container.querySelectorAll<HTMLElement>('[data-view-page-index]');
+        if (pageEls.length === 0) return;
         const containerTop = container.getBoundingClientRect().top;
         let closestIdx = 0;
         let closestDist = Infinity;
-        container.querySelectorAll<HTMLElement>('[data-view-page-index]').forEach(el => {
+        pageEls.forEach(el => {
             const dist = Math.abs(el.getBoundingClientRect().top - containerTop);
             if (dist < closestDist) { closestDist = dist; closestIdx = parseInt(el.getAttribute('data-view-page-index') || '0', 10); }
         });
@@ -162,12 +182,12 @@ const ViewPage = () => {
 
             {/* ── Section tabs ── */}
             <div className="px-8 pb-4 shrink-0">
-                <div className="flex items-center gap-1 bg-white rounded-[50px] px-2 py-1.5 border border-slate-100 shadow-sm w-fit">
+                <div className="flex flex-wrap items-center gap-1.5 bg-white rounded-2xl px-2.5 py-2 border border-slate-100 shadow-sm">
                     {sections.map(section => (
                         <button
                             key={section.id}
                             onClick={() => handleSectionChange(section.id)}
-                            className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all whitespace-nowrap ${
+                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all whitespace-nowrap ${
                                 activeSectionId === section.id
                                     ? 'bg-[#0056B3] text-white shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
