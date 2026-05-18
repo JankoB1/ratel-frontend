@@ -1,5 +1,4 @@
 import { GripVertical, Trash2 } from "lucide-react";
-import { CHART_PALETTE } from "./constants";
 import { hexToRgba } from "./utils";
 import MapGraphic from "../MapGraphic";
 

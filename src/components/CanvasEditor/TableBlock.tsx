@@ -367,7 +367,7 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     </tbody>
                 </table>
 
-                {isSelected && localWidths.map((w, i) => {
+                {isSelected && localWidths.map((_w, i) => {
                     if (i === localWidths.length - 1) return null;
                     const leftPct = localWidths.slice(0, i + 1).reduce((a, b) => a + b, 0);
                     return (

@@ -82,6 +82,9 @@ const EditorLayout = () => {
                 onSave={handleSave}
                 onDownload={handleDownloadPdf}
                 isSaving={isSaving}
+                currentPage={0}
+                totalPages={canvasData.length}
+                onPageChange={() => {}}
             />
 
             <main className="flex-1 overflow-y-auto custom-scrollbar relative">

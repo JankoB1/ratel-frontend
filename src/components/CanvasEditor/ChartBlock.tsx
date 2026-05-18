@@ -182,10 +182,9 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                         <td className="bg-light" style={{ width: '120px', fontWeight: 500, verticalAlign: 'top', paddingTop: '8px' }}>
                             <input
                                 value={settings.xAxisLabel ?? ''}
-                                placeholder="Месец"
+                                placeholder="Ознака"
                                 onChange={e => updateSettings({ xAxisLabel: e.target.value })}
                                 className="data-input"
-                                placeholder="Ознака"
                             />
                         </td>
                         {displayKeys.map((k: string, i: number) => {
@@ -547,7 +546,17 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 </>
                             )}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} payload={keys.map((key: string, idx: number) => ({ value: key, type: 'circle' as const, color: colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length] }))} />}
+                            {showInternalLegend && (() => {
+                                const legendProps: any = {
+                                    verticalAlign: currentSettings.legendVerticalAlign || 'bottom',
+                                    align: currentSettings.legendAlign || 'center',
+                                    wrapperStyle: { fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' },
+                                    iconType: 'circle',
+                                    formatter: renderLegendText,
+                                    payload: keys.map((key: string, idx: number) => ({ value: key, type: 'circle' as const, color: colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length] })),
+                                };
+                                return <Legend {...legendProps} />;
+                            })()}
                             <RenderBars keys={keys} colors={colors} isStacked={isStacked} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} />
                         </BarChart>
                     </ResponsiveContainer>

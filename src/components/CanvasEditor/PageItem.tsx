@@ -12,25 +12,6 @@ import { TableElementBlock } from "./TableBlock";
 import { ChartElementBlock } from "./ChartBlock";
 import { MapElementBlock } from "./MapBlock";
 
-const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
-    if (!label) return null;
-    return (
-        <div style={{
-            fontSize: '13px',
-            fontWeight: 700,
-            color: '#1e293b',
-            marginBottom: '8px',
-            textAlign: 'left',
-            borderLeft: '3px solid #3b82f6',
-            paddingLeft: '8px',
-            width: '100%',
-            wordBreak: 'break-word'
-        }}>
-            {label}{title ? `: ${title}` : ''}
-        </div>
-    );
-};
-
 const LayoutSelector = ({ onSelect, position = "bottom" }: any) => {
     return (
         <div

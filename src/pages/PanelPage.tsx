@@ -57,7 +57,7 @@ const PanelPage = () => {
 
     const historyRef = useRef<string[]>([]);
     const isUndoingRef = useRef(false);
-    const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [canUndo, setCanUndo] = useState(false);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);

@@ -113,7 +113,7 @@ const DocFeaturedCard = ({ doc, large, onClick }: { doc: PortalDoc; large?: bool
     const h = Math.round(1123 * scale);
 
     const { elementLabelMap, globalFootnoteMap } = useMemo(() => {
-        if (!doc.first_page) return { elementLabelMap: new Map(), globalFootnoteMap: new Map() };
+        if (!doc.first_page) return { elementLabelMap: {} as Record<string, string>, globalFootnoteMap: {} as Record<string, number> };
         return buildMaps([{ id: doc.id, canvas_data: [doc.first_page] }]);
     }, [doc]);
 
@@ -148,7 +148,7 @@ const DocFeaturedCard = ({ doc, large, onClick }: { doc: PortalDoc; large?: bool
 
 // ── Group thumbnail card (hero) ───────────────────────────────────────────────
 
-const GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGroup; large?: boolean; onClick: () => void }) => {
+export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGroup; large?: boolean; onClick: () => void }) => {
     const hasElements = group.elements?.length > 0;
     const scale = large ? 0.32 : 0.24;
     const w = Math.round(794 * scale);
@@ -218,11 +218,11 @@ const GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGroup; large
 
 // ── Document thumbnail card ───────────────────────────────────────────────────
 
-const DocCard = ({ doc, onClick }: { doc: PortalDoc; onClick: () => void }) => {
+export const _DocCard = ({ doc, onClick }: { doc: PortalDoc; onClick: () => void }) => {
     const hasThumbnail = !!doc.first_page;
 
     const { elementLabelMap, globalFootnoteMap } = useMemo(() => {
-        if (!doc.first_page) return { elementLabelMap: new Map(), globalFootnoteMap: new Map() };
+        if (!doc.first_page) return { elementLabelMap: {} as Record<string, string>, globalFootnoteMap: {} as Record<string, number> };
         return buildMaps([{ id: doc.id, canvas_data: [doc.first_page] }]);
     }, [doc]);
 

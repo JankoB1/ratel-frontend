@@ -282,8 +282,10 @@ const AdminPage = () => {
             await Promise.all([loadStats(), loadUsers()]);
             return null;
         } catch (err: any) {
+            const errs = (err?.response?.data?.errors ?? {}) as Record<string, string[]>;
+            const firstFieldErrors = Object.values(errs)[0];
             const msg = err?.response?.data?.message
-                ?? Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0]
+                ?? firstFieldErrors?.[0]
                 ?? "Greška pri kreiranju korisnika.";
             return msg as string;
         }
@@ -299,7 +301,7 @@ const AdminPage = () => {
         }
     };
 
-    const handleOpenEditor = (id: number) => {
+    const handleOpenEditor = (_id: number) => {
         navigate("/panel");
     };
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode, type FC } from 'react';
+import { createContext, useContext, useState, type ReactNode, type FC, type Dispatch, type SetStateAction } from 'react';
 
 interface SelectedElement {
     pageId: string;
@@ -23,6 +23,10 @@ interface EditorContextType {
     updateElementSettings: (newSettings: Partial<any>, extraPayload?: Partial<SelectedElement['extraPayload']>) => void;
     isChartModalOpen: boolean;
     setIsChartModalOpen: (isOpen: boolean) => void;
+    isGroupingMode: boolean;
+    setIsGroupingMode: Dispatch<SetStateAction<boolean>>;
+    groupSelection: string[];
+    setGroupSelection: Dispatch<SetStateAction<string[]>>;
 }
 
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
