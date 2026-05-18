@@ -289,7 +289,6 @@ const ChartBlockReadonly = ({ el, label }: any) => {
     const xAxisPadding = { left: xPaddingLeft, right: xPaddingRight };
 
     // Data table below chart — available for all chart types
-    const isHorizontalBar = s.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
     const dataTableEnabled = !!s.showDataTable && data.length > 0 && keys.length > 0;
 
     const renderDataTable = () => {

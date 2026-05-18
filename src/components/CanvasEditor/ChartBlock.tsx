@@ -371,7 +371,6 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const xAxisPadding = { left: xPaddingLeft, right: xPaddingRight };
 
     // Data table below chart (Excel-style) — available for all chart types
-    const isHorizontalBar = currentSettings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
     const dataTableEnabled = !!currentSettings.showDataTable && data.length > 0 && keys.length > 0;
 
     const renderDataTable = () => {
