@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from 'react';
 import axiosClient from "../axios-client";
 
@@ -6,6 +6,7 @@ interface User {
     id: number;
     name: string;
     email: string;
+    avatar?: string | null;
 }
 
 interface AuthContextType {
@@ -45,9 +46,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const logout = async () => {
-        await axiosClient.post('/api/logout');
+        try {
+            await axiosClient.post('/api/logout');
+        } catch (_e) {
+            // ignore network errors; clear local state anyway
+        }
         setUser(null);
     };
+
+    // Pokušaj automatski da povučeš korisnika kad se aplikacija učita (osvežavanje stranice)
+    useEffect(() => {
+        getUser();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, login, logout, getUser }}>

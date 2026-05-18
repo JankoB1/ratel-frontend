@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, {useEffect, useState} from "react";
 import {
     AlignCenter, AlignJustify, AlignLeft, AlignRight,
     ChevronDown, Bold, Italic, Underline, Superscript, Subscript,
@@ -8,6 +8,7 @@ import {
     PlusCircle
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
+import axiosClient from "../axios-client.ts";
 
 const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode; subtypes: { id: string; name: string; icon: React.ReactNode }[] }> = {
     bar: {
@@ -131,7 +132,53 @@ export const extractFootnoteIds = (html: string) => {
 };
 
 const RightSidebar = () => {
-    const { selectedElement, updateElementSettings } = useEditor();
+    const {
+        selectedElement, updateElementSettings,
+        isGroupingMode, setIsGroupingMode,
+        groupSelection, setGroupSelection
+    } = useEditor();
+
+    const [activeTab, setActiveTab] = useState<'element' | 'groups'>('element');
+    const [newGroupName, setNewGroupName] = useState('');
+
+    // --- NOVO: Stanja i funkcije za sačuvane grupe ---
+    const [savedGroups, setSavedGroups] = useState<any[]>([]);
+    const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+
+    const fetchSavedGroups = async () => {
+        setIsLoadingGroups(true);
+        try {
+            // Gađamo Laravel rutu koju ćemo napraviti
+            const response = await axiosClient.get('/api/saved-groups');
+            setSavedGroups(response.data.data || response.data);
+        } catch (error) {
+            console.error("Greška pri učitavanju grupa", error);
+        } finally {
+            setIsLoadingGroups(false);
+        }
+    };
+
+    const deleteGroup = async (id: number) => {
+        if (!window.confirm('Да ли сте сигурни да желите да обришете ову групу?')) return;
+        try {
+            await axiosClient.delete(`/api/saved-groups/${id}`);
+            setSavedGroups(prev => prev.filter(g => g.id !== id));
+        } catch (error) {
+            console.error("Greška pri brisanju", error);
+        }
+    };
+
+    // Učitaj grupe kad god otvorimo tab "Grupe", i slušaj event sa Canvasa kad se sačuva nova
+    useEffect(() => {
+        if (activeTab === 'groups') {
+            fetchSavedGroups();
+        }
+
+        const handleRefresh = () => fetchSavedGroups();
+        window.addEventListener('group-saved', handleRefresh);
+        return () => window.removeEventListener('group-saved', handleRefresh);
+    }, [activeTab]);
+    // --- KRAJ NOVOG DELA ---
 
     if (!selectedElement) {
         return (
@@ -145,6 +192,49 @@ const RightSidebar = () => {
 
     const formatText = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
+    };
+
+    const toggleInlineTag = (tagName: 'sup' | 'sub') => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+        let ancestor: Node | null = range.commonAncestorContainer;
+        if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentNode;
+
+        let tagNode: HTMLElement | null = null;
+        let cur: Node | null = ancestor;
+        while (cur) {
+            if ((cur as HTMLElement).getAttribute?.('contenteditable') === 'true') break;
+            if ((cur as HTMLElement).tagName?.toLowerCase() === tagName) {
+                tagNode = cur as HTMLElement;
+                break;
+            }
+            cur = cur.parentNode;
+        }
+
+        if (tagNode) {
+            const parent = tagNode.parentNode!;
+            const frag = document.createDocumentFragment();
+            while (tagNode.firstChild) frag.appendChild(tagNode.firstChild);
+            parent.replaceChild(frag, tagNode);
+        } else {
+            document.execCommand(tagName === 'sup' ? 'superscript' : 'subscript', false, undefined);
+        }
+
+        const editor = document.activeElement;
+        if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const applyTextColor = (color: string) => {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+            document.execCommand('foreColor', false, color);
+            const editor = document.activeElement;
+            if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            updateElementSettings({ color });
+        }
     };
 
     const getBlockElement = () => {
@@ -194,8 +284,8 @@ const RightSidebar = () => {
         if (url) formatText("createLink", url);
     };
 
-    const PRIMARY_COLORS = ['#8b98ff', '#34d399', '#f8fafc', '#2563eb', '#1e3a8a'];
-    const SECONDARY_COLORS = ['#f59e0b', '#fef3c7', '#fecdd3', '#c084fc', '#e11d48'];
+    const PRIMARY_COLORS = ['#8b98ff', '#34d399', '#06b6d4', '#2563eb', '#1e3a8a', '#0f766e', '#f43f5e'];
+    const SECONDARY_COLORS = ['#f59e0b', '#f97316', '#fecdd3', '#c084fc', '#e11d48', '#84cc16', '#64748b'];
 
     const handleColorPick = (colorHex: string) => {
         const activeKey = settings.activeColorKey;
@@ -223,52 +313,74 @@ const RightSidebar = () => {
     const handleMergeRight = () => {
         if (!selectedElement.activeCell) return;
         const [r, c] = selectedElement.activeCell.split('_').map(Number);
-        const nextColKey = `${r}_${c + 1}`;
+        const cellSt = settings.cells?.[selectedElement.activeCell] || {};
+        const colSpan = cellSt.colSpan || 1;
+        const rowSpan = cellSt.rowSpan || 1;
+        const totalCols = settings.columns || 1;
 
-        updateElementSettings({
-            cells: {
-                ...settings.cells,
-                [selectedElement.activeCell]: { ...(settings.cells?.[selectedElement.activeCell] || {}), colSpan: ((settings.cells?.[selectedElement.activeCell]?.colSpan || 1) + 1) },
-                [nextColKey]: { ...(settings.cells?.[nextColKey] || {}), hidden: true }
-            }
-        });
+        // The column to absorb is at c + colSpan (skip already-absorbed cols)
+        const nextCol = c + colSpan;
+        if (nextCol >= totalCols) return; // already at the right edge
+
+        const newCells = { ...settings.cells };
+
+        // Hide every cell at nextCol within our rowSpan range and reset their spans
+        for (let i = 0; i < rowSpan; i++) {
+            const targetKey = `${r + i}_${nextCol}`;
+            newCells[targetKey] = { ...(newCells[targetKey] || {}), hidden: true, colSpan: 1, rowSpan: 1 };
+        }
+        newCells[selectedElement.activeCell] = { ...cellSt, colSpan: colSpan + 1 };
+
+        updateElementSettings({ cells: newCells });
     };
 
     const handleMergeDown = () => {
         if (!selectedElement.activeCell) return;
         const [r, c] = selectedElement.activeCell.split('_').map(Number);
-        const nextRowKey = `${r + 1}_${c}`;
+        const cellSt = settings.cells?.[selectedElement.activeCell] || {};
+        const colSpan = cellSt.colSpan || 1;
+        const rowSpan = cellSt.rowSpan || 1;
+        const totalRows = settings.rows || 1;
 
-        updateElementSettings({
-            cells: {
-                ...settings.cells,
-                [selectedElement.activeCell]: { ...(settings.cells?.[selectedElement.activeCell] || {}), rowSpan: ((settings.cells?.[selectedElement.activeCell]?.rowSpan || 1) + 1) },
-                [nextRowKey]: { ...(settings.cells?.[nextRowKey] || {}), hidden: true }
-            }
-        });
+        // The row to absorb is at r + rowSpan (skip already-absorbed rows)
+        const nextRow = r + rowSpan;
+        if (nextRow >= totalRows) return; // already at the bottom edge
+
+        const newCells = { ...settings.cells };
+
+        // Hide every cell at nextRow within our colSpan range and reset their spans
+        for (let j = 0; j < colSpan; j++) {
+            const targetKey = `${nextRow}_${c + j}`;
+            newCells[targetKey] = { ...(newCells[targetKey] || {}), hidden: true, colSpan: 1, rowSpan: 1 };
+        }
+        newCells[selectedElement.activeCell] = { ...cellSt, rowSpan: rowSpan + 1 };
+
+        updateElementSettings({ cells: newCells });
     };
 
     const handleUnmerge = () => {
         if (!selectedElement.activeCell) return;
         const [r, c] = selectedElement.activeCell.split('_').map(Number);
-        const currentCellSettings = settings.cells?.[selectedElement.activeCell] || {};
+        const cellSt = settings.cells?.[selectedElement.activeCell] || {};
+        const colSpan = cellSt.colSpan || 1;
+        const rowSpan = cellSt.rowSpan || 1;
 
-        const colSpan = currentCellSettings.colSpan || 1;
-        const rowSpan = currentCellSettings.rowSpan || 1;
+        const newCells = { ...settings.cells };
 
-        let newCellsSettings = { ...settings.cells };
-        for(let i = 0; i < rowSpan; i++) {
-            for(let j = 0; j < colSpan; j++) {
-                if(i === 0 && j === 0) continue;
+        // Fully reset every cell that was absorbed — unhide + clear spans
+        for (let i = 0; i < rowSpan; i++) {
+            for (let j = 0; j < colSpan; j++) {
+                if (i === 0 && j === 0) continue;
                 const targetKey = `${r + i}_${c + j}`;
-                newCellsSettings[targetKey] = { ...(newCellsSettings[targetKey] || {}), hidden: false };
+                newCells[targetKey] = { ...(newCells[targetKey] || {}), hidden: false, colSpan: 1, rowSpan: 1 };
             }
         }
 
-        newCellsSettings[selectedElement.activeCell] = { ...currentCellSettings, colSpan: 1, rowSpan: 1 };
+        // Reset the anchor cell to span 1×1
+        newCells[selectedElement.activeCell] = { ...cellSt, colSpan: 1, rowSpan: 1 };
 
-        updateElementSettings({ cells: newCellsSettings });
-    }
+        updateElementSettings({ cells: newCells });
+    };
 
     const footnotesDict = settings.footnotes || {};
     let activeFootnoteIds: string[] = [];
@@ -282,519 +394,831 @@ const RightSidebar = () => {
     return (
         <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-[92vh] sticky top-10 custom-scrollbar z-40 pb-20">
 
-            <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-2 mb-[-10px]">
-                <Star size={14} /> Опште опције
-            </h3>
-
-            <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
-                <label className="flex items-center justify-between cursor-pointer group">
-                    <span className="text-sm text-slate-600 font-medium">Истакни модул</span>
-                    <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.featured ? 'bg-amber-400' : 'bg-slate-200'}`}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.featured ? 'translate-x-4' : ''}`} />
-                    </div>
-                    <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={!!settings.featured}
-                        onChange={() => updateElementSettings({ featured: !settings.featured })}
-                    />
-                </label>
-
-                {/* OPCIJE ZA RAZMAK (SPACING) - Dostupno za sve elemente */}
-                <div className="pt-3 border-t border-slate-50 flex flex-col gap-3">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Размак (Spacing)</span>
-                    <div className="flex gap-4">
-                        <div className="flex-1 flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-slate-500 font-medium">Горе</span>
-                                <span className="text-[10px] font-bold text-blue-500">{settings.marginTop || 0}px</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="120" step="4"
-                                value={settings.marginTop || 0}
-                                onChange={(e) => updateElementSettings({ marginTop: parseInt(e.target.value) })}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
-                        <div className="flex-1 flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-slate-500 font-medium">Доле</span>
-                                <span className="text-[10px] font-bold text-blue-500">{settings.marginBottom || 0}px</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="120" step="4"
-                                value={settings.marginBottom || 0}
-                                onChange={(e) => updateElementSettings({ marginBottom: parseInt(e.target.value) })}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
-                    </div>
-                </div>
+            {/* 1. НОВИ ДЕО: ТАБОВИ (Увек видљиви) */}
+            <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Елемент</button>
+                <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Групе</button>
             </div>
 
-            {selectedElement.type === 'chart' && (
-                <>
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20 mt-3">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив графикона (наслов)</label>
-                        <input
-                            type="text"
-                            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                            placeholder="Унесите назив..."
-                            value={settings.title || ''}
-                            onChange={(e) => updateElementSettings({ title: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                        <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-slate-600 font-medium">Прикажи вредности</span>
-                            <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLabels ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLabels ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <input type="checkbox" className="hidden" checked={settings.showLabels} onChange={() => updateElementSettings({ showLabels: !settings.showLabels })} />
-                        </label>
-                        <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
-                            <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <input type="checkbox" className="hidden" checked={settings.showLegend} onChange={() => updateElementSettings({ showLegend: !settings.showLegend })} />
-                        </label>
-                    </div>
-
-                    <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Графикон</h3>
-
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20">
-                        <StyledDropdown
-                            options={CHART_TYPES_CONFIG}
-                            selectedValue={settings.chartType}
-                            onSelect={(newType: string) => updateElementSettings({ chartType: newType, subChartType: CHART_TYPES_CONFIG[newType].subtypes[0].id })}
-                        />
-
-                        <div className="grid grid-cols-2 gap-3 mt-1">
-                            {CHART_TYPES_CONFIG[settings.chartType]?.subtypes.map((sub: any) => {
-                                const isSelected = (selectedElement.extraPayload?.subChartType || settings.subChartType) === sub.id;
-                                return (
-                                    <button
-                                        key={sub.id}
-                                        onClick={() => updateElementSettings({}, { subChartType: sub.id })}
-                                        className={`flex flex-col items-center justify-center p-3 h-28 rounded-2xl border-2 transition-all hover:border-blue-200 ${isSelected ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-slate-50'}`}
-                                    >
-                                        <div className="w-full h-16 flex items-center justify-center mb-2">{sub.icon}</div>
-                                        <span className={`text-[10px] font-semibold text-center ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>{sub.name}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <button
-                            onClick={() => updateElementSettings({ showDataEditor: !settings.showDataEditor })}
-                            className={`w-full py-2.5 font-bold text-sm rounded-xl border-2 transition-all flex justify-center items-center gap-2 mt-2 ${settings.showDataEditor ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-blue-500 border-blue-200 hover:bg-blue-50'}`}
-                        >
-                            <Table2 size={16} /> {settings.showDataEditor ? 'Затвори уређивач' : 'Уреди податке'}
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {selectedElement.type === 'map' && (
-                <>
-                    <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-2">Опције мапе</h3>
-
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0 mb-3">
-                        <label className="flex items-center justify-between cursor-pointer group">
-                            <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
-                            <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                                <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <input type="checkbox" className="hidden" checked={settings.showLegend} onChange={() => updateElementSettings({ showLegend: !settings.showLegend })} />
-                        </label>
-
-                        <div className="flex flex-col gap-2 mt-2">
-                            <div className="flex justify-between items-center ml-1">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина мапе</label>
-                                <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
-                            </div>
-                            <input
-                                type="range" min="20" max="100" step="5"
-                                value={settings.width || 100}
-                                onChange={(e) => updateElementSettings({ width: parseInt(e.target.value) })}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2 mt-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Основна боја</label>
-                            <div className="flex justify-between gap-1">
-                                {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'].map(color => (
-                                    <button
-                                        key={color}
-                                        onClick={() => updateElementSettings({ baseColor: color })}
-                                        className={`w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all ${settings.baseColor === color || (!settings.baseColor && color === '#3b82f6') ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}
-                                        style={{ backgroundColor: color }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Подаци по окрузима</h3>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden relative z-0">
-                        <div className="flex text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-2 border-b border-slate-100">
-                            <div className="flex-1">Округ</div>
-                            <div className="w-20 text-right">Вредност</div>
-                        </div>
-
-                        <div className="flex flex-col max-h-[350px] overflow-y-auto custom-scrollbar">
-                            {SERBIAN_DISTRICTS.map((district) => {
-                                const rowData = mapData.find((d: any) => d.name === district);
-
-                                let valToDisplay = '';
-                                if (rowData) {
-                                    if (rowData['Вредност'] !== undefined) {
-                                        valToDisplay = rowData['Вредност'];
-                                    } else {
-                                        const valueKey = Object.keys(rowData).find(k => k !== 'name');
-                                        if (valueKey) {
-                                            valToDisplay = rowData[valueKey];
-                                        }
-                                    }
-                                }
-
-                                return (
-                                    <div key={district} className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                        <span className="flex-1 text-xs font-medium text-slate-600 truncate" title={district}>
-                                            {district}
-                                        </span>
-                                        <input
-                                            type="number"
-                                            value={valToDisplay}
-                                            onChange={(e) => handleMapValueChange(district, e.target.value)}
-                                            placeholder="0"
-                                            className="w-20 text-xs text-right bg-transparent border-b border-slate-200 focus:border-blue-400 outline-none p-1 text-slate-700 font-medium"
-                                        />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* PALETE SAMO ZA CHART */}
-            {(selectedElement.type === 'chart') && (
-                <div className="flex flex-col gap-4 mt-1 relative z-0">
-                    <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><Palette size={14}/> Палете боја</h3>
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Примарне боје</label>
-                        <div className="flex justify-between gap-1">
-                            {PRIMARY_COLORS.map(color => (
-                                <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
-                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Секундар боје</label>
-                        <div className="flex justify-between gap-1">
-                            {SECONDARY_COLORS.map(color => (
-                                <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {selectedElement.type === 'image' && (
-                <>
-                    <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Опције слике</h3>
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-5">
-
-                        <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-center ml-1">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина слике</label>
-                                <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
-                            </div>
-                            <input
-                                type="range" min="10" max="100" step="5"
-                                value={settings.width || 100}
-                                onChange={(e) => updateElementSettings({ width: parseInt(e.target.value) })}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив слике (потпис)</label>
-                            <input
-                                type="text"
-                                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                placeholder="Опишите слику..."
-                                value={settings.altText || ''}
-                                onChange={(e) => updateElementSettings({ altText: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Поравнање</label>
-                            <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-fit">
-                                <button onClick={() => updateElementSettings({ alignment: 'left' })} className={`p-2 rounded ${settings.alignment === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignLeft size={18} /></button>
-                                <button onClick={() => updateElementSettings({ alignment: 'center' })} className={`p-2 rounded ${(!settings.alignment || settings.alignment === 'center') ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignCenter size={18} /></button>
-                                <button onClick={() => updateElementSettings({ alignment: 'right' })} className={`p-2 rounded ${settings.alignment === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignRight size={18} /></button>
-                            </div>
-                        </div>
-                        <div className="mt-1 pt-4 border-t border-slate-50">
+            {/* 2. НОВИ ДЕО: ТАБ "ГРУПЕ" */}
+            {activeTab === 'groups' && (
+                <div className="flex flex-col gap-4 animate-in fade-in">
+                    {!isGroupingMode ? (
+                        <>
                             <button
-                                onClick={() => updateElementSettings({ url: '' })}
-                                className="w-full flex items-center justify-center gap-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors font-medium"
+                                onClick={() => { setIsGroupingMode(true); setGroupSelection([]); setNewGroupName(''); }}
+                                className="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors flex justify-center items-center gap-2"
                             >
-                                <Trash2 size={16} /> Уклони извор слике
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {selectedElement.type === 'table' && (
-                <>
-                    <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Подешавања табеле</h3>
-
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив табеле (наслов)</label>
-                            <input
-                                type="text"
-                                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                placeholder="Унесите назив табеле..."
-                                value={settings.title || ''}
-                                onChange={(e) => updateElementSettings({ title: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-3 mt-2">
-                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Димензије табеле</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <span className="text-[10px] text-slate-400 ml-2 font-medium">Редови</span>
-                                    <input type="number" min="1" value={settings.rows || 1} onChange={(e) => updateElementSettings({ rows: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <span className="text-[10px] text-slate-400 ml-2 font-medium">Колоне</span>
-                                    <input type="number" min="1" value={settings.columns || 1} onChange={(e) => updateElementSettings({ columns: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {selectedElement.subType === 'cell' && (
-                        <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-100 flex flex-col gap-4 animate-in slide-in-from-top-2">
-                            <div className="flex items-center gap-2.5 mb-1 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
-                                <Grid3X3 size={16} className="text-blue-500" />
-                                <span className="text-[11px] font-bold text-blue-700 uppercase tracking-widest">Ћелија {selectedElement.activeCell}</span>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Спајање ћелија (Merge)</label>
-                                <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
-                                    <button onClick={handleMergeRight} className="p-2 rounded-lg text-slate-600 hover:bg-white flex items-center justify-center flex-1 gap-1" title="Споји са десном">
-                                        <ArrowRightToLine size={16} />
-                                    </button>
-                                    <button onClick={handleMergeDown} className="p-2 rounded-lg text-slate-600 hover:bg-white flex items-center justify-center flex-1 gap-1" title="Споји са доњом">
-                                        <ArrowDownMerge size={16} />
-                                    </button>
-                                    <button onClick={handleUnmerge} className="p-2 rounded-lg text-slate-600 hover:bg-white flex items-center justify-center flex-1 gap-1" title="Раздвој (Unmerge)">
-                                        <SplitSquareHorizontal size={16} className="text-red-400" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Форматирање</label>
-                                <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
-                                    <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
-                                    <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
-                                    <button onMouseDown={(e) => { e.preventDefault(); formatText('superscript'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Superscript size={16} /></button>
-                                    <button onMouseDown={(e) => { e.preventDefault(); formatText('subscript'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Subscript size={16} /></button>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Стил текста</label>
-                                <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-full">
-                                    <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'headline' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type === 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Наслов</button>
-                                    <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'paragraph' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type !== 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Текст</button>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    window.dispatchEvent(new CustomEvent('insert-footnote', {
-                                        detail: { elementId: selectedElement?.elementId }
-                                    }));
-                                }}
-                                className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm mt-1"
-                            >
-                                <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
-                                ДОДАЈ НОВУ ФУСНОТУ
+                                <PlusCircle size={16} /> Направи нову групу
                             </button>
 
-                            <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-slate-100">
-                                <span className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
-                                <div className="flex gap-1.5 px-1 ml-auto">
-                                    <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#1E293B' } } }); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${(settings.cells?.[selectedElement.activeCell!]?.textColor === '#1E293B' || !settings.cells?.[selectedElement.activeCell!]?.textColor) ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                    <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#FFFFFF' } } }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.cells?.[selectedElement.activeCell!]?.textColor === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                    <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#7E9CF1' } } }); }} className={`w-6 h-6 rounded-lg bg-[#7E9CF1] ${settings.cells?.[selectedElement.activeCell!]?.textColor === '#7E9CF1' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                </div>
+                            {/* --- NOVO: Lista sačuvanih grupa --- */}
+                            <div className="mt-2 flex flex-col gap-2">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">Сачуване групе</h4>
+                                {isLoadingGroups ? (
+                                    <div className="text-xs text-slate-500 text-center py-4">Учитавање...</div>
+                                ) : savedGroups.length === 0 ? (
+                                    <div className="text-xs text-slate-400 text-center italic py-4">Немате сачуваних група.</div>
+                                ) : (
+                                    savedGroups.map((group: any) => (
+                                        <div key={group.id} className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm flex items-center justify-between group-item transition-all hover:border-blue-300 hover:shadow-md">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="text-sm font-bold text-slate-700 truncate" title={group.name}>{group.name}</span>
+                                                {/* Ako backend bude vraćao JSON dekodiran, ovo će pokazati broj elemenata u grupi */}
+                                                <span className="text-[10px] text-slate-400 mt-0.5">{group.elements?.length || 0} елемената унутра</span>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => {
+                                                        // Окидамо евент и шаљемо елементе Canvas-у
+                                                        window.dispatchEvent(new CustomEvent('insert-saved-group', {
+                                                            detail: { elements: group.elements }
+                                                        }));
+                                                    }}
+                                                    className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Уметни на дно странице"
+                                                >
+                                                    <ArrowDownToLine size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteGroup(group.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Обриши групу"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја позадине</label>
-                                <div className="flex gap-2.5">
-                                    {['#FFFFFF', '#F8FAFC', '#E2E8F0', '#8b98ff', '#34d399'].map(color => (
-                                        <button key={color} onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], backgroundColor: color } } }); }} className={`w-7 h-7 rounded-lg border border-slate-100 transition-transform ${settings.cells?.[selectedElement.activeCell!]?.backgroundColor === color ? 'scale-125 ring-2 ring-blue-300 ring-offset-1 shadow-md' : 'hover:scale-110'}`} style={{ backgroundColor: color }} />
-                                    ))}
-                                </div>
+                        </>
+                    ) : (
+                        <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-200 flex flex-col gap-3 ring-4 ring-blue-50">
+                            <h3 className="text-xs font-bold text-slate-700 uppercase">Нова група</h3>
+                            <p className="text-[11px] text-slate-500 leading-tight">Кликните на елементе на страници које желите да групишете. ({groupSelection?.length || 0} изабрано)</p>
+                            <input
+                                type="text"
+                                placeholder="Назив групе..."
+                                value={newGroupName}
+                                onChange={(e) => setNewGroupName(e.target.value)}
+                                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 mt-2"
+                            />
+                            <div className="flex gap-2 mt-2">
+                                <button
+                                    onClick={() => { setIsGroupingMode(false); setGroupSelection([]); }}
+                                    className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200"
+                                >
+                                    Одустани
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!newGroupName) return alert("Унесите назив групе!");
+                                        if (groupSelection.length === 0) return alert("Изаберите бар један елемент!");
+                                        // Окидамо евент који ће Canvas да ухвати
+                                        window.dispatchEvent(new CustomEvent('create-group', { detail: { groupName: newGroupName, selectedIds: groupSelection } }));
+                                    }}
+                                    className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 shadow-sm"
+                                >
+                                    Сачувај
+                                </button>
                             </div>
                         </div>
                     )}
-                </>
-            )}
-
-            {selectedElement.type === 'text' && (
-                <>
-                    <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><CaseUpper size={15}/> Типографија</h3>
-                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
-
-                        <div className="flex bg-[#F8FAFC] p-1 rounded-xl border border-slate-100 w-full gap-1">
-                            <button
-                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H1'); }}
-                                className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                title="Велики наслов"
-                            >
-                                <Heading1 size={14} /> H1
-                            </button>
-                            <button
-                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H2'); }}
-                                className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                title="Мали наслов"
-                            >
-                                <Heading2 size={14} /> H2
-                            </button>
-                            <button
-                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P'); }}
-                                className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                title="Обичан текст"
-                            >
-                                <Type size={12} /> Текст
-                            </button>
-                            <button
-                                onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P', true); }}
-                                className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                title="Ситан текст"
-                            >
-                                <span className="text-[10px] font-black">Aa</span> 12px
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                window.dispatchEvent(new CustomEvent('insert-footnote', {
-                                    detail: { elementId: selectedElement?.elementId }
-                                }));
-                            }}
-                            className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
-                        >
-                            <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
-                            ДОДАЈ НОВУ ФУСНОТУ
-                        </button>
-
-                        <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100">
-                            <div className="flex gap-1 w-full justify-between px-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Underline size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('superscript'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Степен"><Superscript size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('subscript'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Индекс"><Subscript size={16} /></button>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
-                            <div className="flex gap-1.5 px-1 ml-auto">
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ color: '#1E293B' }); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${settings.color === '#1E293B' || !settings.color ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ color: '#FFFFFF' }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.color === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ color: '#7E9CF1' }); }} className={`w-6 h-6 rounded-lg bg-[#7E9CF1] ${settings.color === '#7E9CF1' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја позадине:</span>
-                            <div className="flex gap-1.5 px-1 ml-auto">
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '' }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${!settings.backgroundColor ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`} title="Без позадине">
-                                    <div className="w-full h-full rounded-md bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,#e2e8f0_2px,#e2e8f0_4px)]"></div>
-                                </button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#F8FAFC' }); }} className={`w-6 h-6 rounded-lg bg-[#F8FAFC] border border-slate-200 ${settings.backgroundColor === '#F8FAFC' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#E2E8F0' }); }} className={`w-6 h-6 rounded-lg bg-[#E2E8F0] border border-slate-200 ${settings.backgroundColor === '#E2E8F0' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#8b98ff' }); }} className={`w-6 h-6 rounded-lg bg-[#8b98ff] border border-slate-200 ${settings.backgroundColor === '#8b98ff' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#34d399' }); }} className={`w-6 h-6 rounded-lg bg-[#34d399] border border-slate-200 ${settings.backgroundColor === '#34d399' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <div className="flex-1 bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-4 gap-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'left' }); }} className={`p-2 rounded-lg ${settings.alignment === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignLeft size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'center' }); }} className={`p-2 rounded-lg ${settings.alignment === 'center' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignCenter size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'right' }); }} className={`p-2 rounded-lg ${settings.alignment === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignRight size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'justify' }); }} className={`p-2 rounded-lg ${settings.alignment === 'justify' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignJustify size={16} /></button>
-                            </div>
-                            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-3 gap-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'top' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'top' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><ArrowUpToLine size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'middle' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'middle' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><FoldVertical size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'bottom' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'bottom' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><ArrowDownToLine size={16} /></button>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-1">
-                            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-2 gap-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('insertUnorderedList'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><List size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><ListOrdered size={16} /></button>
-                            </div>
-                            <div className="flex-1 bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-2 gap-1">
-                                <button onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('BLOCKQUOTE'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Quote size={16} /></button>
-                                <button onMouseDown={(e) => { e.preventDefault(); handleAddLink(); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Link2 size={16} /></button>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА */}
-            {activeFootnoteIds.length > 0 && (
-                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
-                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
-
-                    {activeFootnoteIds.map((id: string) => (
-                        <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
-                            <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
-                            <textarea
-                                className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
-                                rows={2}
-                                placeholder="Унесите текст фусноте овде..."
-                                value={footnotesDict[id] || ''}
-                                onChange={(e) => {
-                                    updateElementSettings({
-                                        footnotes: {
-                                            ...footnotesDict,
-                                            [id]: e.target.value
-                                        }
-                                    });
-                                }}
-                            />
-                        </div>
-                    ))}
                 </div>
             )}
+
+            {/* 3. ОСТАТАК ПОСТОЈЕЋЕГ КОДА УМОТАН У "ELEMENT" ТАБ */}
+            <div style={{ display: activeTab === 'element' ? 'flex' : 'none', flexDirection: 'column', gap: '1.25rem' }}>
+                {!selectedElement ? (
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент</div>
+                ) : (
+                    <>
+                        <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-2 mb-[-10px]">
+                            <Star size={14} /> Опште опције
+                        </h3>
+
+                        <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
+                            <label className="flex items-center justify-between cursor-pointer group">
+                                <span className="text-sm text-slate-600 font-medium">Истакни модул</span>
+                                <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.featured ? 'bg-amber-400' : 'bg-slate-200'}`}>
+                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.featured ? 'translate-x-4' : ''}`} />
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={!!settings.featured}
+                                    onChange={() => updateElementSettings({ featured: !settings.featured })}
+                                />
+                            </label>
+
+                            {/* OPCIJE ZA RAZMAK (SPACING) - Dostupno za sve elemente */}
+                            <div className="pt-3 border-t border-slate-50 flex flex-col gap-3">
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Размак (Spacing)</span>
+                                <div className="flex gap-4">
+                                    <div className="flex-1 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] text-slate-500 font-medium">Горе</span>
+                                            <span className="text-[10px] font-bold text-blue-500">{settings.marginTop || 0}px</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="120" step="4"
+                                            value={settings.marginTop || 0}
+                                            onChange={(e) => updateElementSettings({ marginTop: parseInt(e.target.value) })}
+                                            className="w-full accent-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] text-slate-500 font-medium">Доле</span>
+                                            <span className="text-[10px] font-bold text-blue-500">{settings.marginBottom || 0}px</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="120" step="4"
+                                            value={settings.marginBottom || 0}
+                                            onChange={(e) => updateElementSettings({ marginBottom: parseInt(e.target.value) })}
+                                            className="w-full accent-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {selectedElement.type === 'chart' && (
+                            <>
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20 mt-3">
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив графикона (наслов)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                                        placeholder="Унесите назив..."
+                                        value={settings.title || ''}
+                                        onChange={(e) => updateElementSettings({ title: e.target.value })}
+                                    />
+
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Поднаслов графикона</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                                        placeholder="Унесите поднаслов..."
+                                        value={settings.subtitle || ''}
+                                        onChange={(e) => updateElementSettings({ subtitle: e.target.value })}
+                                    />
+
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Опис графикона (испод)</label>
+                                    <textarea
+                                        className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
+                                        rows={2}
+                                        placeholder="Унесите опис..."
+                                        value={settings.description || ''}
+                                        onChange={(e) => updateElementSettings({ description: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    {/* Axis range controls */}
+                                    {['bar', 'line', 'composed', 'scatter'].includes(settings.chartType) && (() => {
+                                        const subType = selectedElement?.extraPayload?.subChartType || settings.subChartType || '';
+                                        const isHorizontalBar = settings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
+                                        const isScatter = settings.chartType === 'scatter';
+                                        // Vertical charts have numeric Y; horizontal bar has numeric X
+                                        const showY = !isHorizontalBar;
+                                        const showX = isHorizontalBar || isScatter;
+                                        const axisInput = (label: string, minKey: string, maxKey: string) => (
+                                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>
+                                                <div className="flex gap-2">
+                                                    <div className="flex-1">
+                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Минимум</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Auto"
+                                                            value={(settings as any)[minKey] ?? ''}
+                                                            onChange={e => updateElementSettings({ [minKey]: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                            className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Максимум</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Auto"
+                                                            value={(settings as any)[maxKey] ?? ''}
+                                                            onChange={e => updateElementSettings({ [maxKey]: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                            className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                        const showAxisTitles = isScatter;
+                                        return (
+                                            <>
+                                                {showAxisTitles && (
+                                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Називи оса</span>
+                                                        <div className="flex flex-col gap-2">
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Назив X осе</label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="нпр. Број претплатника (у 000)"
+                                                                    value={(settings as any).xAxisTitle ?? ''}
+                                                                    onChange={e => updateElementSettings({ xAxisTitle: e.target.value })}
+                                                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Назив Y осе</label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="нпр. Број пакета са 3 и 4 услуге"
+                                                                    value={(settings as any).yAxisTitle ?? ''}
+                                                                    onChange={e => updateElementSettings({ yAxisTitle: e.target.value })}
+                                                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {showY && axisInput('Опсег Y осе (вертикална)', 'yAxisMin', 'yAxisMax')}
+                                                {showX && axisInput('Опсег X осе (хоризонтална)', 'xAxisMin', 'xAxisMax')}
+                                                {!isHorizontalBar && (
+                                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Одмак X осе</span>
+                                                        <div className="flex gap-2">
+                                                            <div className="flex-1">
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Лево (px)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0"
+                                                                    min={0}
+                                                                    value={(settings as any).xAxisPaddingLeft ?? ''}
+                                                                    onChange={e => updateElementSettings({ xAxisPaddingLeft: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Десно (px)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0"
+                                                                    min={0}
+                                                                    value={(settings as any).xAxisPaddingRight ?? ''}
+                                                                    onChange={e => updateElementSettings({ xAxisPaddingRight: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Прикажи вредности</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLabels ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLabels ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={settings.showLabels} onChange={() => updateElementSettings({ showLabels: !settings.showLabels })} />
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Вредности у %</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.isPercentage ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.isPercentage ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={!!settings.isPercentage} onChange={() => updateElementSettings({ isPercentage: !settings.isPercentage })} />
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={settings.showLegend} onChange={() => updateElementSettings({ showLegend: !settings.showLegend })} />
+                                    </label>
+
+                                    {['bar', 'line', 'composed'].includes(settings.chartType) && (() => {
+                                        const subType = selectedElement?.extraPayload?.subChartType || settings.subChartType || '';
+                                        const isHorizontalBar = settings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
+                                        if (isHorizontalBar) return null;
+                                        return (
+                                            <label className="flex items-center justify-between cursor-pointer group">
+                                                <span className="text-sm text-slate-600 font-medium">Прикажи табелу са подацима</span>
+                                                <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showDataTable ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showDataTable ? 'translate-x-4' : ''}`} />
+                                                </div>
+                                                <input type="checkbox" className="hidden" checked={!!settings.showDataTable} onChange={() => updateElementSettings({ showDataTable: !settings.showDataTable })} />
+                                            </label>
+                                        );
+                                    })()}
+
+                                    {settings.showLegend && (
+                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-3">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Легенда — позиција</span>
+                                            <div className="flex gap-1">
+                                                {(['top', 'bottom', 'right'] as const).map(v => (
+                                                    <button key={v}
+                                                        onClick={() => updateElementSettings({ legendPosition: v })}
+                                                        className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${
+                                                            (settings.legendPosition || 'bottom') === v
+                                                                ? 'bg-blue-500 text-white border-blue-500'
+                                                                : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+                                                        }`}>
+                                                        {v === 'top' ? 'Горе' : v === 'bottom' ? 'Доле' : 'Десно'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {(settings.legendPosition || 'bottom') !== 'right' && (
+                                                <>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Поравнање</span>
+                                                    <div className="flex gap-1">
+                                                        {(['left', 'center', 'right'] as const).map(a => (
+                                                            <button key={a} onClick={() => updateElementSettings({ legendAlign: a })}
+                                                                className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${(settings.legendAlign || 'center') === a ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}>
+                                                                {a === 'left' ? 'Лево' : a === 'center' ? 'Центар' : 'Десно'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Графикон</h3>
+
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20">
+                                    <StyledDropdown
+                                        options={CHART_TYPES_CONFIG}
+                                        selectedValue={settings.chartType}
+                                        onSelect={(newType: string) => updateElementSettings({ chartType: newType, subChartType: CHART_TYPES_CONFIG[newType].subtypes[0].id })}
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-3 mt-1">
+                                        {CHART_TYPES_CONFIG[settings.chartType]?.subtypes.map((sub: any) => {
+                                            const isSelected = (selectedElement.extraPayload?.subChartType || settings.subChartType) === sub.id;
+                                            return (
+                                                <button
+                                                    key={sub.id}
+                                                    onClick={() => updateElementSettings({}, { subChartType: sub.id })}
+                                                    className={`flex flex-col items-center justify-center p-3 h-28 rounded-2xl border-2 transition-all hover:border-blue-200 ${isSelected ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100' : 'border-slate-100 bg-slate-50'}`}
+                                                >
+                                                    <div className="w-full h-16 flex items-center justify-center mb-2">{sub.icon}</div>
+                                                    <span className={`text-[10px] font-semibold text-center ${isSelected ? 'text-blue-700' : 'text-slate-500'}`}>{sub.name}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <button
+                                        onClick={() => updateElementSettings({ showDataEditor: !settings.showDataEditor })}
+                                        className={`w-full py-2.5 font-bold text-sm rounded-xl border-2 transition-all flex justify-center items-center gap-2 mt-2 ${settings.showDataEditor ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-blue-500 border-blue-200 hover:bg-blue-50'}`}
+                                    >
+                                        <Table2 size={16} /> {settings.showDataEditor ? 'Затвори уређивач' : 'Уреди податке'}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {selectedElement.type === 'map' && (
+                            <>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-2">Опције мапе</h3>
+
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0 mb-3">
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={settings.showLegend} onChange={() => updateElementSettings({ showLegend: !settings.showLegend })} />
+                                    </label>
+
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <div className="flex justify-between items-center ml-1">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина мапе</label>
+                                            <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="20" max="100" step="5"
+                                            value={settings.width || 100}
+                                            onChange={(e) => updateElementSettings({ width: parseInt(e.target.value) })}
+                                            className="w-full accent-blue-500"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Основна боја</label>
+                                        <div className="flex justify-between gap-1">
+                                            {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => updateElementSettings({ baseColor: color })}
+                                                    className={`w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all ${settings.baseColor === color || (!settings.baseColor && color === '#3b82f6') ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Подаци по окрузима</h3>
+
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden relative z-0">
+                                    <div className="flex text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-2 border-b border-slate-100">
+                                        <div className="flex-1">Округ</div>
+                                        <div className="w-20 text-right">Вредност</div>
+                                    </div>
+
+                                    <div className="flex flex-col max-h-[350px] overflow-y-auto custom-scrollbar">
+                                        {SERBIAN_DISTRICTS.map((district) => {
+                                            const rowData = mapData.find((d: any) => d.name === district);
+
+                                            let valToDisplay = '';
+                                            if (rowData) {
+                                                if (rowData['Вредност'] !== undefined) {
+                                                    valToDisplay = rowData['Вредност'];
+                                                } else {
+                                                    const valueKey = Object.keys(rowData).find(k => k !== 'name');
+                                                    if (valueKey) {
+                                                        valToDisplay = rowData[valueKey];
+                                                    }
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={district} className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                        <span className="flex-1 text-xs font-medium text-slate-600 truncate" title={district}>
+                                            {district}
+                                        </span>
+                                                    <input
+                                                        type="number"
+                                                        value={valToDisplay}
+                                                        onChange={(e) => handleMapValueChange(district, e.target.value)}
+                                                        placeholder="0"
+                                                        className="w-20 text-xs text-right bg-transparent border-b border-slate-200 focus:border-blue-400 outline-none p-1 text-slate-700 font-medium"
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* PALETE SAMO ZA CHART */}
+                        {(selectedElement.type === 'chart') && (
+                            <div className="flex flex-col gap-4 mt-1 relative z-0">
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><Palette size={14}/> Палете боја</h3>
+                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Примарне боје</label>
+                                    <div className="flex justify-between gap-1">
+                                        {PRIMARY_COLORS.map(color => (
+                                            <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Секундар боје</label>
+                                    <div className="flex justify-between gap-1">
+                                        {SECONDARY_COLORS.map(color => (
+                                            <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedElement.type === 'image' && (
+                            <>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Опције слике</h3>
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-5">
+
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex justify-between items-center ml-1">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина слике</label>
+                                            <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="10" max="100" step="5"
+                                            value={settings.width || 100}
+                                            onChange={(e) => updateElementSettings({ width: parseInt(e.target.value) })}
+                                            className="w-full accent-blue-500"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив слике (потпис)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                                            placeholder="Опишите слику..."
+                                            value={settings.altText || ''}
+                                            onChange={(e) => updateElementSettings({ altText: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Поравнање</label>
+                                        <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-fit">
+                                            <button onClick={() => updateElementSettings({ alignment: 'left' })} className={`p-2 rounded ${settings.alignment === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignLeft size={18} /></button>
+                                            <button onClick={() => updateElementSettings({ alignment: 'center' })} className={`p-2 rounded ${(!settings.alignment || settings.alignment === 'center') ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignCenter size={18} /></button>
+                                            <button onClick={() => updateElementSettings({ alignment: 'right' })} className={`p-2 rounded ${settings.alignment === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignRight size={18} /></button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-1 pt-4 border-t border-slate-50">
+                                        <button
+                                            onClick={() => updateElementSettings({ url: '' })}
+                                            className="w-full flex items-center justify-center gap-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors font-medium"
+                                        >
+                                            <Trash2 size={16} /> Уклони извор слике
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {selectedElement.type === 'table' && (
+                            <>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Подешавања табеле</h3>
+
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив табеле (наслов)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
+                                            placeholder="Унесите назив табеле..."
+                                            value={settings.title || ''}
+                                            onChange={(e) => updateElementSettings({ title: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Опис табеле (испод)</label>
+                                        <textarea
+                                            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
+                                            rows={2}
+                                            placeholder="Унесите опис табеле..."
+                                            value={settings.description || ''}
+                                            onChange={(e) => updateElementSettings({ description: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 mt-2">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Димензије табеле</label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Редови</span>
+                                                <input type="number" min="1" value={settings.rows || 1} onChange={(e) => updateElementSettings({ rows: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Колоне</span>
+                                                <input type="number" min="1" value={settings.columns || 1} onChange={(e) => updateElementSettings({ columns: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {selectedElement.subType === 'cell' && (
+                                    <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-100 flex flex-col gap-4 animate-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-2.5 mb-1 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+                                            <Grid3X3 size={16} className="text-blue-500" />
+                                            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-widest">Ћелија {selectedElement.activeCell}</span>
+                                        </div>
+
+                                        {(() => {
+                                            const [acR, acC] = (selectedElement.activeCell || '0_0').split('_').map(Number);
+                                            const acSt = settings.cells?.[selectedElement.activeCell!] || {};
+                                            const acColSpan = acSt.colSpan || 1;
+                                            const acRowSpan = acSt.rowSpan || 1;
+                                            const canMergeRight = (acC + acColSpan) < (settings.columns || 1);
+                                            const canMergeDown  = (acR + acRowSpan) < (settings.rows || 1);
+                                            const canUnmerge    = acColSpan > 1 || acRowSpan > 1;
+                                            return (
+                                                <div className="flex flex-col gap-2">
+                                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Спајање ћелија (Merge)</label>
+                                                    <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
+                                                        <button
+                                                            onClick={handleMergeRight}
+                                                            disabled={!canMergeRight}
+                                                            title={canMergeRight ? "Споји са десном ћелијом" : "Нема ћелије десно"}
+                                                            className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canMergeRight ? 'text-slate-600 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
+                                                        >
+                                                            <ArrowRightToLine size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={handleMergeDown}
+                                                            disabled={!canMergeDown}
+                                                            title={canMergeDown ? "Споји са доњом ћелијом" : "Нема ћелије испод"}
+                                                            className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canMergeDown ? 'text-slate-600 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
+                                                        >
+                                                            <ArrowDownMerge size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={handleUnmerge}
+                                                            disabled={!canUnmerge}
+                                                            title={canUnmerge ? "Раздвој спојене ћелије" : "Ћелија није спојена"}
+                                                            className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canUnmerge ? 'text-red-400 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
+                                                        >
+                                                            <SplitSquareHorizontal size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Форматирање</label>
+                                            <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
+                                                <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
+                                                <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
+                                                <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sup'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Superscript size={16} /></button>
+                                                <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sub'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Subscript size={16} /></button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Стил текста</label>
+                                            <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-full">
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'headline' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type === 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Наслов</button>
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'paragraph' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type !== 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Текст</button>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                window.dispatchEvent(new CustomEvent('insert-footnote', {
+                                                    detail: { elementId: selectedElement?.elementId }
+                                                }));
+                                            }}
+                                            className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm mt-1"
+                                        >
+                                            <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
+                                            ДОДАЈ НОВУ ФУСНОТУ
+                                        </button>
+
+                                        <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-slate-100">
+                                            <span className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
+                                            <div className="flex gap-1.5 px-1 ml-auto">
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#1E293B' } } }); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${(settings.cells?.[selectedElement.activeCell!]?.textColor === '#1E293B' || !settings.cells?.[selectedElement.activeCell!]?.textColor) ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#FFFFFF' } } }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.cells?.[selectedElement.activeCell!]?.textColor === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#7E9CF1' } } }); }} className={`w-6 h-6 rounded-lg bg-[#7E9CF1] ${settings.cells?.[selectedElement.activeCell!]?.textColor === '#7E9CF1' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја позадине</label>
+                                            <div className="flex gap-2.5">
+                                                {['#FFFFFF', '#F8FAFC', '#E2E8F0', '#8b98ff', '#34d399'].map(color => (
+                                                    <button key={color} onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], backgroundColor: color } } }); }} className={`w-7 h-7 rounded-lg border border-slate-100 transition-transform ${settings.cells?.[selectedElement.activeCell!]?.backgroundColor === color ? 'scale-125 ring-2 ring-blue-300 ring-offset-1 shadow-md' : 'hover:scale-110'}`} style={{ backgroundColor: color }} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {selectedElement.type === 'text' && (
+                            <>
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><CaseUpper size={15}/> Типографија</h3>
+                                <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
+
+                                    <div className="flex bg-[#F8FAFC] p-1 rounded-xl border border-slate-100 w-full gap-1">
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H1'); }}
+                                            className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
+                                            title="Велики наслов"
+                                        >
+                                            <Heading1 size={14} /> H1
+                                        </button>
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H2'); }}
+                                            className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
+                                            title="Мали наслов"
+                                        >
+                                            <Heading2 size={14} /> H2
+                                        </button>
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P'); }}
+                                            className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
+                                            title="Обичан текст"
+                                        >
+                                            <Type size={12} /> Текст
+                                        </button>
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P', true); }}
+                                            className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
+                                            title="Ситан текст"
+                                        >
+                                            <span className="text-[10px] font-black">Aa</span> 12px
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            window.dispatchEvent(new CustomEvent('insert-footnote', {
+                                                detail: { elementId: selectedElement?.elementId }
+                                            }));
+                                        }}
+                                        className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
+                                    >
+                                        <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
+                                        ДОДАЈ НОВУ ФУСНОТУ
+                                    </button>
+
+                                    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100">
+                                        <div className="flex gap-1 w-full justify-between px-1">
+                                            <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Underline size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sup'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Степен"><Superscript size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sub'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Индекс"><Subscript size={16} /></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
+                                        <div className="flex gap-1.5 px-1 ml-auto">
+                                            <button onMouseDown={(e) => { e.preventDefault(); applyTextColor('#1E293B'); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${settings.color === '#1E293B' || !settings.color ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); applyTextColor('#FFFFFF'); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.color === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); applyTextColor('#7E9CF1'); }} className={`w-6 h-6 rounded-lg bg-[#7E9CF1] ${settings.color === '#7E9CF1' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја позадине:</span>
+                                        <div className="flex gap-1.5 px-1 ml-auto">
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '' }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${!settings.backgroundColor ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`} title="Без позадине">
+                                                <div className="w-full h-full rounded-md bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,#e2e8f0_2px,#e2e8f0_4px)]"></div>
+                                            </button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#F8FAFC' }); }} className={`w-6 h-6 rounded-lg bg-[#F8FAFC] border border-slate-200 ${settings.backgroundColor === '#F8FAFC' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#E2E8F0' }); }} className={`w-6 h-6 rounded-lg bg-[#E2E8F0] border border-slate-200 ${settings.backgroundColor === '#E2E8F0' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#8b98ff' }); }} className={`w-6 h-6 rounded-lg bg-[#8b98ff] border border-slate-200 ${settings.backgroundColor === '#8b98ff' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#34d399' }); }} className={`w-6 h-6 rounded-lg bg-[#34d399] border border-slate-200 ${settings.backgroundColor === '#34d399' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <div className="flex-1 bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-4 gap-1">
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'left' }); }} className={`p-2 rounded-lg ${settings.alignment === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignLeft size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'center' }); }} className={`p-2 rounded-lg ${settings.alignment === 'center' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignCenter size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'right' }); }} className={`p-2 rounded-lg ${settings.alignment === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignRight size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ alignment: 'justify' }); }} className={`p-2 rounded-lg ${settings.alignment === 'justify' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignJustify size={16} /></button>
+                                        </div>
+                                        <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-3 gap-1">
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'top' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'top' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><ArrowUpToLine size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'middle' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'middle' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><FoldVertical size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ verticalAlignment: 'bottom' }); }} className={`p-2 rounded-lg ${settings.verticalAlignment === 'bottom' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><ArrowDownToLine size={16} /></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 mt-1">
+                                        <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-2 gap-1">
+                                            <button onMouseDown={(e) => { e.preventDefault(); formatText('insertUnorderedList'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><List size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); formatText('insertOrderedList'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><ListOrdered size={16} /></button>
+                                        </div>
+                                        <div className="flex-1 bg-slate-50 p-1 rounded-xl border border-slate-100 grid grid-cols-2 gap-1">
+                                            <button onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('BLOCKQUOTE'); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Quote size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); handleAddLink(); }} className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white"><Link2 size={16} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА */}
+                        {activeFootnoteIds.length > 0 && (
+                            <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
+                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
+
+                                {activeFootnoteIds.map((id: string) => (
+                                    <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
+                                        <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
+                                        <textarea
+                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
+                                            rows={2}
+                                            placeholder="Унесите текст фусноте овде..."
+                                            value={footnotesDict[id] || ''}
+                                            onChange={(e) => {
+                                                updateElementSettings({
+                                                    footnotes: {
+                                                        ...footnotesDict,
+                                                        [id]: e.target.value
+                                                    }
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
 
         </aside>
     );

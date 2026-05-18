@@ -3,7 +3,11 @@ import LoginPage from './pages/LoginPage';
 import PanelPage from './pages/PanelPage';
 import { EditorProvider } from "./contexts/EditorContext.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
-import PrintView from "./pages/PrintView.tsx"; // Dodaj ovaj import!
+import PrintView from "./pages/PrintView.tsx";
+import ViewPage from "./pages/ViewPage.tsx";
+import AdminPage from "./pages/AdminPage.tsx";
+import LandingPage from "./pages/LandingPage.tsx";
+import GroupPreviewPage from "./pages/GroupPreviewPage.tsx";
 
 function App() {
     return (
@@ -12,6 +16,7 @@ function App() {
             <AuthProvider>
                 <div className="min-h-screen bg-gray-100">
                     <Routes>
+                        <Route path="/" element={<LandingPage />} />
                         <Route path="/login" element={<LoginPage />} />
 
                         <Route
@@ -23,8 +28,15 @@ function App() {
                             }
                         />
 
-                        <Route path="*" element={<Navigate to="/login" replace />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                        <Route path="/admin" element={<AdminPage />} />
+                        <Route path="/group/:id/preview" element={<GroupPreviewPage />} />
                         <Route path="/document/:id/print" element={<PrintView />} />
+                        <Route path="/document/:id/view" element={
+                            <EditorProvider>
+                                <ViewPage />
+                            </EditorProvider>
+                        } />
                     </Routes>
                 </div>
             </AuthProvider>

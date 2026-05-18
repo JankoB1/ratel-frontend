@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, Copy, Download, type LucideProps, FilePlus, Trash2, Loader2, Save } from "lucide-react";
-import { type ReactElement, type FC } from "react";
+import { ChevronDown, ChevronUp, Download, type LucideProps, Loader2, Save } from "lucide-react";
+import { type ReactElement, type FC, useState, useEffect } from "react";
 
 interface SidebarActionButtonProps {
     icon: ReactElement<LucideProps>;
@@ -32,29 +32,71 @@ const SidebarIcon: FC<SidebarActionButtonProps> = ({ icon, label, isBlue = false
     </button>
 );
 
-// OVO JE KLJUČ: Definisali smo da onSave i onDownload mogu biti i async funkcije (Promise)
 export interface LeftSidebarProps {
     onSave: () => void | Promise<void>;
     onDownload: () => void | Promise<void>;
     isSaving: boolean;
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (index: number) => void;
 }
 
-const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving }) => {
+const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, currentPage, totalPages, onPageChange }) => {
+    const [inputValue, setInputValue] = useState(String(currentPage + 1));
+
+    useEffect(() => {
+        setInputValue(String(currentPage + 1));
+    }, [currentPage]);
+
+    const commit = (raw: string) => {
+        const page = parseInt(raw) - 1;
+        if (!isNaN(page)) {
+            onPageChange(page);
+        } else {
+            setInputValue(String(currentPage + 1));
+        }
+    };
+
     return (
         <aside className="w-[110px] bg-[#f8fafc] border-r border-slate-200 flex flex-col items-center py-6 gap-4 h-full overflow-y-auto custom-scrollbar z-40 shrink-0">
             <div className="bg-white rounded-[50px] flex flex-col items-center p-2 shadow-sm border border-slate-100 mb-8">
-                <button className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500">
+                <button
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
                     <ChevronUp size={18} strokeWidth={3} />
                 </button>
+
                 <div className="w-8 h-[1px] bg-slate-200 my-1" />
-                <button className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500">
+
+                <div className="flex flex-col items-center py-2 gap-1">
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={e => setInputValue(e.target.value)}
+                        onBlur={e => commit(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') { commit(inputValue); e.currentTarget.blur(); }
+                            if (e.key === 'Escape') { setInputValue(String(currentPage + 1)); e.currentTarget.blur(); }
+                        }}
+                        className="w-9 text-center text-xs font-bold text-slate-700 bg-transparent border border-slate-200 rounded focus:outline-none focus:border-blue-400 focus:bg-blue-50 transition-colors"
+                        style={{ padding: '2px 0' }}
+                    />
+                    <div className="w-6 h-[1px] bg-slate-200" />
+                    <span className="text-[10px] text-slate-400 font-medium">{totalPages}</span>
+                </div>
+
+                <div className="w-8 h-[1px] bg-slate-200 my-1" />
+
+                <button
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages - 1}
+                    className="p-3 hover:bg-slate-50 rounded-full transition-colors text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
                     <ChevronDown size={18} strokeWidth={3} />
                 </button>
             </div>
-
-            <SidebarIcon icon={<FilePlus size={20} />} label="ДОДАТИ НОВУ СТРАНУ" />
-            <SidebarIcon icon={<Copy size={20} />} label="ДУПЛИРАТИ СТРАНУ" />
-            <SidebarIcon icon={<Trash2 size={20} />} label="ИЗБРИСАТИ СТРАНУ" />
 
             {/* Odeljak sa dugmićima na dnu */}
             <div className="mt-auto flex flex-col gap-2 w-full pb-4">

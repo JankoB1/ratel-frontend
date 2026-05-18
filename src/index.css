@@ -241,3 +241,24 @@
 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.insert-page-zone {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+    opacity: 0.1;
+    transition: opacity 0.2s;
+}
+.insert-page-zone:hover {
+    opacity: 1;
+}
+.insert-page-btn {
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    color: #64748b;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}

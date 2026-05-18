@@ -31,6 +31,9 @@ export const EditorProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
     const [isChartModalOpen, setIsChartModalOpen] = useState(false); // Dodato
 
+    const [isGroupingMode, setIsGroupingMode] = useState(false);
+    const [groupSelection, setGroupSelection] = useState<string[]>([]);
+
     const updateElementSettings = (newSettings: Partial<any>, newExtraPayload?: Partial<SelectedElement['extraPayload']>) => {
         if (selectedElement) {
             setSelectedElement({
@@ -42,7 +45,7 @@ export const EditorProvider: FC<{ children: ReactNode }> = ({ children }) => {
     };
 
     return (
-        <EditorContext.Provider value={{ selectedElement, setSelectedElement, updateElementSettings, isChartModalOpen, setIsChartModalOpen }}>
+        <EditorContext.Provider value={{ isGroupingMode, setIsGroupingMode, groupSelection, setGroupSelection, selectedElement, setSelectedElement, updateElementSettings, isChartModalOpen, setIsChartModalOpen }}>
             {children}
         </EditorContext.Provider>
     );
