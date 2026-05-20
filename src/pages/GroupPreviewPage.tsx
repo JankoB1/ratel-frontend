@@ -4,33 +4,41 @@ import { ChevronLeft, ZoomIn, ZoomOut, Loader2, ExternalLink } from "lucide-reac
 import { DocumentPage, buildMaps } from "../components/DocumentPageView";
 import logo from "../assets/logo.svg";
 
-// A saved group's elements are a flat array of ContentElement.
-// We wrap them into a single-column page so DocumentPage can render them.
-function elementsToPage(elements: any[], groupId: number) {
+interface Group {
+    id: number;
+    name: string;
+    elements: any[];
+    rows_data?: any[] | null;
+    document_id: number | null;
+    document: { id: number; title: string } | null;
+    updated_at: string;
+}
+
+// Wraps a group into a page structure DocumentPage can render.
+// Uses rows_data (new format) when available to preserve original multi-column layout.
+// Falls back to a single col-span-12 column for legacy groups.
+function elementsToPage(group: Group) {
+    if (group.rows_data && group.rows_data.length > 0) {
+        return {
+            id: `group-page-${group.id}`,
+            rows: group.rows_data,
+        };
+    }
     return {
-        id: `group-page-${groupId}`,
+        id: `group-page-${group.id}`,
         rows: [
             {
                 id: "gr-row-1",
                 columns: [
                     {
                         id: "gr-col-1",
-                        widthClass: "w-full",
-                        elements: elements,
+                        widthClass: "col-span-12",
+                        elements: group.elements ?? [],
                     },
                 ],
             },
         ],
     };
-}
-
-interface Group {
-    id: number;
-    name: string;
-    elements: any[];
-    document_id: number | null;
-    document: { id: number; title: string } | null;
-    updated_at: string;
 }
 
 const GroupPreviewPage = () => {
@@ -54,7 +62,7 @@ const GroupPreviewPage = () => {
 
     const page = useMemo(() => {
         if (!group) return null;
-        return elementsToPage(group.elements ?? [], group.id);
+        return elementsToPage(group);
     }, [group]);
 
     const fakeSection = useMemo(() => {

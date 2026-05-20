@@ -60,6 +60,11 @@ const PanelPage = () => {
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [canUndo, setCanUndo] = useState(false);
 
+    // --- Concurrent editing lock ---
+    const [sectionLockedBy, setSectionLockedBy] = useState<string | null>(null);
+    const lockHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const lockedSectionIdRef = useRef<number | null>(null); // section we currently hold lock for
+
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [currentPageIndex, setCurrentPageIndex] = useState(0);
     const [zoom, setZoom] = useState(1);
@@ -74,6 +79,50 @@ const PanelPage = () => {
             alert('Грешка при чувању документа!');
         }
     }, []);
+
+    const stopHeartbeat = useCallback(() => {
+        if (lockHeartbeatRef.current) {
+            clearInterval(lockHeartbeatRef.current);
+            lockHeartbeatRef.current = null;
+        }
+    }, []);
+
+    const releaseSectionLock = useCallback(async (sectionId: number) => {
+        try { await axiosClient.delete(`/api/sections/${sectionId}/lock`); } catch { /* ignore */ }
+        lockedSectionIdRef.current = null;
+        stopHeartbeat();
+    }, [stopHeartbeat]);
+
+    const acquireSectionLock = useCallback(async (sectionId: number) => {
+        try {
+            const res = await axiosClient.post(`/api/sections/${sectionId}/lock`);
+            if (res.data.acquired) {
+                setSectionLockedBy(null);
+                lockedSectionIdRef.current = sectionId;
+                // Heartbeat: refresh lock every 90s so it doesn't expire
+                stopHeartbeat();
+                lockHeartbeatRef.current = setInterval(async () => {
+                    try { await axiosClient.post(`/api/sections/${sectionId}/lock`); } catch { /* ignore */ }
+                }, 90_000);
+            } else {
+                setSectionLockedBy(res.data.locked_by || 'Drugi korisnik');
+                lockedSectionIdRef.current = null;
+                stopHeartbeat();
+            }
+        } catch {
+            setSectionLockedBy(null);
+        }
+    }, [stopHeartbeat]);
+
+    // Release lock on unmount
+    useEffect(() => {
+        return () => {
+            stopHeartbeat();
+            if (lockedSectionIdRef.current) {
+                axiosClient.delete(`/api/sections/${lockedSectionIdRef.current}/lock`).catch(() => {});
+            }
+        };
+    }, [stopHeartbeat]);
 
     const handleZoomIn = useCallback(() => setZoom(z => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 100) / 100)), []);
     const handleZoomOut = useCallback(() => setZoom(z => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100)), []);
@@ -114,7 +163,19 @@ const PanelPage = () => {
                 setDocumentInfo({ title: doc.title || 'Без наслова', status: doc.status || 'draft' });
                 setSections(fetchedSections);
                 if (fetchedSections && fetchedSections.length > 0) {
-                    setActiveSectionId(fetchedSections[0].id);
+                    const firstId = fetchedSections[0].id;
+                    setActiveSectionId(firstId);
+                    // Acquire lock for the first section (non-blocking)
+                    axiosClient.post(`/api/sections/${firstId}/lock`).then(res => {
+                        if (res.data.acquired) {
+                            lockedSectionIdRef.current = firstId;
+                            lockHeartbeatRef.current = setInterval(async () => {
+                                try { await axiosClient.post(`/api/sections/${firstId}/lock`); } catch { /* ignore */ }
+                            }, 90_000);
+                        } else {
+                            setSectionLockedBy(res.data.locked_by || 'Drugi korisnik');
+                        }
+                    }).catch(() => {});
                 }
             } catch (error) {
                 console.error("Greska pri ucitavanju:", error);
@@ -167,17 +228,17 @@ const PanelPage = () => {
     };
 
     const handleSectionChange = async (id: number) => {
-        // Opciono: Možeš automatski da sačuvaš trenutnu sekciju pre nego što korisnik pređe na drugu
-        // await handleSave();
-
         setSelectedElement(null);
+        setSectionLockedBy(null); // clear stale banner immediately
+
+        // Release previous lock before switching
+        if (lockedSectionIdRef.current && lockedSectionIdRef.current !== id) {
+            await releaseSectionLock(lockedSectionIdRef.current);
+        }
 
         try {
-            // Povlačimo isključivo NAJSVEŽIJE podatke za sekciju na koju korisnik želi da pređe
             const response = await axiosClient.get(`/api/sections/${id}`);
             const freshSection = response.data.section;
-
-            // Ažuriramo SAMO tu sekciju u lokalnom state-u, kako bismo pregazili stare podatke iz memorije
             setSections(prevSections => prevSections.map(sec =>
                 sec.id === id ? freshSection : sec
             ));
@@ -185,8 +246,32 @@ const PanelPage = () => {
             console.error("Greška pri osvežavanju sekcije:", error);
         }
 
-        // Menjamo aktivnu sekciju i prikazujemo je u Canvasu
         setActiveSectionId(id);
+
+        // Try to acquire lock for this section
+        await acquireSectionLock(id);
+    };
+
+    const handleSectionToggleDisabled = async (id: number, currentlyDisabled: boolean) => {
+        const newValue = !currentlyDisabled;
+        // Optimistically update local state
+        setSections(prev => prev.map(sec =>
+            sec.id === id ? { ...sec, is_disabled: newValue } : sec
+        ));
+        // If the now-disabled section was active, deselect it
+        if (newValue && activeSectionId === id) {
+            setActiveSectionId(null);
+            setSelectedElement(null);
+        }
+        try {
+            await axiosClient.put(`/api/sections/${id}`, { is_disabled: newValue });
+        } catch (error) {
+            console.error("Greška pri promeni statusa sekcije:", error);
+            // Revert on error
+            setSections(prev => prev.map(sec =>
+                sec.id === id ? { ...sec, is_disabled: currentlyDisabled } : sec
+            ));
+        }
     };
 
     const handlePagesChange = (action: any) => {
@@ -502,11 +587,42 @@ const PanelPage = () => {
                         sections={sections}
                         activeSectionId={activeSectionId}
                         onSectionChange={handleSectionChange}
+                        onSectionToggleDisabled={handleSectionToggleDisabled}
                     />
 
                     {activeSection ? (
-                        <div style={{ zoom }}>
-                            <Canvas pages={canvasData} setPages={handlePagesChange} sectionNum={sectionNum} />
+                        <div>
+                            {sectionLockedBy && (
+                                <div style={{
+                                    position: 'sticky', top: 0, zIndex: 50,
+                                    background: '#fef3c7',
+                                    border: '1px solid #f59e0b',
+                                    borderRadius: '12px',
+                                    padding: '10px 16px',
+                                    marginBottom: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    color: '#92400e',
+                                }}>
+                                    <span style={{ fontSize: '18px' }}>🔒</span>
+                                    <span>
+                                        <strong>{sectionLockedBy}</strong> тренутно уређује ову секцију. Уређивање је онемогућено.
+                                    </span>
+                                </div>
+                            )}
+                            <div style={{ zoom }}>
+                                <Canvas
+                                    pages={canvasData}
+                                    setPages={handlePagesChange}
+                                    sectionNum={sectionNum}
+                                    documentTitle={documentInfo?.title}
+                                    sectionTitle={activeSection.title}
+                                    readOnly={!!sectionLockedBy}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full text-slate-400 w-full">

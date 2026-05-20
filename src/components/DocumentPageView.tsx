@@ -242,10 +242,14 @@ const ChartBlockReadonly = ({ el, label }: any) => {
     const isSemi = subType === 'semicircle_doughnut';
     const legendPosition = s.legendPosition || 'bottom';
     const isRightLegend = legendPosition === 'right';
-    const showInternalLegend = s.showLegend && !isRightLegend;
+    const isTopLegend = legendPosition === 'top';
+
+    const showRechartsLegend = !!(s.showLegend && !isRightLegend && !isTopLegend);
+    const showTopLegend     = !!(s.showLegend && isTopLegend);
+    const showAnyInternalLegend = showRechartsLegend || showTopLegend;
 
     const baseChartHeight = isPie ? 260 : 280;
-    const legendRows = showInternalLegend ? Math.ceil((isPie ? data.length : keys.length) / Math.max(1, Math.floor(6))) : 0;
+    const legendRows = showAnyInternalLegend ? Math.ceil((isPie ? data.length : keys.length) / Math.max(1, Math.floor(6))) : 0;
     const chartAreaHeight = baseChartHeight + legendRows * 22;
 
     const renderSideLegend = () => {
@@ -263,6 +267,30 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             <circle cx="5" cy="5" r="5" fill={item.color} />
                         </svg>
                         {item.label}
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
+    const renderTopLegend = () => {
+        const items = isPie
+            ? [...chartData.map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length] }))].sort((a, b) => {
+                const av = chartData.find((d: any) => d.name === a.label)?.[keys[0]] ?? 0;
+                const bv = chartData.find((d: any) => d.name === b.label)?.[keys[0]] ?? 0;
+                return bv - av;
+            })
+            : keys.map((key: string, i: number) => ({ label: key, color: colors[key] || CHART_PALETTE[i % CHART_PALETTE.length] }));
+        const align = s.legendAlign || 'center';
+        const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+        return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent, gap: '4px 14px', paddingLeft: '24px', paddingBottom: '4px', fontSize: '12px', flexShrink: 0 }}>
+                {items.map((item: any, i: number) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0 }}>
+                            <circle cx="5" cy="5" r="5" fill={item.color} />
+                        </svg>
+                        <span style={{ color: '#1E293B', fontWeight: 600 }}>{item.label}</span>
                     </span>
                 ))}
             </div>
@@ -349,7 +377,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                     <YAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                                 </>
                             )}
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => (
                                 <Bar key={key} dataKey={key} radius={[4, 4, 0, 0]} fill={colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length]} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
                                     {s.showLabels && <LabelList dataKey={key} position={isStacked ? 'inside' : 'top'} style={{ fill: isStacked ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} />}
@@ -370,7 +398,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 if (isArea) return <Area key={key} type="monotone" dataKey={key} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
@@ -389,7 +417,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={10} isAnimationActive={false}
                                     label={s.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
                                 />
-                                {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingLeft: '24px' }} iconType="circle" />}
+                                {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             </RadialBarChart>
                         </ResponsiveContainer>
                     );
@@ -399,7 +427,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart margin={chartMargin}>
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy={isSemi ? '75%' : '45%'}
                                 outerRadius="70%" innerRadius={isDoughnut ? '42%' : 0}
                                 isAnimationActive={false}
@@ -500,7 +528,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 let t = seriesTypes[key];
@@ -568,7 +596,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </YAxis>
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const scatterData = data.map((d: any) => ({ name: d.name, value: parseVal(d[key]) }));
@@ -591,7 +619,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             <PolarGrid stroke="#e2e8f0" gridType={isCircular ? 'circle' : 'polygon'} />
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
-                            {showInternalLegend && <Legend wrapperStyle={{ fontSize: '12px', paddingLeft: '24px' }} iconType="circle" />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return <Radar key={key} name={key} dataKey={key} stroke={color} strokeWidth={isOutline ? 2 : 1} fill={isOutline ? 'transparent' : color} fillOpacity={0.5} isAnimationActive={false} label={s.showLabels ? { fill: '#64748b', fontSize: 11 } : false} />;
@@ -621,8 +649,9 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                     {s.subtitle}
                 </div>
             )}
-            <div style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, overflow: 'hidden', display: 'flex' }}>
-                <div style={{ flex: isRightLegend ? '0 0 62%' : '1 1 100%', minWidth: 0, height: '100%' }}>
+            <div style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: showTopLegend ? 'column' : 'row' }}>
+                {showTopLegend && renderTopLegend()}
+                <div style={{ flex: isRightLegend ? '0 0 62%' : '1', minWidth: 0, minHeight: 0, ...(showTopLegend ? {} : { height: '100%' }) }}>
                     {renderChart()}
                 </div>
                 {isRightLegend && s.showLegend && (
@@ -725,12 +754,14 @@ const MapBlockReadonly = ({ el }: any) => {
 
 // --- DOCUMENT PAGE COMPONENT ---
 
-export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelMap, isPrint = false }: {
+export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelMap, isPrint = false, documentTitle, sectionTitle }: {
     page: any;
     pageIndex: number;
     globalFootnoteMap: Record<string, number>;
     elementLabelMap: Record<string, string>;
     isPrint?: boolean;
+    documentTitle?: string;
+    sectionTitle?: string;
 }) => {
     const pageFootnotes = useMemo(() => buildPageFootnotes(page, globalFootnoteMap), [page, globalFootnoteMap]);
 
@@ -740,7 +771,16 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
             style={isPrint ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always' } : undefined}
         >
             <div className="page-header">
-                <div className="page-header-inner">Annual Report 2026</div>
+                <div className="page-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden', gap: '16px' }}>
+                    <span style={{ flexShrink: 0, maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {documentTitle || 'Annual Report'}
+                    </span>
+                    {sectionTitle && (
+                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            {sectionTitle}
+                        </span>
+                    )}
+                </div>
             </div>
             <div className="page-content">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', flexShrink: 0 }}>

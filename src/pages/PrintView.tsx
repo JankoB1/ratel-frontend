@@ -5,6 +5,7 @@ import { DocumentPage, buildMaps } from "../components/DocumentPageView";
 const PrintView = () => {
     const { id } = useParams();
     const [sections, setSections] = useState<any[]>([]);
+    const [documentTitle, setDocumentTitle] = useState('');
     const [isReady, setIsReady] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ const PrintView = () => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     data = await res.json();
                 }
+                setDocumentTitle(data.document.title || '');
                 setSections(data.document.sections);
                 setTimeout(() => setIsReady(true), 1500);
             } catch (error: any) {
@@ -54,7 +56,7 @@ const PrintView = () => {
         <div id="print-ready" style={{ background: '#fff' }}>
             {sections.map(section =>
                 (section.canvas_data || []).map((page: any, pageIndex: number) => (
-                    <DocumentPage key={page.id} page={page} pageIndex={pageIndex} globalFootnoteMap={globalFootnoteMap} elementLabelMap={elementLabelMap} isPrint={true} />
+                    <DocumentPage key={page.id} page={page} pageIndex={pageIndex} globalFootnoteMap={globalFootnoteMap} elementLabelMap={elementLabelMap} isPrint={true} documentTitle={documentTitle} sectionTitle={section.title} />
                 ))
             )}
         </div>

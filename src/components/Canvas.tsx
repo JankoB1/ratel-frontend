@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FC } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Copy } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import axiosClient from "../axios-client.ts";
 import { PageItem } from "./CanvasEditor/PageItem";
@@ -9,9 +9,16 @@ import { SERBIAN_DISTRICTS } from "./CanvasEditor/constants";
 
 export { extractFootnoteIds };
 
-interface CanvasProps { pages: any[]; setPages: (action: any) => void; sectionNum?: number; }
+interface CanvasProps {
+    pages: any[];
+    setPages: (action: any) => void;
+    sectionNum?: number;
+    documentTitle?: string;
+    sectionTitle?: string;
+    readOnly?: boolean;
+}
 
-const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
+const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitle, sectionTitle, readOnly = false }) => {
     const { setSelectedElement, selectedElement, updateElementSettings, isGroupingMode, setIsGroupingMode, groupSelection, setGroupSelection } = useEditor();
 
     const pagesRef = useRef(pages);
@@ -32,6 +39,34 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
             };
             const updated = [...prev];
             updated.splice(index, 0, newPage);
+            return updated;
+        });
+    };
+
+    const handleDuplicatePage = (index: number) => {
+        setPages((prev: any[]) => {
+            const original = prev[index];
+            // Deep-clone with fresh IDs for page / rows / columns / elements
+            const freshId = () => Math.random().toString(36).substr(2, 9);
+            const cloned = {
+                ...original,
+                id: `page-${Date.now()}`,
+                rows: (original.rows || []).map((row: any) => ({
+                    ...row,
+                    id: freshId(),
+                    columns: (row.columns || []).map((col: any) => ({
+                        ...col,
+                        id: freshId(),
+                        elements: (col.elements || []).map((el: any) => ({
+                            ...el,
+                            id: freshId(),
+                            payload: el.payload ? JSON.parse(JSON.stringify(el.payload)) : el.payload,
+                        })),
+                    })),
+                })),
+            };
+            const updated = [...prev];
+            updated.splice(index + 1, 0, cloned);
             return updated;
         });
     };
@@ -102,23 +137,31 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
             if (!selectedIds || selectedIds.length === 0) return;
 
             const extractedElements: any[] = [];
+            const rowsData: any[] = [];
 
             pagesRef.current.forEach((page: any) => {
                 page.rows.forEach((row: any) => {
-                    row.columns.forEach((col: any) => {
-                        col.elements.forEach((el: any) => {
-                            if (selectedIds.includes(el.id)) {
-                                extractedElements.push({ ...el });
-                            }
+                    const filteredCols = row.columns
+                        .map((col: any) => ({
+                            ...col,
+                            elements: col.elements.filter((el: any) => selectedIds.includes(el.id))
+                        }))
+                        .filter((col: any) => col.elements.length > 0);
+
+                    if (filteredCols.length > 0) {
+                        rowsData.push({ ...row, columns: filteredCols });
+                        filteredCols.forEach((col: any) => {
+                            col.elements.forEach((el: any) => extractedElements.push({ ...el }));
                         });
-                    });
+                    }
                 });
             });
 
             try {
                 const payload = {
                     name: groupName,
-                    elements: extractedElements
+                    elements: extractedElements,
+                    rows_data: rowsData,
                 };
 
                 await axiosClient.post('/api/saved-groups', payload);
@@ -339,9 +382,9 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
     };
 
     return (
-        <div className="canvas-wrapper" onClick={() => { setSelectedElement(null); setActiveRowMenu(null); setActiveColMenu(null); }}>
+        <div className="canvas-wrapper" onClick={() => { if (!readOnly) { setSelectedElement(null); setActiveRowMenu(null); setActiveColMenu(null); } }}>
             {pages?.map((page, index) => (
-                <div key={page.id} data-page-index={index}>
+                <div key={page.id} data-page-index={index} style={{ position: 'relative' }}>
                     <PageItem
                         key={page.id}
                         page={page}
@@ -368,13 +411,30 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1 }) => {
                         isGroupingMode={isGroupingMode}
                         groupSelection={groupSelection}
                         setGroupSelection={setGroupSelection}
+                        documentTitle={documentTitle}
+                        sectionTitle={sectionTitle}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0' }}>
+                    {readOnly && (
+                        <div style={{
+                            position: 'absolute', inset: 0, zIndex: 200,
+                            background: 'rgba(255,255,255,0.45)',
+                            cursor: 'not-allowed',
+                            pointerEvents: 'all',
+                        }} />
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
                         <button
                             onClick={(e) => { e.stopPropagation(); handleInsertPage(index + 1); }}
-                            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #cbd5e1', cursor: 'pointer' }}
+                            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #cbd5e1', cursor: 'pointer', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}
                         >
-                            + Уметни страницу овде
+                            <Plus size={12} /> Уметни страницу
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleDuplicatePage(index); }}
+                            title="Дуплирај ову страницу"
+                            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #93c5fd', cursor: 'pointer', background: 'white', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <Copy size={12} /> Дуплирај
                         </button>
                     </div>
                 </div>

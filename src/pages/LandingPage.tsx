@@ -30,6 +30,7 @@ interface SavedGroup {
     id: number;
     name: string;
     elements: any[];
+    rows_data?: any[] | null;
     document_id: number | null;
     document: { id: number; title: string } | null;
     updated_at: string;
@@ -40,11 +41,28 @@ function stripHtml(html: string): string {
     return (html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// Extracts all searchable text from a group's elements
-function extractGroupText(elements: any[]): string {
-    const parts: string[] = [];
+// Flattens a group into a plain elements array regardless of storage format
+function flattenGroupElements(group: SavedGroup): any[] {
+    // New format: rows_data contains the original row/column structure
+    if (group.rows_data && group.rows_data.length > 0) {
+        const els: any[] = [];
+        group.rows_data.forEach((row: any) => {
+            (row.columns ?? []).forEach((col: any) => {
+                (col.elements ?? []).forEach((el: any) => els.push(el));
+            });
+        });
+        return els;
+    }
+    // Legacy format: flat elements array
+    return group.elements ?? [];
+}
 
-    for (const el of elements ?? []) {
+// Extracts all searchable text from a group's elements
+function extractGroupText(group: SavedGroup): string {
+    const parts: string[] = [];
+    const elements = flattenGroupElements(group);
+
+    for (const el of elements) {
         const payload  = el.payload ?? {};
         const settings = payload.settings ?? {};
 
@@ -59,9 +77,8 @@ function extractGroupText(elements: any[]): string {
                 Object.values(cells).forEach((v: any) => {
                     parts.push(typeof v === "string" ? stripHtml(v) : "");
                 });
-                // Column header labels stored in settings
-                const cols: any[] = settings.columns ?? [];
-                cols.forEach((c: any) => { if (c?.label) parts.push(c.label); });
+                // Column header labels — settings.columns is a NUMBER (column count), not an array
+                // so we safely skip it here; header labels come from sr.content row 0 instead
                 break;
             }
 
@@ -94,13 +111,21 @@ function extractGroupText(elements: any[]): string {
     return parts.join(" ");
 }
 
-// Wraps flat elements array into a page structure DocumentPage can render
-function elementsToPage(elements: any[], groupId: number) {
+// Wraps a group into a page structure DocumentPage can render.
+// Uses rows_data (new format) when available to preserve original multi-column layout.
+// Falls back to a single col-span-12 column for legacy groups.
+function elementsToPage(group: SavedGroup) {
+    if (group.rows_data && group.rows_data.length > 0) {
+        return {
+            id: `group-page-${group.id}`,
+            rows: group.rows_data,
+        };
+    }
     return {
-        id: `group-page-${groupId}`,
+        id: `group-page-${group.id}`,
         rows: [{
             id: "gr-row-1",
-            columns: [{ id: "gr-col-1", widthClass: "w-full", elements: elements ?? [] }],
+            columns: [{ id: "gr-col-1", widthClass: "col-span-12", elements: group.elements ?? [] }],
         }],
     };
 }
@@ -154,7 +179,7 @@ export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGrou
     const w = Math.round(794 * scale);
     const h = Math.round(1123 * scale);
 
-    const page = useMemo(() => elementsToPage(group.elements, group.id), [group]);
+    const page = useMemo(() => elementsToPage(group), [group]);
 
     const { elementLabelMap, globalFootnoteMap } = useMemo(
         () => buildMaps([{ id: group.id, canvas_data: [page] }]),
@@ -286,7 +311,7 @@ export const _DocCard = ({ doc, onClick }: { doc: PortalDoc; onClick: () => void
 const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void }) => {
     const hasElements = group.elements?.length > 0;
 
-    const page = useMemo(() => elementsToPage(group.elements, group.id), [group]);
+    const page = useMemo(() => elementsToPage(group), [group]);
     const { elementLabelMap, globalFootnoteMap } = useMemo(
         () => buildMaps([{ id: group.id, canvas_data: [page] }]),
         [page, group.id]
@@ -366,7 +391,7 @@ const LandingPage = () => {
     const visibleGroups = groups.filter(g => {
         if (!query) return true;
         if (g.name.toLowerCase().includes(query)) return true;
-        return extractGroupText(g.elements).toLowerCase().includes(query);
+        return extractGroupText(g).toLowerCase().includes(query);
     });
 
     const openDoc   = (id: number) => window.open(`/document/${id}/view`, "_blank");

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -53,6 +54,34 @@ const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette, formatter
             ))}
         </>
     );
+};
+
+/**
+ * Renders children via a React Portal attached to document.body,
+ * positioned with `position:fixed` below the anchor element.
+ * This escapes every stacking context so the popover always floats above
+ * all canvas pages, regardless of z-index inside the document layout.
+ */
+const DataEditorPortal = ({ anchorRef, children }: { anchorRef: React.RefObject<HTMLDivElement | null>; children: React.ReactNode }) => {
+    const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', top: -9999, left: -9999, zIndex: 2147483647 });
+
+    useEffect(() => {
+        const update = () => {
+            if (!anchorRef.current) return;
+            const r = anchorRef.current.getBoundingClientRect();
+            setStyle({ position: 'fixed', top: r.bottom + 8, left: r.left, zIndex: 2147483647 });
+        };
+        update();
+        // Re-position on any scroll (capture phase to catch scrolling containers)
+        window.addEventListener('scroll', update, true);
+        window.addEventListener('resize', update);
+        return () => {
+            window.removeEventListener('scroll', update, true);
+            window.removeEventListener('resize', update);
+        };
+    }, [anchorRef]);
+
+    return createPortal(<div style={style}>{children}</div>, document.body);
 };
 
 const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any) => {
@@ -291,6 +320,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     };
 
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const blockRef = useRef<HTMLDivElement>(null);   // anchor for the data-editor portal
     const [chartWidth, setChartWidth] = useState(400);
     const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
 
@@ -313,8 +343,12 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
     const legendPosition = currentSettings.legendPosition || 'bottom';
     const isRightLegend = legendPosition === 'right';
-    // When legend is on the right, it doesn't add height rows
-    const showInternalLegend = currentSettings.showLegend && !isRightLegend;
+    const isTopLegend = legendPosition === 'top';
+
+    // showRechartsLegend  → let Recharts render its own built-in legend (bottom only)
+    // showTopLegend       → we render a custom legend div *above* the chart (avoids Recharts z-index overlap)
+    const showRechartsLegend = !!(currentSettings.showLegend && !isRightLegend && !isTopLegend);
+    const showTopLegend     = !!(currentSettings.showLegend && isTopLegend);
 
     const baseChartHeight = isPie ? Math.max(180, Math.min(280, chartWidth)) : 280;
 
@@ -322,7 +356,9 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const itemsPerRow = Math.max(1, Math.min(6, Math.floor(chartWidth / 85)));
     const legendRows = Math.ceil(legendItemCount / itemsPerRow);
 
-    const chartAreaHeight = baseChartHeight + (showInternalLegend ? legendRows * 22 : 0);
+    // Total container height accounts for legend rows regardless of position
+    const showAnyInternalLegend = showRechartsLegend || showTopLegend;
+    const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0);
 
     // Custom vertical legend for right-side layout
     const renderSideLegend = () => {
@@ -340,6 +376,27 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             <circle cx="5" cy="5" r="5" fill={item.color} />
                         </svg>
                         {item.label}
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
+    // Custom top-legend rendered as a normal div above the chart (no z-index conflict with Recharts)
+    const renderTopLegend = () => {
+        const items = isPie
+            ? pieData.map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length] }))
+            : keys.map((key: string, i: number) => ({ label: key, color: colors[key] || CHART_PALETTE[i % CHART_PALETTE.length] }));
+        const align = currentSettings.legendAlign || 'center';
+        const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+        return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent, gap: '4px 14px', paddingLeft: '24px', paddingBottom: '4px', fontSize: '12px', flexShrink: 0 }}>
+                {items.map((item: any, i: number) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0 }}>
+                            <circle cx="5" cy="5" r="5" fill={item.color} />
+                        </svg>
+                        <span style={{ color: '#1E293B', fontWeight: 600 }}>{item.label}</span>
                     </span>
                 ))}
             </div>
@@ -543,9 +600,9 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 </>
                             )}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && (() => {
+                            {showRechartsLegend && (() => {
                                 const legendProps: any = {
-                                    verticalAlign: currentSettings.legendVerticalAlign || 'bottom',
+                                    verticalAlign: 'bottom' as const,
                                     align: currentSettings.legendAlign || 'center',
                                     wrapperStyle: { fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' },
                                     iconType: 'circle',
@@ -571,7 +628,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 if (isArea) return (
@@ -615,7 +672,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
                                 />
                                 <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
-                                {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                                {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             </RadialBarChart>
                         </ResponsiveContainer>
                     );
@@ -636,13 +693,13 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     </div>
                 );
                 // When legend is on the right, we skip the internal pie legend too
-                const internalPieLegend = showInternalLegend ? renderPieLegend : () => null;
+                const internalPieLegend = showRechartsLegend ? renderPieLegend : () => null;
 
                 return (
                     <ResponsiveContainer width="99%" height="100%">
                         <PieChart margin={chartMargin}>
                             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} content={internalPieLegend} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} content={internalPieLegend} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
                                 cx="50%" cy={isSemicircle ? "75%" : "45%"}
@@ -686,7 +743,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -765,7 +822,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             </YAxis>
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
                             <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any) => [formatVal(v)]} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -791,7 +848,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
                             <Tooltip contentStyle={tooltipStyle} />
-                            {showInternalLegend && <Legend verticalAlign={currentSettings.legendVerticalAlign || 'bottom'} align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return (
@@ -818,6 +875,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
     return (
         <div
+            ref={blockRef}
             draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
             onClick={(e) => {
                 e.stopPropagation();
@@ -860,8 +918,9 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                 </div>
             )}
 
-            <div ref={wrapperRef} style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, pointerEvents: 'auto', minWidth: 0, overflow: 'hidden', display: 'flex' }}>
-                <div style={{ flex: isRightLegend ? '0 0 62%' : '1 1 100%', minWidth: 0, height: '100%' }}>
+            <div ref={wrapperRef} style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, pointerEvents: 'auto', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: showTopLegend ? 'column' : 'row' }}>
+                {showTopLegend && renderTopLegend()}
+                <div style={{ flex: isRightLegend ? '0 0 62%' : '1', minWidth: 0, minHeight: 0, ...(showTopLegend ? {} : { height: '100%' }) }}>
                     {renderChart()}
                 </div>
                 {isRightLegend && currentSettings.showLegend && (
@@ -884,7 +943,9 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             )}
 
             {isSelected && currentSettings.showDataEditor && (
-                <DataEditorPopover settings={currentSettings} data={data} keys={keys} colors={colors} updateSettings={updateLocalSettings} />
+                <DataEditorPortal anchorRef={blockRef}>
+                    <DataEditorPopover settings={currentSettings} data={data} keys={keys} colors={colors} updateSettings={updateLocalSettings} />
+                </DataEditorPortal>
             )}
         </div>
     );

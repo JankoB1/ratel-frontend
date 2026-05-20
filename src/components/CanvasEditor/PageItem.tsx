@@ -53,7 +53,7 @@ const ElementSelector = ({ onSelect }: any) => (
     </div>
 );
 
-export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap, isGroupingMode, groupSelection, setGroupSelection }: any) => {
+export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap, isGroupingMode, groupSelection, setGroupSelection, documentTitle, sectionTitle }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +108,18 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
             {totalPages > 1 && (
                 <button onClick={() => onDeletePage(page.id)} className="page-delete-btn" title="Obriši stranicu"><X size={20} /></button>
             )}
-            <div className="page-header"><div className="page-header-inner">Annual Report 2026</div></div>
+            <div className="page-header">
+                <div className="page-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden', gap: '16px' }}>
+                    <span style={{ flexShrink: 0, maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {documentTitle || 'Annual Report'}
+                    </span>
+                    {sectionTitle && (
+                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            {sectionTitle}
+                        </span>
+                    )}
+                </div>
+            </div>
             <div id={`page-content-${page.id}`} className="page-content">
                 <div ref={innerContentRef} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', flexShrink: 0, position: 'relative', zIndex: 20 }}>
                     {page.rows.map((row: any) => {

@@ -12,6 +12,7 @@ const THUMB_H = Math.round(1123 * THUMB_SCALE); // 197
 const ViewPage = () => {
     const { id } = useParams();
     const [sections, setSections] = useState<any[]>([]);
+    const [documentTitle, setDocumentTitle] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [zoom, setZoom] = useState(100);
     const [currentPage, setCurrentPage] = useState(0);
@@ -31,6 +32,7 @@ const ViewPage = () => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 const fetched = data.document.sections;
+                setDocumentTitle(data.document.title || '');
                 setSections(fetched);
                 if (fetched.length > 0) setActiveSectionId(fetched[0].id);
             } catch (e) {
@@ -243,6 +245,8 @@ const ViewPage = () => {
                                             pageIndex={pageIdx}
                                             globalFootnoteMap={globalFootnoteMap}
                                             elementLabelMap={elementLabelMap}
+                                            documentTitle={documentTitle}
+                                            sectionTitle={activeSection?.title}
                                         />
                                     </div>
                                 </div>
@@ -267,6 +271,8 @@ const ViewPage = () => {
                                     pageIndex={pageIdx}
                                     globalFootnoteMap={globalFootnoteMap}
                                     elementLabelMap={elementLabelMap}
+                                    documentTitle={documentTitle}
+                                    sectionTitle={activeSection?.title}
                                 />
                             </div>
                         ))}
