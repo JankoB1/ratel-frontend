@@ -8,7 +8,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label
 } from "recharts";
 import { CHART_PALETTE } from "./constants";
-import { parseVal } from "./utils";
+import { parseVal, formatChartValue } from "./utils";
 
 const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     if (!label) return null;
@@ -29,29 +29,40 @@ const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     );
 };
 
-const RenderBars = ({ keys, colors, isStacked, isLabelsShown, palette, formatter }: any) => {
+const RenderBars = ({ keys, colors, chartData, isStacked, isHorizontal, isLabelsShown, palette, formatter }: any) => {
+    let labelPosition: any;
+    if (isStacked) labelPosition = isHorizontal ? 'center' : 'inside';
+    else labelPosition = isHorizontal ? 'right' : 'top';
+    const labelFill = isStacked ? '#fff' : '#64748b';
+    const isSingleSeries = keys.length === 1 && !isStacked;
     return (
         <>
-            {keys.map((key: string, idx: number) => (
-                <Bar
-                    key={key}
-                    dataKey={key}
-                    radius={[4, 4, 0, 0]}
-                    fill={colors[key] || palette[idx % palette.length]}
-                    stackId={isStacked ? "a" : undefined}
-                    isAnimationActive={false}
-                    activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}
-                >
-                    {isLabelsShown && (
-                        <LabelList
-                            dataKey={key}
-                            position={isStacked ? 'inside' : 'top'}
-                            style={{ fill: isStacked ? '#fff' : '#64748b', fontSize: 11 }}
-                            formatter={formatter}
-                        />
-                    )}
-                </Bar>
-            ))}
+            {keys.map((key: string, idx: number) => {
+                const seriesColor = colors[key] || palette[idx % palette.length];
+                return (
+                    <Bar
+                        key={key}
+                        dataKey={key}
+                        radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+                        fill={seriesColor}
+                        stackId={isStacked ? "a" : undefined}
+                        isAnimationActive={false}
+                        activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}
+                    >
+                        {isSingleSeries && chartData.map((entry: any, i: number) => (
+                            <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
+                        ))}
+                        {isLabelsShown && (
+                            <LabelList
+                                dataKey={key}
+                                position={labelPosition}
+                                style={{ fill: labelFill, fontSize: 11 }}
+                                formatter={formatter}
+                            />
+                        )}
+                    </Bar>
+                );
+            })}
         </>
     );
 };
@@ -87,6 +98,8 @@ const DataEditorPortal = ({ anchorRef, children }: { anchorRef: React.RefObject<
 const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any) => {
     const isPie = settings.chartType === 'circular';
     const isComposed = settings.chartType === 'composed';
+    const isSingleSeriesBar = settings.chartType === 'bar' && keys.length === 1 && settings.subChartType !== 'stacked_v' && settings.subChartType !== 'stacked_h';
+    const isPerRowColor = isPie || isSingleSeriesBar;
     const displayKeys = isPie && keys.length > 0 ? [keys[0]] : keys;
 
     const handleKeyChange = (kIdx: number, newName: string) => {
@@ -186,10 +199,10 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                         {displayKeys.map((k: string, i: number) => (
                             <td key={`color-${i}`} className="group" style={{ padding: 0, position: 'relative' }}>
                                 <div
-                                    style={{ height: '32px', width: '100%', cursor: 'pointer', backgroundColor: !isPie ? (colors[k] || CHART_PALETTE[i % CHART_PALETTE.length]) : '#f8fafc' }}
-                                    onClick={() => !isPie && updateSettings({ activeColorKey: k })}
+                                    style={{ height: '32px', width: '100%', cursor: isSingleSeriesBar ? 'default' : 'pointer', backgroundColor: !isPie && !isSingleSeriesBar ? (colors[k] || CHART_PALETTE[i % CHART_PALETTE.length]) : '#f8fafc' }}
+                                    onClick={() => !isPie && !isSingleSeriesBar && updateSettings({ activeColorKey: k })}
                                 >
-                                    {!isPie && settings.activeColorKey === k && <div style={{position:'absolute', inset:0, border:'3px solid #2563eb', boxShadow:'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'}} />}
+                                    {!isPie && !isSingleSeriesBar && settings.activeColorKey === k && <div style={{position:'absolute', inset:0, border:'3px solid #2563eb', boxShadow:'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'}} />}
                                 </div>
                                 <button
                                     onClick={() => removeColumn(k)}
@@ -254,15 +267,15 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                     </tr>
                     {data.map((row: any, rIdx: number) => (
                         <tr key={rIdx}>
-                            <td style={{ padding: 0 }} onClick={() => isPie && updateSettings({ activeColorKey: row.name })}>
-                                {isPie && (
+                            <td style={{ padding: 0 }} onClick={() => isPerRowColor && updateSettings({ activeColorKey: row.name })}>
+                                {isPerRowColor && (
                                     <div
                                         style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '12px', cursor: 'pointer', backgroundColor: colors[row.name] || CHART_PALETTE[rIdx % CHART_PALETTE.length] }}
                                     >
                                         {settings.activeColorKey === row.name && <div style={{position:'absolute', inset:0, border:'2px solid #2563eb'}} />}
                                     </div>
                                 )}
-                                <input value={row.name} onChange={e => handleNameChange(rIdx, e.target.value)} className="data-input data-input-left" style={{ paddingLeft: isPie ? '20px' : '8px' }} />
+                                <input value={row.name} onChange={e => handleNameChange(rIdx, e.target.value)} className="data-input data-input-left" style={{ paddingLeft: isPerRowColor ? '20px' : '8px' }} />
                             </td>
                             {displayKeys.map((k: string) => (
                                 <td key={`cell-${rIdx}-${k}`}>
@@ -313,11 +326,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     // Cache for collision-adjusted pie label positions (recomputed when chart geometry changes)
     const pieLabelCache = useRef<{ key: string; positions: any[] }>({ key: '', positions: [] });
 
-    const formatVal = (v: any) => {
-        const num = parseVal(v);
-        const str = num % 1 === 0 ? String(num) : num.toFixed(2).replace('.', ',');
-        return currentSettings.isPercentage ? `${str}%` : str;
-    };
+    const formatVal = (v: any) => formatChartValue(v, currentSettings.decimals, currentSettings.isPercentage);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const blockRef = useRef<HTMLDivElement>(null);   // anchor for the data-editor portal
@@ -575,7 +584,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
         const axisLineStyle = { stroke: '#cbd5e1' };
         const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
 
-        const chartMargin = currentSettings.chartType === 'circular' ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: -20, bottom: 5 };
+        const chartMargin = currentSettings.chartType === 'circular' ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: 5, bottom: 5 };
 
         switch (currentSettings.chartType) {
             case 'bar': {
@@ -599,7 +608,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     <YAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                                 </>
                             )}
-                            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [formatVal(v)]} />
+                            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && (() => {
                                 const legendProps: any = {
                                     verticalAlign: 'bottom' as const,
@@ -611,7 +620,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 };
                                 return <Legend {...legendProps} />;
                             })()}
-                            <RenderBars keys={keys} colors={colors} isStacked={isStacked} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} />
+                            <RenderBars keys={keys} colors={colors} chartData={chartData} isStacked={isStacked} isHorizontal={isHorizontal} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} />
                         </BarChart>
                     </ResponsiveContainer>
                 );
@@ -627,7 +636,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
-                            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
+                            <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
@@ -671,7 +680,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     cornerRadius={10}
                                     label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
                                 />
-                                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
+                                <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                                 {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             </RadialBarChart>
                         </ResponsiveContainer>
@@ -698,7 +707,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                 return (
                     <ResponsiveContainer width="99%" height="100%">
                         <PieChart margin={chartMargin}>
-                            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [formatVal(v)]} />
+                            <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} content={internalPieLegend} />}
                             <Pie
                                 data={pieData} dataKey="value" nameKey="name"
@@ -742,7 +751,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
-                            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any) => [formatVal(v)]} />
+                            <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
@@ -798,7 +807,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                                 </YAxis>
                                 <ZAxis type="number" dataKey="z" range={[80, 1200]} />
-                                <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any) => [formatVal(v)]} />
+                                <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                                 <Scatter data={bubbleData} fillOpacity={0.75} isAnimationActive={false} shape={shape}>
                                     {bubbleData.map((d: any, i: number) => <Cell key={i} fill={d.fill} />)}
                                     {currentSettings.showLabels && (
@@ -821,7 +830,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </YAxis>
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
-                            <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any) => [formatVal(v)]} />
+                            <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
@@ -913,7 +922,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             <ElementLabel label={elementLabel} title={currentSettings.title} />
 
             {currentSettings.subtitle && (
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textAlign: 'left', width: '100%' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textAlign: (currentSettings.subtitleAlign || 'left') as any, width: '100%' }}>
                     {currentSettings.subtitle}
                 </div>
             )}
@@ -937,9 +946,10 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             )}
 
             {currentSettings.description && (
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', textAlign: 'left', width: '100%', fontStyle: 'italic' }}>
-                    {currentSettings.description}
-                </div>
+                <div
+                    style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
+                    dangerouslySetInnerHTML={{ __html: currentSettings.description }}
+                />
             )}
 
             {isSelected && currentSettings.showDataEditor && (

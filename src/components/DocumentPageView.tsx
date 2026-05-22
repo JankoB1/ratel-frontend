@@ -6,7 +6,7 @@ import {
     XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, LabelList, Label
 } from "recharts";
 import MapGraphic from "./MapGraphic.tsx";
-import { extractFootnoteIds, hexToRgba, parseVal } from "./CanvasEditor/utils";
+import { extractFootnoteIds, hexToRgba, parseVal, formatChartValue } from "./CanvasEditor/utils";
 import { CHART_PALETTE } from "./CanvasEditor/constants";
 
 // --- HELPERS ---
@@ -226,11 +226,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
         return out;
     });
 
-    const formatVal = (v: any) => {
-        const num = parseVal(v);
-        const str = num % 1 === 0 ? String(num) : num.toFixed(2).replace('.', ',');
-        return s.isPercentage ? `${str}%` : str;
-    };
+    const formatVal = (v: any) => formatChartValue(v, s.decimals, s.isPercentage);
 
     const renderLabel = (p: any) => (
         <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text>
@@ -299,7 +295,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
 
     const axisTickStyle = { fontSize: 12, fill: '#64748b' };
     const axisLineStyle = { stroke: '#cbd5e1' };
-    const chartMargin = isPie ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: -20, bottom: 5 };
+    const chartMargin = isPie ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: 5, bottom: 5 };
 
     const yMin = s.yAxisMin !== undefined && s.yAxisMin !== '' ? Number(s.yAxisMin) : 'auto';
     const yMax = s.yAxisMax !== undefined && s.yAxisMax !== '' ? Number(s.yAxisMax) : 'auto';
@@ -378,11 +374,22 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 </>
                             )}
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
-                            {keys.map((key: string, idx: number) => (
-                                <Bar key={key} dataKey={key} radius={[4, 4, 0, 0]} fill={colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length]} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
-                                    {s.showLabels && <LabelList dataKey={key} position={isStacked ? 'inside' : 'top'} style={{ fill: isStacked ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} />}
-                                </Bar>
-                            ))}
+                            {keys.map((key: string, idx: number) => {
+                                let labelPosition: any;
+                                if (isStacked) labelPosition = isHorizontal ? 'center' : 'inside';
+                                else labelPosition = isHorizontal ? 'right' : 'top';
+                                const labelFill = isStacked ? '#fff' : '#64748b';
+                                const seriesColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
+                                const isSingleSeries = keys.length === 1 && !isStacked;
+                                return (
+                                    <Bar key={key} dataKey={key} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
+                                        {isSingleSeries && chartData.map((entry: any, i: number) => (
+                                            <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
+                                        ))}
+                                        {s.showLabels && <LabelList dataKey={key} position={labelPosition} style={{ fill: labelFill, fontSize: 11 }} formatter={formatVal} />}
+                                    </Bar>
+                                );
+                            })}
                         </BarChart>
                     </ResponsiveContainer>
                 );
@@ -645,7 +652,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
         >
             <ElementLabel label={label} title={s.title} />
             {s.subtitle && (
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textAlign: 'left', width: '100%' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textAlign: (s.subtitleAlign || 'left') as any, width: '100%' }}>
                     {s.subtitle}
                 </div>
             )}
@@ -666,9 +673,10 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                 </div>
             )}
             {s.description && (
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', textAlign: 'left', width: '100%', fontStyle: 'italic' }}>
-                    {s.description}
-                </div>
+                <div
+                    style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
+                    dangerouslySetInnerHTML={{ __html: s.description }}
+                />
             )}
         </div>
     );

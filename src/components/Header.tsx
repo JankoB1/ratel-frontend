@@ -194,11 +194,6 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
             </div>
 
             <div className="flex items-center gap-4">
-                <div className="flex bg-[#e8f0f8] rounded-full p-1 py-[20px] px-[35px] border border-[#248FCF]">
-                    <button className="font-normal text-base leading-none tracking-[0.05em] uppercase">Хедер</button>
-                    <div className="w-[1px] bg-dark-blue mx-5"></div>
-                    <button className="font-normal text-base leading-none tracking-[0.05em] uppercase">Футер</button>
-                </div>
                 <div className="flex items-center bg-white rounded-[50px] px-[20px] py-[20px] gap-3">
                     <button
                         onClick={onUndo}

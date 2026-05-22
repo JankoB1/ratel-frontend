@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {
     AlignCenter, AlignJustify, AlignLeft, AlignRight,
     ChevronDown, Bold, Italic, Underline, Superscript, Subscript,
@@ -9,6 +9,51 @@ import {
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import axiosClient from "../axios-client.ts";
+
+const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { value: string; onChange: (html: string) => void; elementKey: string; placeholder?: string }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    const lastKey = useRef<string>('');
+
+    useEffect(() => {
+        if (ref.current && lastKey.current !== elementKey) {
+            ref.current.innerHTML = value || '';
+            lastKey.current = elementKey;
+        }
+    }, [elementKey, value]);
+
+    return (
+        <div className="flex flex-col gap-1">
+            <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Подебљано"><Bold size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Курзив"><Italic size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Подвучено"><Underline size={14} /></button>
+                <div className="w-px h-5 bg-slate-200 mx-0.5 my-auto" />
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Лево"><AlignLeft size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Центар"><AlignCenter size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Десно"><AlignRight size={14} /></button>
+                <div className="w-px h-5 bg-slate-200 mx-0.5 my-auto" />
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Листа"><List size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Нумерисана листа"><ListOrdered size={14} /></button>
+                <button type="button" onMouseDown={(e) => {
+                    e.preventDefault();
+                    const url = window.prompt('Унесите URL:');
+                    if (url) {
+                        document.execCommand('createLink', false, url);
+                        ref.current?.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Линк"><Link2 size={14} /></button>
+            </div>
+            <div
+                ref={ref}
+                contentEditable
+                suppressContentEditableWarning
+                data-placeholder={placeholder || 'Унесите опис...'}
+                onInput={e => onChange((e.target as HTMLDivElement).innerHTML)}
+                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all min-h-[60px] rich-description-editor"
+            />
+        </div>
+    );
+};
 
 const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode; subtypes: { id: string; name: string; icon: React.ReactNode }[] }> = {
     bar: {
@@ -564,14 +609,19 @@ const RightSidebar = () => {
                                         value={settings.subtitle || ''}
                                         onChange={(e) => updateElementSettings({ subtitle: e.target.value })}
                                     />
+                                    {settings.subtitle && (
+                                        <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-fit">
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'left' })} className={`p-1.5 rounded ${(settings.subtitleAlign || 'left') === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање лево"><AlignLeft size={14} /></button>
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'center' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'center' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање центар"><AlignCenter size={14} /></button>
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'right' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање десно"><AlignRight size={14} /></button>
+                                        </div>
+                                    )}
 
                                     <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Опис графикона (испод)</label>
-                                    <textarea
-                                        className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
-                                        rows={2}
-                                        placeholder="Унесите опис..."
+                                    <RichDescriptionEditor
                                         value={settings.description || ''}
-                                        onChange={(e) => updateElementSettings({ description: e.target.value })}
+                                        onChange={(html) => updateElementSettings({ description: html })}
+                                        elementKey={selectedElement.elementId}
                                     />
                                 </div>
 
@@ -690,6 +740,24 @@ const RightSidebar = () => {
                                         </div>
                                         <input type="checkbox" className="hidden" checked={!!settings.isPercentage} onChange={() => updateElementSettings({ isPercentage: !settings.isPercentage })} />
                                     </label>
+                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Број децимала</span>
+                                        <div className="flex gap-1">
+                                            {([undefined, 0, 1, 2, 3, 4] as const).map((d) => {
+                                                const isActive = settings.decimals === d || (d === undefined && (settings.decimals === undefined || settings.decimals === null));
+                                                return (
+                                                    <button
+                                                        key={d === undefined ? 'auto' : d}
+                                                        onClick={() => updateElementSettings({ decimals: d })}
+                                                        className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${isActive ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}
+                                                        title={d === undefined ? 'Аутоматски' : `${d} децимала`}
+                                                    >
+                                                        {d === undefined ? 'Auto' : d}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                     <label className="flex items-center justify-between cursor-pointer group">
                                         <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
@@ -1039,6 +1107,40 @@ const RightSidebar = () => {
                                             </div>
                                         </div>
 
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Поравнање</label>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1 flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 gap-1">
+                                                    {(['left', 'center', 'right'] as const).map(a => {
+                                                        const cellAlign = settings.cells?.[selectedElement.activeCell!]?.alignment || 'left';
+                                                        const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                                                        return (
+                                                            <button
+                                                                key={a}
+                                                                onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], alignment: a } } }); }}
+                                                                className={`flex-1 p-1.5 rounded flex items-center justify-center ${cellAlign === a ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                                                title={a === 'left' ? 'Лево' : a === 'center' ? 'Центар' : 'Десно'}
+                                                            ><Icon size={14} /></button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <div className="flex-1 flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 gap-1">
+                                                    {(['top', 'middle', 'bottom'] as const).map(v => {
+                                                        const cellVAlign = settings.cells?.[selectedElement.activeCell!]?.verticalAlignment || 'top';
+                                                        const Icon = v === 'top' ? ArrowUpToLine : v === 'middle' ? FoldVertical : ArrowDownToLine;
+                                                        return (
+                                                            <button
+                                                                key={v}
+                                                                onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], verticalAlignment: v } } }); }}
+                                                                className={`flex-1 p-1.5 rounded flex items-center justify-center ${cellVAlign === v ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}
+                                                                title={v === 'top' ? 'Горе' : v === 'middle' ? 'Средина' : 'Доле'}
+                                                            ><Icon size={14} /></button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();
@@ -1063,9 +1165,9 @@ const RightSidebar = () => {
 
                                         <div className="flex flex-col gap-2">
                                             <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја позадине</label>
-                                            <div className="flex gap-2.5">
-                                                {['#FFFFFF', '#F8FAFC', '#E2E8F0', '#8b98ff', '#34d399'].map(color => (
-                                                    <button key={color} onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], backgroundColor: color } } }); }} className={`w-7 h-7 rounded-lg border border-slate-100 transition-transform ${settings.cells?.[selectedElement.activeCell!]?.backgroundColor === color ? 'scale-125 ring-2 ring-blue-300 ring-offset-1 shadow-md' : 'hover:scale-110'}`} style={{ backgroundColor: color }} />
+                                            <div className="flex flex-wrap gap-2">
+                                                {['#FFFFFF', '#E2E8F0', '#FEF3C7', '#FECACA', '#BBF7D0', '#8b98ff', '#34d399'].map(color => (
+                                                    <button key={color} onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], backgroundColor: color } } }); }} className={`w-7 h-7 rounded-lg border border-slate-200 transition-transform ${settings.cells?.[selectedElement.activeCell!]?.backgroundColor === color ? 'scale-125 ring-2 ring-blue-300 ring-offset-1 shadow-md' : 'hover:scale-110'}`} style={{ backgroundColor: color }} />
                                                 ))}
                                             </div>
                                         </div>

@@ -14,6 +14,21 @@ export const parseVal = (v: any): number => {
     return isNaN(n) ? 0 : n;
 };
 
+export const formatChartValue = (v: any, decimals?: number, isPercentage?: boolean): string => {
+    const num = parseVal(v);
+    let str: string;
+    if (decimals === undefined || decimals === null) {
+        if (num % 1 === 0) {
+            str = new Intl.NumberFormat('sr-RS', { maximumFractionDigits: 0 }).format(num);
+        } else {
+            str = new Intl.NumberFormat('sr-RS', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        }
+    } else {
+        str = new Intl.NumberFormat('sr-RS', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(num);
+    }
+    return isPercentage ? `${str}%` : str;
+};
+
 export const hexToRgba = (hex: string, opacity: number) => {
     let cleanHex = hex.replace('#', '');
     if (cleanHex.length === 3) {
