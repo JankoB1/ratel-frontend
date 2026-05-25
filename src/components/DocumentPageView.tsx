@@ -302,6 +302,13 @@ const ChartBlockReadonly = ({ el, label }: any) => {
     const yDomain: [any, any] = [yMin, yMax];
     const hasCustomYDomain = yMin !== 'auto' || yMax !== 'auto';
 
+    const dualY = !!s.dualYAxis;
+    const yMinRight = s.yAxisMinRight !== undefined && s.yAxisMinRight !== '' ? Number(s.yAxisMinRight) : 'auto';
+    const yMaxRight = s.yAxisMaxRight !== undefined && s.yAxisMaxRight !== '' ? Number(s.yAxisMaxRight) : 'auto';
+    const yDomainRight: [any, any] = [yMinRight, yMaxRight];
+    const hasCustomYDomainRight = yMinRight !== 'auto' || yMaxRight !== 'auto';
+    const getYAxisId = (key: string) => (dualY && s.yAxisSide?.[key] === 'right') ? 'right' : 'left';
+
     const xMin = s.xAxisMin !== undefined && s.xAxisMin !== '' ? Number(s.xAxisMin) : 'auto';
     const xMax = s.xAxisMax !== undefined && s.xAxisMax !== '' ? Number(s.xAxisMax) : 'auto';
     const xDomain: [any, any] = [xMin, xMax];
@@ -370,7 +377,8 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             ) : (
                                 <>
                                     <XAxis type="category" dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                                    <YAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                                    <YAxis yAxisId="left" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                                    {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
                             )}
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
@@ -382,7 +390,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 const seriesColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const isSingleSeries = keys.length === 1 && !isStacked;
                                 return (
-                                    <Bar key={key} dataKey={key} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
+                                    <Bar key={key} dataKey={key} yAxisId={!isHorizontal ? getYAxisId(key) : undefined} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
                                         {isSingleSeries && chartData.map((entry: any, i: number) => (
                                             <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
                                         ))}
@@ -404,12 +412,14 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                         <ChartComp data={chartData} margin={chartMargin}>
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
-                                if (isArea) return <Area key={key} type="monotone" dataKey={key} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
-                                return <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                const yAxisId = getYAxisId(key);
+                                if (isArea) return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
                             })}
                         </ChartComp>
                     </ResponsiveContainer>
@@ -534,19 +544,21 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                         <ComposedChart data={chartData} margin={chartMargin}>
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
+                                const yAxisId = getYAxisId(key);
                                 let t = seriesTypes[key];
                                 if (!t) {
                                     if (idx === 0) t = isAreaBar ? 'area' : 'bar';
                                     else if (idx === 1) t = isAreaBar ? 'area' : (isStackedLine ? 'bar' : 'line');
                                     else t = 'line';
                                 }
-                                if (t === 'area') return <Area key={key} type="monotone" dataKey={key} fill={color} stroke={color} fillOpacity={0.3} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
-                                if (t === 'bar') return <Bar key={key} dataKey={key} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
-                                return <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                if (t === 'area') return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={color} stroke={color} fillOpacity={0.3} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                if (t === 'bar') return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
                             })}
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -677,6 +689,12 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                     style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
                     dangerouslySetInnerHTML={{ __html: s.description }}
                 />
+            )}
+
+            {s.source && (
+                <div style={{ fontSize: '10px', color: '#1e293b', marginTop: '6px', width: '100%', whiteSpace: 'pre-wrap' }}>
+                    {s.source}
+                </div>
             )}
         </div>
     );

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {Bell, ChevronDown, Search, ZoomIn, ZoomOut, Undo2, LogOut} from "lucide-react";
+import {Bell, ChevronDown, Search, ZoomIn, ZoomOut, Undo2, LogOut, ShieldCheck} from "lucide-react";
 import logo from '../assets/logo.svg';
 import { useAuth } from "../contexts/AuthContext";
 
@@ -267,6 +267,15 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                                     )}
                                 </div>
                             </div>
+                            {user?.is_admin && (
+                                <button
+                                    onClick={() => { setMenuOpen(false); navigate('/admin'); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-[#0056B3] hover:bg-blue-50 transition-colors text-left border-b border-slate-100"
+                                >
+                                    <ShieldCheck size={16} />
+                                    Админ панел
+                                </button>
+                            )}
                             <button
                                 onClick={handleLogout}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors text-left"

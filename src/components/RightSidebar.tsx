@@ -21,27 +21,25 @@ const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { v
         }
     }, [elementKey, value]);
 
+    const fireInput = () => ref.current?.dispatchEvent(new Event('input', { bubbles: true }));
+
     return (
         <div className="flex flex-col gap-1">
-            <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100">
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Подебљано"><Bold size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Курзив"><Italic size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Подвучено"><Underline size={14} /></button>
-                <div className="w-px h-5 bg-slate-200 mx-0.5 my-auto" />
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Лево"><AlignLeft size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Центар"><AlignCenter size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Десно"><AlignRight size={14} /></button>
-                <div className="w-px h-5 bg-slate-200 mx-0.5 my-auto" />
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Листа"><List size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList'); ref.current?.dispatchEvent(new Event('input', { bubbles: true })); }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Нумерисана листа"><ListOrdered size={14} /></button>
+            <div className="bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 grid grid-cols-5 gap-1">
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Подебљано"><Bold size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Курзив"><Italic size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Подвучено"><Underline size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Листа"><List size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Нумерисана листа"><ListOrdered size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Лево"><AlignLeft size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Центар"><AlignCenter size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Десно"><AlignRight size={14} /></button>
                 <button type="button" onMouseDown={(e) => {
                     e.preventDefault();
                     const url = window.prompt('Унесите URL:');
-                    if (url) {
-                        document.execCommand('createLink', false, url);
-                        ref.current?.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                }} className="p-1.5 rounded text-slate-500 hover:bg-white" title="Линк"><Link2 size={14} /></button>
+                    if (url) { document.execCommand('createLink', false, url); fireInput(); }
+                }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Линк"><Link2 size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center text-[10px] font-bold" title="Уклони форматирање">⌫</button>
             </div>
             <div
                 ref={ref}
@@ -623,6 +621,15 @@ const RightSidebar = () => {
                                         onChange={(html) => updateElementSettings({ description: html })}
                                         elementKey={selectedElement.elementId}
                                     />
+
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Извор графикона</label>
+                                    <textarea
+                                        className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
+                                        rows={2}
+                                        placeholder="нпр. РАТЕЛ, 2024."
+                                        value={settings.source || ''}
+                                        onChange={(e) => updateElementSettings({ source: e.target.value })}
+                                    />
                                 </div>
 
                                 <div className="flex flex-col gap-3">
@@ -693,6 +700,62 @@ const RightSidebar = () => {
                                                 )}
                                                 {showY && axisInput('Опсег Y осе (вертикална)', 'yAxisMin', 'yAxisMax')}
                                                 {showX && axisInput('Опсег X осе (хоризонтална)', 'xAxisMin', 'xAxisMax')}
+                                                {!isHorizontalBar && !isScatter && ['bar', 'line', 'composed'].includes(settings.chartType) && (() => {
+                                                    const seriesKeys: string[] = selectedElement?.extraPayload?.keys || settings.keys || [];
+                                                    const seriesColors = selectedElement?.extraPayload?.colors || settings.colors || {};
+                                                    const PRIMARY = ['#8b98ff', '#34d399', '#06b6d4', '#2563eb', '#1e3a8a', '#f59e0b', '#e11d48', '#c084fc', '#f97316', '#84cc16', '#0f766e', '#f43f5e'];
+                                                    return (
+                                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                                            <label className="flex items-center justify-between cursor-pointer group">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Дупла Y оса</span>
+                                                                <div className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors ${settings.dualYAxis ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                                                    <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${settings.dualYAxis ? 'translate-x-4' : ''}`} />
+                                                                </div>
+                                                                <input type="checkbox" className="hidden" checked={!!settings.dualYAxis} onChange={() => updateElementSettings({ dualYAxis: !settings.dualYAxis })} />
+                                                            </label>
+                                                            {settings.dualYAxis && (
+                                                                <>
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Серије по оси</span>
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        {seriesKeys.map((k, i) => {
+                                                                            const side = settings.yAxisSide?.[k] || 'left';
+                                                                            const color = seriesColors[k] || PRIMARY[i % PRIMARY.length];
+                                                                            return (
+                                                                                <div key={k} className="flex items-center gap-2 bg-white rounded-lg px-2 py-1.5 border border-slate-100">
+                                                                                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                                                                    <span className="text-xs text-slate-600 flex-1 truncate" title={k}>{k}</span>
+                                                                                    <div className="flex gap-1">
+                                                                                        {(['left', 'right'] as const).map(s => (
+                                                                                            <button key={s}
+                                                                                                onClick={() => updateElementSettings({ yAxisSide: { ...(settings.yAxisSide || {}), [k]: s } })}
+                                                                                                className={`px-2 py-0.5 text-[10px] font-bold rounded ${side === s ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                                                                            >{s === 'left' ? 'Лева' : 'Десна'}</button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Опсег десне Y осе</span>
+                                                                    <div className="flex gap-2">
+                                                                        <div className="flex-1">
+                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Минимум</label>
+                                                                            <input type="number" placeholder="Auto" value={(settings as any).yAxisMinRight ?? ''}
+                                                                                onChange={e => updateElementSettings({ yAxisMinRight: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white" />
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Максимум</label>
+                                                                            <input type="number" placeholder="Auto" value={(settings as any).yAxisMaxRight ?? ''}
+                                                                                onChange={e => updateElementSettings({ yAxisMaxRight: e.target.value === '' ? undefined : Number(e.target.value) })}
+                                                                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                                 {!isHorizontalBar && (
                                                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase">Одмак X осе</span>

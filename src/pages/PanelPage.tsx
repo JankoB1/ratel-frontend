@@ -6,8 +6,9 @@ import ContentList from "../components/ContentList";
 import Canvas from "../components/Canvas.tsx";
 
 import axiosClient from "../axios-client";
-import { Loader2, Search as SearchIcon, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Loader2, Search as SearchIcon, ChevronUp, ChevronDown, X, Lock } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
+import { useAuth } from "../contexts/AuthContext";
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2;
@@ -49,6 +50,7 @@ const extractElementText = (el: any): string => {
 
 const PanelPage = () => {
     const { setSelectedElement } = useEditor();
+    const { user } = useAuth();
     const [sections, setSections] = useState<any[]>([]);
     const [documentInfo, setDocumentInfo] = useState<{ title: string; status: string } | null>(null);
     const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
@@ -189,17 +191,25 @@ const PanelPage = () => {
 
     const handleSave = async () => {
         if (!activeSectionId) return;
-        setIsSaving(true);
-
         const activeSection = sections.find(s => s.id === activeSectionId);
+        const canEdit = !!user?.is_admin || activeSection?.can_edit !== false;
+        if (!canEdit) {
+            alert("❌ Немате привилегију да мењате ову секцију.");
+            return;
+        }
+        setIsSaving(true);
 
         try {
             await axiosClient.put(`/api/sections/${activeSectionId}`, {
                 canvas_data: activeSection.canvas_data
             });
             alert("✅ Sekcija je uspešno sačuvana!");
-        } catch (error) {
-            alert("❌ Greška pri čuvanju sekcije!");
+        } catch (error: any) {
+            if (error?.response?.status === 403) {
+                alert("❌ Немате привилегију да мењате ову секцију.");
+            } else {
+                alert("❌ Greška pri čuvanju sekcije!");
+            }
         } finally {
             setIsSaving(false);
         }
@@ -287,6 +297,7 @@ const PanelPage = () => {
 
     // Derived values placed before hooks so they can be used as dependencies
     const activeSection = sections.find(s => s.id === activeSectionId);
+    const canEditSection = !!user?.is_admin || activeSection?.can_edit !== false;
     const canvasData = activeSection?.canvas_data || [{ id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }];
     const activeSectionIndex = sections.findIndex(s => s.id === activeSectionId);
     const sectionNum = activeSectionIndex !== -1 ? activeSectionIndex + 1 : 1;
@@ -592,6 +603,27 @@ const PanelPage = () => {
 
                     {activeSection ? (
                         <div>
+                            {!canEditSection && !sectionLockedBy && (
+                                <div style={{
+                                    position: 'sticky', top: 0, zIndex: 50,
+                                    background: '#dbeafe',
+                                    border: '1px solid #60a5fa',
+                                    borderRadius: '12px',
+                                    padding: '10px 16px',
+                                    marginBottom: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    color: '#1e40af',
+                                }}>
+                                    <Lock size={16} />
+                                    <span>
+                                        Немате привилегију да мењате ову секцију. Можете је само прегледати.
+                                    </span>
+                                </div>
+                            )}
                             {sectionLockedBy && (
                                 <div style={{
                                     position: 'sticky', top: 0, zIndex: 50,
@@ -620,7 +652,7 @@ const PanelPage = () => {
                                     sectionNum={sectionNum}
                                     documentTitle={documentInfo?.title}
                                     sectionTitle={activeSection.title}
-                                    readOnly={!!sectionLockedBy}
+                                    readOnly={!canEditSection || !!sectionLockedBy}
                                 />
                             </div>
                         </div>

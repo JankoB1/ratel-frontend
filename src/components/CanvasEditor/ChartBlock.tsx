@@ -29,7 +29,7 @@ const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     );
 };
 
-const RenderBars = ({ keys, colors, chartData, isStacked, isHorizontal, isLabelsShown, palette, formatter }: any) => {
+const RenderBars = ({ keys, colors, chartData, isStacked, isHorizontal, isLabelsShown, palette, formatter, getYAxisId }: any) => {
     let labelPosition: any;
     if (isStacked) labelPosition = isHorizontal ? 'center' : 'inside';
     else labelPosition = isHorizontal ? 'right' : 'top';
@@ -43,6 +43,7 @@ const RenderBars = ({ keys, colors, chartData, isStacked, isHorizontal, isLabels
                     <Bar
                         key={key}
                         dataKey={key}
+                        yAxisId={getYAxisId ? getYAxisId(key) : undefined}
                         radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]}
                         fill={seriesColor}
                         stackId={isStacked ? "a" : undefined}
@@ -425,6 +426,14 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const yDomain: [any, any] = [yMin, yMax];
     const hasCustomYDomain = yMin !== 'auto' || yMax !== 'auto';
 
+    // Dual Y-axis (right side)
+    const dualY = !!currentSettings.dualYAxis;
+    const yMinRight = currentSettings.yAxisMinRight !== undefined && currentSettings.yAxisMinRight !== '' ? Number(currentSettings.yAxisMinRight) : 'auto';
+    const yMaxRight = currentSettings.yAxisMaxRight !== undefined && currentSettings.yAxisMaxRight !== '' ? Number(currentSettings.yAxisMaxRight) : 'auto';
+    const yDomainRight: [any, any] = [yMinRight, yMaxRight];
+    const hasCustomYDomainRight = yMinRight !== 'auto' || yMaxRight !== 'auto';
+    const getYAxisId = (key: string) => (dualY && currentSettings.yAxisSide?.[key] === 'right') ? 'right' : 'left';
+
     // X-axis custom domain (used for horizontal bar value axis)
     const xMin = currentSettings.xAxisMin !== undefined && currentSettings.xAxisMin !== '' ? Number(currentSettings.xAxisMin) : 'auto';
     const xMax = currentSettings.xAxisMax !== undefined && currentSettings.xAxisMax !== '' ? Number(currentSettings.xAxisMax) : 'auto';
@@ -605,7 +614,8 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             ) : (
                                 <>
                                     <XAxis type="category" dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                                    <YAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                                    <YAxis yAxisId="left" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                                    {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
                             )}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
@@ -620,7 +630,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 };
                                 return <Legend {...legendProps} />;
                             })()}
-                            <RenderBars keys={keys} colors={colors} chartData={chartData} isStacked={isStacked} isHorizontal={isHorizontal} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} />
+                            <RenderBars keys={keys} colors={colors} chartData={chartData} isStacked={isStacked} isHorizontal={isHorizontal} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} getYAxisId={!isHorizontal ? getYAxisId : undefined} />
                         </BarChart>
                     </ResponsiveContainer>
                 );
@@ -635,14 +645,17 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                         <ChartComponent data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
+                                const yAxisId = getYAxisId(key);
                                 if (isArea) return (
                                     <Area
                                         key={key} type="monotone" dataKey={key} stackId={isStackedArea ? "1" : undefined}
+                                        yAxisId={yAxisId}
                                         stroke={baseColor} fill={baseColor} fillOpacity={0.6} strokeWidth={2}
                                         dot={hasDots ? { r: 4 } : false}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
@@ -653,6 +666,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 return (
                                     <Line
                                         key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3}
+                                        yAxisId={yAxisId}
                                         dot={hasDots ? { r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' } : { r: 0 }}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
                                         isAnimationActive={false}
@@ -750,12 +764,14 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                         <ComposedChart data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
 
                             {keys.map((key: string, idx: number) => {
                                 const baseColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
+                                const yAxisId = getYAxisId(key);
 
                                 let typeToRender = currentSettings.seriesTypes?.[key];
                                 if (!typeToRender) {
@@ -765,12 +781,12 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 }
 
                                 if (typeToRender === 'area') {
-                                    return <Area key={key} type="monotone" dataKey={key} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
+                                    return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
                                 }
                                 if (typeToRender === 'bar') {
-                                    return <Bar key={key} dataKey={key} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
+                                    return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
                                 }
-                                return <Line key={key} type="monotone" dataKey={key} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
                             })}
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -950,6 +966,12 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
                     dangerouslySetInnerHTML={{ __html: currentSettings.description }}
                 />
+            )}
+
+            {currentSettings.source && (
+                <div style={{ fontSize: '10px', color: '#1e293b', marginTop: '6px', width: '100%', whiteSpace: 'pre-wrap' }}>
+                    {currentSettings.source}
+                </div>
             )}
 
             {isSelected && currentSettings.showDataEditor && (
