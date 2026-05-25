@@ -415,7 +415,7 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
                         <div className="flex flex-col gap-1">
                             {sections.map((s, idx) => (
                                 <SectionRow key={s.id} section={s} canMoveUp={idx > 0} canMoveDown={idx < sections.length - 1}
-                                    onRename={(t) => handleRename(s.id, t)} onDelete={() => handleDelete(s.id)}
+                                    onRename={(t: string) => handleRename(s.id, t)} onDelete={() => handleDelete(s.id)}
                                     onMoveUp={() => handleMove(s.id, 'up')} onMoveDown={() => handleMove(s.id, 'down')} />
                             ))}
                         </div>
