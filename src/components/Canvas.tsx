@@ -22,14 +22,98 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
     const { setSelectedElement, selectedElement, updateElementSettings, isGroupingMode, setIsGroupingMode, groupSelection, setGroupSelection } = useEditor();
 
     const pagesRef = useRef(pages);
-    useEffect(() => {
-        pagesRef.current = pages;
-    }, [pages]);
+    useEffect(() => { pagesRef.current = pages; }, [pages]);
 
     const [activeRowMenu, setActiveRowMenu] = useState<{pageId: string, rowId: string} | null>(null);
     const [activeColMenu, setActiveColMenu] = useState<{pageId: string, colId: string} | null>(null);
     const [draggedItem, setDraggedItem] = useState<any>(null);
+    const draggedItemRef = useRef<any>(null);
     const initialPagesRef = useRef<any>(null);
+
+    // ── Drag & Drop ────────────────────────────────────────────────────────────
+
+    const onDragStart = (e: React.DragEvent, pageId: string, rowId: string, colId: string, elementId: string) => {
+        e.dataTransfer.setData('text/plain', elementId);
+        e.dataTransfer.effectAllowed = 'move';
+        const item = { pageId, rowId, colId, elementId };
+        draggedItemRef.current = item;
+        setDraggedItem(item);
+        // Apply source dimming AFTER the browser has captured the default drag image
+        requestAnimationFrame(() => {
+            const sourceEl = document.querySelector(`[data-element-id="${elementId}"]`) as HTMLElement | null;
+            if (sourceEl) sourceEl.classList.add('is-dragging');
+        });
+    };
+
+    const onDragEnd = () => {
+        document.querySelectorAll('[data-element-id].is-dragging').forEach(el => el.classList.remove('is-dragging'));
+        document.querySelectorAll('.element-drop-wrapper.drop-above, .element-drop-wrapper.drop-below').forEach(el => el.classList.remove('drop-above', 'drop-below'));
+        document.querySelectorAll('.canvas-col.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+        draggedItemRef.current = null;
+        setDraggedItem(null);
+    };
+
+    /**
+     * Drop at a specific position index within a column.
+     * index = 0  → insert before first element
+     * index = n  → insert after last element
+     */
+    const onDropAtZone = (targetPageId: string, targetRowId: string, targetColId: string, targetIndex: number) => {
+        const item = draggedItemRef.current;
+        if (!item) { onDragEnd(); return; }
+
+        const { pageId: srcPageId, colId: srcColId, elementId } = item;
+
+        setPages((prev: any[]) => {
+            let dragEl: any = null;
+            let srcIdx = -1;
+
+            // Step 1: remove element from its source column
+            const withoutEl = prev.map(page => ({
+                ...page,
+                rows: page.rows.map((row: any) => ({
+                    ...row,
+                    columns: row.columns.map((col: any) => {
+                        if (col.id === srcColId && page.id === srcPageId) {
+                            const idx = col.elements.findIndex((e: any) => e.id === elementId);
+                            if (idx !== -1) { dragEl = col.elements[idx]; srcIdx = idx; }
+                            return { ...col, elements: col.elements.filter((e: any) => e.id !== elementId) };
+                        }
+                        return col;
+                    }),
+                })),
+            }));
+
+            if (!dragEl) return prev;
+
+            // Step 2: adjust insert index when moving within the same column
+            // (removal shifted indices for items after the source)
+            let insertAt = targetIndex;
+            if (srcColId === targetColId && srcPageId === targetPageId && srcIdx < targetIndex) {
+                insertAt = targetIndex - 1;
+            }
+            insertAt = Math.max(0, insertAt);
+
+            // Step 3: insert into target column at calculated position
+            return withoutEl.map(page => page.id !== targetPageId ? page : {
+                ...page,
+                rows: page.rows.map((row: any) => row.id !== targetRowId ? row : {
+                    ...row,
+                    columns: row.columns.map((col: any) => {
+                        if (col.id !== targetColId) return col;
+                        const els = [...col.elements];
+                        els.splice(insertAt, 0, dragEl);
+                        return { ...col, elements: els };
+                    }),
+                }),
+            });
+        });
+
+        onDragEnd();
+        setSelectedElement(null);
+    };
+
+    // ── Page/Element CRUD ──────────────────────────────────────────────────────
 
     const handleInsertPage = (index: number) => {
         setPages((prev: any[]) => {
@@ -46,7 +130,6 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
     const handleDuplicatePage = (index: number) => {
         setPages((prev: any[]) => {
             const original = prev[index];
-            // Deep-clone with fresh IDs for page / rows / columns / elements
             const freshId = () => Math.random().toString(36).substr(2, 9);
             const cloned = {
                 ...original,
@@ -73,26 +156,18 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
 
     const elementLabelMap = useMemo(() => {
         const map: Record<string, string> = {};
-
         let tableCount = 1;
         let mediaCount = 1;
-
         pages.forEach((page) => {
             page.rows.forEach((row: any) => {
                 row.columns.forEach((col: any) => {
                     col.elements.forEach((el: any) => {
-                        if (el.type === 'table') {
-                            map[el.id] = `Tabela ${sectionNum}.${tableCount}`;
-                            tableCount++;
-                        } else if (el.type === 'image' || el.type === 'chart') {
-                            map[el.id] = `Slika ${sectionNum}.${mediaCount}`;
-                            mediaCount++;
-                        }
+                        if (el.type === 'table') { map[el.id] = `Tabela ${sectionNum}.${tableCount}`; tableCount++; }
+                        else if (el.type === 'image' || el.type === 'chart') { map[el.id] = `Slika ${sectionNum}.${mediaCount}`; mediaCount++; }
                     });
                 });
             });
         });
-
         return map;
     }, [pages, sectionNum]);
 
@@ -113,9 +188,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                             });
                             sortedKeys.forEach(key => {
                                 const html = contentObj[key];
-                                if (typeof html === 'string') {
-                                    order.push(...extractFootnoteIds(html));
-                                }
+                                if (typeof html === 'string') order.push(...extractFootnoteIds(html));
                             });
                         }
                     });
@@ -142,32 +215,19 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             pagesRef.current.forEach((page: any) => {
                 page.rows.forEach((row: any) => {
                     const filteredCols = row.columns
-                        .map((col: any) => ({
-                            ...col,
-                            elements: col.elements.filter((el: any) => selectedIds.includes(el.id))
-                        }))
+                        .map((col: any) => ({ ...col, elements: col.elements.filter((el: any) => selectedIds.includes(el.id)) }))
                         .filter((col: any) => col.elements.length > 0);
 
                     if (filteredCols.length > 0) {
                         rowsData.push({ ...row, columns: filteredCols });
-                        filteredCols.forEach((col: any) => {
-                            col.elements.forEach((el: any) => extractedElements.push({ ...el }));
-                        });
+                        filteredCols.forEach((col: any) => col.elements.forEach((el: any) => extractedElements.push({ ...el })));
                     }
                 });
             });
 
             try {
-                const payload = {
-                    name: groupName,
-                    elements: extractedElements,
-                    rows_data: rowsData,
-                };
-
-                await axiosClient.post('/api/saved-groups', payload);
-
+                await axiosClient.post('/api/saved-groups', { name: groupName, elements: extractedElements, rows_data: rowsData });
                 window.dispatchEvent(new Event('group-saved'));
-
             } catch (error) {
                 console.error("Greška pri čuvanju grupe:", error);
                 alert("Дошло је до грешке приликом чувања.");
@@ -186,33 +246,16 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             const { elements } = e.detail;
             if (!elements || elements.length === 0) return;
 
-            const freshElements = elements.map((el: any) => ({
-                ...el,
-                id: Math.random().toString(36).substr(2, 9)
-            }));
-
-            const newRowId = Math.random().toString(36).substr(2, 9);
-            const newColId = Math.random().toString(36).substr(2, 9);
-
+            const freshElements = elements.map((el: any) => ({ ...el, id: Math.random().toString(36).substr(2, 9) }));
             const newRow = {
-                id: newRowId,
-                columns: [{
-                    id: newColId,
-                    widthClass: 'col-span-12',
-                    elements: freshElements
-                }]
+                id: Math.random().toString(36).substr(2, 9),
+                columns: [{ id: Math.random().toString(36).substr(2, 9), widthClass: 'col-span-12', elements: freshElements }]
             };
 
             setPages((prevPages: any[]) => {
                 if (prevPages.length === 0) return prevPages;
                 const lastPageIndex = prevPages.length - 1;
-
-                return prevPages.map((page, index) => {
-                    if (index === lastPageIndex) {
-                        return { ...page, rows: [...page.rows, newRow] };
-                    }
-                    return page;
-                });
+                return prevPages.map((page, index) => index === lastPageIndex ? { ...page, rows: [...page.rows, newRow] } : page);
             });
         };
 
@@ -239,18 +282,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
     }, [selectedElement]);
 
     const handleAutoSplit = (params: any) => {
-        const {
-            sourcePageId,
-            elementId,
-            remainingContent,
-            safeHtml,
-            tableSettings,
-            tableContent,
-            originalTableSettings,
-            originalTableContent,
-            safeFootnotes,
-            remainingFootnotes
-        } = params;
+        const { sourcePageId, elementId, remainingContent, safeHtml, tableSettings, tableContent, originalTableSettings, originalTableContent, safeFootnotes, remainingFootnotes } = params;
 
         if (selectedElement && selectedElement.elementId === elementId) {
             let updatedSettings = { ...selectedElement.settings };
@@ -263,11 +295,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                 updatedSettings = { ...updatedSettings, content: safeHtml, footnotes: safeFootnotes };
             }
 
-            setSelectedElement({
-                ...selectedElement,
-                settings: updatedSettings,
-                extraPayload: updatedExtra
-            });
+            setSelectedElement({ ...selectedElement, settings: updatedSettings, extraPayload: updatedExtra });
         }
 
         const newElementId = Math.random().toString(36).substr(2, 9);
@@ -292,9 +320,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                             elements: col.elements.map((e: any) => {
                                 if (e.id === elementId) {
                                     originalSettings = e.payload.settings;
-                                    if (isTableSplit) {
-                                        return { ...e, payload: { ...e.payload, settings: originalTableSettings, sr: { content: originalTableContent } } };
-                                    }
+                                    if (isTableSplit) return { ...e, payload: { ...e.payload, settings: originalTableSettings, sr: { content: originalTableContent } } };
                                     return { ...e, payload: { ...e.payload, settings: { ...e.payload.settings, content: safeHtml, footnotes: safeFootnotes } } };
                                 }
                                 return e;
@@ -308,13 +334,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             if (isTableSplit) {
                 newElementPayload = { settings: tableSettings, sr: { content: tableContent || {} } };
             } else {
-                newElementPayload = {
-                    settings: {
-                        ...originalSettings,
-                        content: remainingContent,
-                        footnotes: remainingFootnotes
-                    }
-                };
+                newElementPayload = { settings: { ...originalSettings, content: remainingContent, footnotes: remainingFootnotes } };
             }
 
             const newRow: RowData = {
@@ -365,21 +385,12 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
         setActiveColMenu(null);
     };
 
-    const handleDeleteElement = (pageId: string, _rowId: string, _colId: string, elId: string) => { setPages((prev: any[]) => prev.map(page => page.id === pageId ? { ...page, rows: page.rows.map((row: any) => ({ ...row, columns: row.columns.map((col: any) => ({ ...col, elements: col.elements.filter((el: any) => el.id !== elId) })) })) } : page)); setSelectedElement(null); };
+    const handleDeleteElement = (pageId: string, _rowId: string, _colId: string, elId: string) => {
+        setPages((prev: any[]) => prev.map(page => page.id === pageId ? { ...page, rows: page.rows.map((row: any) => ({ ...row, columns: row.columns.map((col: any) => ({ ...col, elements: col.elements.filter((el: any) => el.id !== elId) })) })) } : page));
+        setSelectedElement(null);
+    };
     const handleDeleteRow = (pageId: string, rowId: string) => { setPages((prev: any[]) => prev.map(page => page.id !== pageId ? page : { ...page, rows: page.rows.filter((row: any) => row.id !== rowId) })); };
     const handleDeletePage = (pageId: string) => { if (pages.length <= 1) return; setPages((prev: any[]) => prev.filter(page => page.id !== pageId)); setSelectedElement(null); };
-
-    const onDragStart = (e: any, pageId: string, rowId: string, colId: string, elementId: string) => { setDraggedItem({ pageId, rowId, colId, elementId }); e.dataTransfer.effectAllowed = "move"; };
-    const onDrop = (targetPageId: string, targetRowId: string, targetColId: string) => {
-        if (!draggedItem) return;
-        setPages((prev: any[]) => {
-            let item: any;
-            const cleanPages = prev.map(page => ({ ...page, rows: page.rows.map((row: any) => ({ ...row, columns: row.columns.map((col: any) => { if (col.id === draggedItem.colId && page.id === draggedItem.pageId) { item = col.elements.find((e: any) => e.id === draggedItem.elementId); return { ...col, elements: col.elements.filter((e: any) => e.id !== draggedItem.elementId) }; } return col; }) })) }));
-            if (!item) return prev;
-            return cleanPages.map(page => page.id === targetPageId ? { ...page, rows: page.rows.map((row: any) => row.id === targetRowId ? { ...row, columns: row.columns.map((col: any) => col.id === targetColId ? { ...col, elements: [...col.elements, item] } : col) } : row) } : page);
-        });
-        setDraggedItem(null); setSelectedElement(null);
-    };
 
     return (
         <div className="canvas-wrapper" onClick={() => { if (!readOnly) { setSelectedElement(null); setActiveRowMenu(null); setActiveColMenu(null); } }}>
@@ -396,7 +407,8 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                         updateElementSettings={updateElementSettings}
                         handleAutoSplit={handleAutoSplit}
                         onDragStart={onDragStart}
-                        onDrop={onDrop}
+                        onDragEnd={onDragEnd}
+                        onDropAtZone={onDropAtZone}
                         handleDeleteElement={handleDeleteElement}
                         handleDeleteRow={handleDeleteRow}
                         onDeletePage={handleDeletePage}
@@ -413,27 +425,16 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                         setGroupSelection={setGroupSelection}
                         documentTitle={documentTitle}
                         sectionTitle={sectionTitle}
+                        isDragging={!!draggedItem}
                     />
                     {readOnly && (
-                        <div style={{
-                            position: 'absolute', inset: 0, zIndex: 200,
-                            background: 'rgba(255,255,255,0.45)',
-                            cursor: 'not-allowed',
-                            pointerEvents: 'all',
-                        }} />
+                        <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(255,255,255,0.45)', cursor: 'not-allowed', pointerEvents: 'all' }} />
                     )}
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleInsertPage(index + 1); }}
-                            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #cbd5e1', cursor: 'pointer', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleInsertPage(index + 1); }} style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #cbd5e1', cursor: 'pointer', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Plus size={12} /> Уметни страницу
                         </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleDuplicatePage(index); }}
-                            title="Дуплирај ову страницу"
-                            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #93c5fd', cursor: 'pointer', background: 'white', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDuplicatePage(index); }} title="Дуплирај ову страницу" style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #93c5fd', cursor: 'pointer', background: 'white', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Copy size={12} /> Дуплирај
                         </button>
                     </div>

@@ -127,7 +127,7 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
     );
 };
 
-export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap, elementLabel }: any) => {
+export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onDragEnd, onAutoSplit, globalFootnoteMap, elementLabel }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const content = el.payload.sr?.content || {};
@@ -299,7 +299,7 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     return (
         <div
             ref={tableContainerRef}
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)} onDragEnd={onDragEnd}
             className={`element-block break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'table', subType: 'table', settings: currentSettings }); }}
             style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}

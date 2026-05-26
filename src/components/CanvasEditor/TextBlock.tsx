@@ -2,7 +2,7 @@ import { useEffect, useRef, type FormEvent } from "react";
 import { GripVertical, Trash2 } from "lucide-react";
 import { extractFootnoteIds } from "./utils";
 
-export const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onAutoSplit, globalFootnoteMap }: any) => {
+export const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onDragEnd, onAutoSplit, globalFootnoteMap }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const editorRef = useRef<HTMLDivElement>(null);
@@ -203,7 +203,7 @@ export const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selecte
 
     return (
         <div
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)} onDragEnd={onDragEnd}
             onClick={(e) => {
                 e.stopPropagation();
                 setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'text', settings: { ...currentSettings, content: editorRef.current?.innerHTML || currentSettings.content } });

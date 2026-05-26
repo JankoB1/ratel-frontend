@@ -1,9 +1,9 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
     RadialBarChart, RadialBar, ScatterChart, Scatter, ZAxis,
-    XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, LabelList, Label
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label
 } from "recharts";
 import MapGraphic from "./MapGraphic.tsx";
 import { extractFootnoteIds, hexToRgba, parseVal, formatChartValue } from "./CanvasEditor/utils";
@@ -212,13 +212,14 @@ const TableBlockReadonly = ({ el, label }: any) => {
     );
 };
 
-const ChartBlockReadonly = ({ el, label }: any) => {
+const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
     const s = el.payload.settings || {};
     const data = el.payload.data || [];
     const keys = el.payload.keys || [];
     const colors = el.payload.colors || {};
     const subType = el.payload.subChartType || s.subChartType;
     const pieLabelCache = useRef<{ key: string; positions: any[] }>({ key: '', positions: [] });
+    const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
 
     const chartData = data.map((row: any) => {
         const out: any = { name: row.name };
@@ -296,6 +297,10 @@ const ChartBlockReadonly = ({ el, label }: any) => {
     const axisTickStyle = { fontSize: 12, fill: '#64748b' };
     const axisLineStyle = { stroke: '#cbd5e1' };
     const chartMargin = isPie ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: 5, bottom: 5 };
+    const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.1)', padding: '10px 14px' };
+    const renderLegendText = (value: string) => (
+        <span style={{ color: '#1E293B', fontWeight: 600, paddingLeft: '4px' }}>{value}</span>
+    );
 
     const yMin = s.yAxisMin !== undefined && s.yAxisMin !== '' ? Number(s.yAxisMin) : 'auto';
     const yMax = s.yAxisMax !== undefined && s.yAxisMax !== '' ? Number(s.yAxisMax) : 'auto';
@@ -365,6 +370,9 @@ const ChartBlockReadonly = ({ el, label }: any) => {
             case 'bar': {
                 const isStacked = subType === 'stacked_v' || subType === 'stacked_h';
                 const isHorizontal = subType === 'grouped_h' || subType === 'stacked_h';
+                const yAxisWidth = isHorizontal
+                    ? Math.min(200, Math.max(60, Math.max(...chartData.map((d: any) => String(d.name || '').length), 0) * 6.5))
+                    : undefined;
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} layout={isHorizontal ? 'vertical' : 'horizontal'} margin={chartMargin}>
@@ -372,7 +380,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             {isHorizontal ? (
                                 <>
                                     <XAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={xDomain} allowDataOverflow={hasCustomXDomain} />
-                                    <YAxis type="category" dataKey="name" tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={yAxisWidth} tick={{ ...axisTickStyle, width: yAxisWidth }} axisLine={axisLineStyle} tickLine={false} />
                                 </>
                             ) : (
                                 <>
@@ -381,7 +389,8 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                     {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
                             )}
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 let labelPosition: any;
                                 if (isStacked) labelPosition = isHorizontal ? 'center' : 'inside';
@@ -390,7 +399,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 const seriesColor = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const isSingleSeries = keys.length === 1 && !isStacked;
                                 return (
-                                    <Bar key={key} dataKey={key} yAxisId={!isHorizontal ? getYAxisId(key) : undefined} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false}>
+                                    <Bar key={key} dataKey={key} yAxisId={!isHorizontal ? getYAxisId(key) : undefined} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false} activeBar={!isPrint ? { stroke: '#1e293b', strokeWidth: 2 } : undefined}>
                                         {isSingleSeries && chartData.map((entry: any, i: number) => (
                                             <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
                                         ))}
@@ -414,12 +423,13 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const yAxisId = getYAxisId(key);
-                                if (isArea) return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
-                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                if (isArea) return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
                             })}
                         </ChartComp>
                     </ResponsiveContainer>
@@ -434,7 +444,8 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={10} isAnimationActive={false}
                                     label={s.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
                                 />
-                                {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                                {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                                {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             </RadialBarChart>
                         </ResponsiveContainer>
                     );
@@ -444,10 +455,13 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                 return (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart margin={chartMargin}>
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy={isSemi ? '75%' : '45%'}
                                 outerRadius="70%" innerRadius={isDoughnut ? '42%' : 0}
                                 isAnimationActive={false}
+                                onMouseEnter={!isPrint ? (_, index) => setActiveIndex(index) : undefined}
+                                onMouseLeave={!isPrint ? () => setActiveIndex(undefined) : undefined}
                                 label={s.showLabels ? (p: any) => {
                                     if (!p.value) return null;
                                     const { cx, cy, outerRadius, index } = p;
@@ -529,7 +543,19 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 labelLine={false}
                                 startAngle={isSemi ? 180 : 0} endAngle={isSemi ? 0 : 360}
                             >
-                                {pieData.map((entry: any, i: number) => <Cell key={i} fill={colors[entry.name] || CHART_PALETTE[i % CHART_PALETTE.length]} stroke="#fff" strokeWidth={2} />)}
+                                {pieData.map((entry: any, i: number) => (
+                                    <Cell
+                                        key={i}
+                                        fill={colors[entry.name] || CHART_PALETTE[i % CHART_PALETTE.length]}
+                                        stroke="#fff"
+                                        strokeWidth={2}
+                                        style={!isPrint ? {
+                                            opacity: activeIndex === undefined || activeIndex === i ? 1 : 0.3,
+                                            transition: 'opacity 0.2s',
+                                            outline: 'none',
+                                        } : undefined}
+                                    />
+                                ))}
                             </Pie>
                         </PieChart>
                     </ResponsiveContainer>
@@ -538,6 +564,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
             case 'composed': {
                 const seriesTypes = s.seriesTypes || {};
                 const isAreaBar = subType === 'composed_area_bar';
+                const isAreaLine = subType === 'composed_area_line';
                 const isStackedLine = subType === 'composed_stacked_line';
                 return (
                     <ResponsiveContainer width="100%" height="100%">
@@ -546,19 +573,20 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
                             <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const yAxisId = getYAxisId(key);
                                 let t = seriesTypes[key];
                                 if (!t) {
-                                    if (idx === 0) t = isAreaBar ? 'area' : 'bar';
+                                    if (idx === 0) t = isAreaBar || isAreaLine ? 'area' : 'bar';
                                     else if (idx === 1) t = isAreaBar ? 'area' : (isStackedLine ? 'bar' : 'line');
                                     else t = 'line';
                                 }
-                                if (t === 'area') return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={color} stroke={color} fillOpacity={0.3} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
-                                if (t === 'bar') return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
-                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} label={s.showLabels ? renderLabel : false} />;
+                                if (t === 'area') return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={color} stroke={color} fillOpacity={0.3} isAnimationActive={false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} label={s.showLabels ? renderLabel : false} />;
+                                if (t === 'bar') return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={!isPrint ? { stroke: '#1e293b', strokeWidth: 2 } : undefined}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} label={s.showLabels ? renderLabel : false} />;
                             })}
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -566,6 +594,7 @@ const ChartBlockReadonly = ({ el, label }: any) => {
             }
             case 'scatter': {
                 const isBubble = subType === 'bubble_basic';
+                const shape = subType === 'scatter_star' ? 'star' : subType === 'scatter_diamond' ? 'diamond' : 'circle';
                 const xTitle = s.xAxisTitle;
                 const yTitle = s.yAxisTitle;
                 const scatterMargin = { ...chartMargin, bottom: xTitle ? 30 : chartMargin.bottom, left: yTitle ? 0 : chartMargin.left };
@@ -593,7 +622,8 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                     {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                                 </YAxis>
                                 <ZAxis type="number" dataKey="z" range={[80, 1200]} />
-                                <Scatter data={bubbleData} fillOpacity={0.75} isAnimationActive={false}>
+                                {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                                <Scatter data={bubbleData} fillOpacity={0.75} isAnimationActive={false} shape={shape}>
                                     {bubbleData.map((d: any, i: number) => <Cell key={i} fill={d.fill} />)}
                                     {s.showLabels && (
                                         <LabelList dataKey="z" position="center" formatter={formatVal} style={{ fill: '#fff', fontSize: 12, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }} />
@@ -615,12 +645,13 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                                 {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </YAxis>
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3', stroke: '#cbd5e1' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const scatterData = data.map((d: any) => ({ name: d.name, value: parseVal(d[key]) }));
                                 return (
-                                    <Scatter key={key} name={key} data={scatterData} fill={color} fillOpacity={isBubble ? 0.7 : 1} isAnimationActive={false}>
+                                    <Scatter key={key} name={key} data={scatterData} fill={color} fillOpacity={isBubble ? 0.7 : 1} shape={shape} isAnimationActive={false}>
                                         {s.showLabels && <LabelList dataKey="value" position="top" fill="#64748b" fontSize={11} offset={10} />}
                                     </Scatter>
                                 );
@@ -638,7 +669,8 @@ const ChartBlockReadonly = ({ el, label }: any) => {
                             <PolarGrid stroke="#e2e8f0" gridType={isCircular ? 'circle' : 'polygon'} />
                             <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
                             <PolarRadiusAxis angle={30} domain={['auto', 'auto']} tick={false} axisLine={false} />
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" />}
+                            {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 return <Radar key={key} name={key} dataKey={key} stroke={color} strokeWidth={isOutline ? 2 : 1} fill={isOutline ? 'transparent' : color} fillOpacity={0.5} isAnimationActive={false} label={s.showLabels ? { fill: '#64748b', fontSize: 11 } : false} />;
@@ -821,7 +853,7 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
                                                 if (el.type === 'text') return <TextBlockReadonly key={el.id} el={el} />;
                                                 if (el.type === 'image') return <ImageBlockReadonly key={el.id} el={el} label={label} />;
                                                 if (el.type === 'table') return <TableBlockReadonly key={el.id} el={el} label={label} />;
-                                                if (el.type === 'chart') return <ChartBlockReadonly key={el.id} el={el} label={label} />;
+                                                if (el.type === 'chart') return <ChartBlockReadonly key={el.id} el={el} label={label} isPrint={isPrint} />;
                                                 if (el.type === 'map') return <MapBlockReadonly key={el.id} el={el} />;
                                                 return null;
                                             })}

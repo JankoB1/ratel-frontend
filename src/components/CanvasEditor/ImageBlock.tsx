@@ -21,7 +21,7 @@ const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     );
 };
 
-export const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, elementLabel }: any) => {
+export const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onDragEnd, elementLabel }: any) => {
     const defaultSettings = el.payload.settings;
     const currentSettings = isSelected ? selectedElement.settings : defaultSettings;
     const [isUploading, setIsUploading] = useState(false);
@@ -41,7 +41,7 @@ export const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
     return (
         <div
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)} onDragEnd={onDragEnd}
             onClick={(e) => { e.stopPropagation(); setSelectedElement({ pageId, rowId, colId, elementId: el.id, type: 'image', settings: currentSettings }); }}
             className={`element-block break-inside-avoid ${isSelected ? 'is-selected' : ''}`}
             style={{ marginTop: `${currentSettings.marginTop || 0}px`, marginBottom: `${currentSettings.marginBottom || 0}px` }}

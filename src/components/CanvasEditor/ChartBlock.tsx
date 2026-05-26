@@ -298,7 +298,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
     );
 };
 
-export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, elementLabel }: any) => {
+export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, updateElementSettings, onDelete, onDragStart, onDragEnd, elementLabel }: any) => {
     const defaultSettings = el.payload.settings || {};
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
@@ -901,7 +901,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     return (
         <div
             ref={blockRef}
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)} onDragEnd={onDragEnd}
             onClick={(e) => {
                 e.stopPropagation();
                 setSelectedElement({

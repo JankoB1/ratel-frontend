@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {Bell, ChevronDown, Search, ZoomIn, ZoomOut, Undo2, LogOut, ShieldCheck} from "lucide-react";
 import logo from '../assets/logo.svg';
 import { useAuth } from "../contexts/AuthContext";
+import InboxBadge from "./InboxBadge";
 
 interface HeaderProps {
     onUndo?: () => void;
@@ -235,6 +236,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                     <button onClick={onSearchClick} title="Претражи (Ctrl+F)">
                         <Search size={20} className="text-dark-blue" />
                     </button>
+                    <InboxBadge />
                     <div className="relative">
                         <Bell size={20} className="text-dark-blue" />
                         <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>

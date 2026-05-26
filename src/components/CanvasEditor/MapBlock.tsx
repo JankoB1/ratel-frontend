@@ -2,7 +2,7 @@ import { GripVertical, Trash2 } from "lucide-react";
 import { hexToRgba } from "./utils";
 import MapGraphic from "../MapGraphic";
 
-export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, onDelete, onDragStart }: any) => {
+export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, onDelete, onDragStart, onDragEnd }: any) => {
     const defaultSettings = el.payload.settings || {};
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
@@ -67,7 +67,7 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
 
     return (
         <div
-            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)}
+            draggable onDragStart={(e) => onDragStart(e, pageId, rowId, colId, el.id)} onDragEnd={onDragEnd}
             onClick={(e) => {
                 e.stopPropagation();
                 setSelectedElement({

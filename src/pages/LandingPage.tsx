@@ -1,7 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ExternalLink, FileText, Loader2, ChevronRight, Layers } from "lucide-react";
+import { Search, ExternalLink, FileText, Loader2, ChevronRight, ChevronDown, Layers } from "lucide-react";
 import logo from "../assets/logo.svg";
+import mainBg from "../assets/main-bg.png";
+import trz1 from "../assets/trz1.png";
+import trz2 from "../assets/trz2.png";
+import trz3 from "../assets/trz3.png";
 import { DocumentPage, buildMaps } from "../components/DocumentPageView";
 
 // Thumbnail scale for document preview cards
@@ -43,7 +47,6 @@ function stripHtml(html: string): string {
 
 // Flattens a group into a plain elements array regardless of storage format
 function flattenGroupElements(group: SavedGroup): any[] {
-    // New format: rows_data contains the original row/column structure
     if (group.rows_data && group.rows_data.length > 0) {
         const els: any[] = [];
         group.rows_data.forEach((row: any) => {
@@ -53,7 +56,6 @@ function flattenGroupElements(group: SavedGroup): any[] {
         });
         return els;
     }
-    // Legacy format: flat elements array
     return group.elements ?? [];
 }
 
@@ -72,26 +74,20 @@ function extractGroupText(group: SavedGroup): string {
                 break;
 
             case "table": {
-                // Cell values (stored as HTML strings keyed by "row_col")
                 const cells = payload.sr?.content ?? {};
                 Object.values(cells).forEach((v: any) => {
                     parts.push(typeof v === "string" ? stripHtml(v) : "");
                 });
-                // Column header labels — settings.columns is a NUMBER (column count), not an array
-                // so we safely skip it here; header labels come from sr.content row 0 instead
                 break;
             }
 
             case "chart":
-                // Title / subtitle / description
                 if (settings.title)       parts.push(settings.title);
                 if (settings.subtitle)    parts.push(settings.subtitle);
                 if (settings.description) parts.push(settings.description);
-                // Row names (category axis labels)
                 (payload.data ?? []).forEach((row: any) => {
                     if (row?.name) parts.push(String(row.name));
                 });
-                // Series keys
                 (payload.keys ?? []).forEach((k: any) => {
                     if (k) parts.push(String(k));
                 });
@@ -112,8 +108,6 @@ function extractGroupText(group: SavedGroup): string {
 }
 
 // Wraps a group into a page structure DocumentPage can render.
-// Uses rows_data (new format) when available to preserve original multi-column layout.
-// Falls back to a single col-span-12 column for legacy groups.
 function elementsToPage(group: SavedGroup) {
     if (group.rows_data && group.rows_data.length > 0) {
         return {
@@ -191,7 +185,6 @@ export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGrou
             onClick={onClick}
             className={`relative overflow-hidden rounded-2xl border border-white/20 group cursor-pointer text-left w-full h-full ${large ? "row-span-2" : ""}`}
         >
-            {/* Content */}
             {hasElements ? (
                 <div style={{
                     width: w, height: h, overflow: "hidden",
@@ -216,7 +209,6 @@ export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGrou
                 <div className={`absolute inset-0 ${large ? "bg-gradient-to-br from-blue-600 to-blue-800" : "bg-gradient-to-br from-slate-600 to-slate-800"}`} />
             )}
 
-            {/* Dark overlay + title */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-white/60 mb-1 flex items-center gap-1">
@@ -230,7 +222,6 @@ export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGrou
                 )}
             </div>
 
-            {/* Hover */}
             <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center shadow">
@@ -348,13 +339,13 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
             </div>
 
             {/* Info */}
-            <div className="px-4 py-3">
+            <div className="px-3 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-[#0056B3]/70 mb-1 flex items-center gap-1">
                     <Layers size={9} /> Издвојени садржај
                 </p>
-                <h3 className="text-sm font-extrabold text-dark-blue line-clamp-2 leading-snug">{group.name}</h3>
+                <h3 className="text-xs font-extrabold text-dark-blue line-clamp-2 leading-snug">{group.name}</h3>
                 {group.document && (
-                    <p className="text-[11px] text-slate-400 mt-1 truncate">из: {group.document.title}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 truncate">из: {group.document.title}</p>
                 )}
             </div>
         </button>
@@ -398,78 +389,161 @@ const LandingPage = () => {
     const openGroup = (id: number) => navigate(`/group/${id}/preview`);
 
     return (
-        <div className="min-h-screen bg-white font-sans text-dark-blue">
+        <div className="min-h-screen font-sans text-dark-blue" style={{
+            backgroundImage: `url(${mainBg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center top',
+            backgroundAttachment: 'fixed',
+            backgroundRepeat: 'no-repeat',
+        }}>
 
             {/* ── Nav ── */}
             <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100">
-                <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <img src={logo} alt="RATEL" className="h-7" />
-                        <span className="font-extrabold text-[15px] uppercase tracking-wide">RATEL</span>
+                <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 md:h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <img src={logo} alt="RATEL" className="h-6 md:h-7" />
+                        <span className="font-extrabold text-[13px] md:text-[15px] uppercase tracking-wide">РАТЕЛ</span>
                     </div>
-                    <button
-                        onClick={() => navigate("/login")}
-                        className="bg-[#0056B3] text-white rounded-full px-5 py-2 text-sm font-bold hover:bg-blue-700 transition"
-                    >
-                        Пријавите се
-                    </button>
+
                 </div>
             </nav>
 
             {/* ── Hero ── */}
-            <section className="max-w-7xl mx-auto px-8 pt-14 pb-16 grid grid-cols-[1fr_1.1fr] gap-16 items-center">
-                {/* Left: text */}
+            <section className="max-w-7xl mx-auto px-4 md:px-8 pt-10 md:pt-14 pb-10 md:pb-16 flex flex-col lg:grid lg:grid-cols-[1fr_1.4fr] gap-8 lg:gap-16 items-start lg:items-center">
+
+                {/* Left: title */}
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#0056B3] mb-4">
-                        Регулаторна агенција за електронске комуникације и поштанске услуге
-                    </p>
-                    <h1 className="text-4xl font-extrabold leading-tight text-dark-blue mb-6">
-                        Добродошли на<br />Рателов Портал<br />прегледа тржишта
+                    <h1 className="text-[30px] md:text-[38px] lg:text-[40px] font-extrabold leading-[1.1] text-dark-blue tracking-tight">
+                        Добродошли на<br />Рателов Портал<br />прегледа тржишта електронских комуникација и поштанских услуга у Републици Србији.
                     </h1>
-                    <p className="text-base text-slate-500 leading-relaxed max-w-md">
-                        Истражите годишње извештаје, финансијске анализе и студије тржишта електронских комуникација у Републици Србији.
-                    </p>
                     <button
                         onClick={() => document.getElementById("documents-section")?.scrollIntoView({ behavior: "smooth" })}
-                        className="mt-8 flex items-center gap-2 bg-[#0056B3] text-white rounded-full px-6 py-3 text-sm font-bold hover:bg-blue-700 transition"
+                        className="mt-8 md:mt-12 w-10 h-10 rounded-full flex items-center justify-center text-slate-300 hover:text-[#0056B3] transition"
+                        aria-label="Скроли до садржаја"
                     >
-                        Прегледај документа <ChevronRight size={16} />
+                        <ChevronDown size={28} />
                     </button>
                 </div>
 
-                {/* Right: featured documents (hardcoded first 5) */}
-                {loading ? (
-                    <div className="h-72 flex items-center justify-center">
-                        <Loader2 className="animate-spin text-blue-300" size={32} />
+                {/* Right: 1-2-1-2 grid
+                    Mobile (2 col): white | blue / image | lightblue
+                    Desktop (4 col): white(span2) | blue | image(span2) | lightblue / _ | lightblue | _ | lightblue
+                */}
+                <div className="w-full grid grid-cols-2 grid-rows-2 lg:grid-cols-4 lg:grid-rows-2 gap-2.5 md:gap-3 h-[240px] sm:h-[280px] lg:h-[420px]">
+
+                    {/* COL 1: tall white card — row-span-2 on desktop only */}
+                    <div className="lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden" style={{
+                        backgroundImage: `url(${trz1})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        {/* Soft white-to-transparent gradient so the text stays legible over the photo */}
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0) 65%)'
+                        }} />
+                        <p className="relative text-xs md:text-sm text-slate-700 font-semibold leading-snug">
+                            Погледајте комплетан<br />преглед тржишта 2025
+                        </p>
                     </div>
-                ) : featuredDocs.length === 0 ? null : (
-                    <div className="grid grid-cols-2 gap-3 h-[340px]">
-                        {featuredDocs[0] && (
-                            <div className="row-span-2 h-full">
-                                <DocFeaturedCard doc={featuredDocs[0]} large onClick={() => openDoc(featuredDocs[0].id)} />
-                            </div>
-                        )}
-                        {featuredDocs.slice(1, 5).map(doc => (
-                            <DocFeaturedCard key={doc.id} doc={doc} onClick={() => openDoc(doc.id)} />
-                        ))}
+
+                    {/* COL 2 / ROW 1: main featured doc — trz2.png */}
+                    <div className="rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden" style={{
+                        backgroundImage: `url(${trz2})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        {/* Dark gradient so white text stays legible */}
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)'
+                        }} />
+                        <p className="relative text-xs md:text-sm font-semibold leading-snug">
+                            Преглед тржишта електронских комуникација 2025
+                        </p>
                     </div>
-                )}
+
+                    {/* COL 3: image — row-span-2 on desktop — trz3.png */}
+                    <div className="lg:row-span-2 rounded-2xl overflow-hidden relative" style={{
+                        backgroundImage: `url(${trz3})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)'
+                        }} />
+                        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
+                            <p className="text-white text-xs md:text-sm font-semibold">Квартални подаци</p>
+                        </div>
+                    </div>
+
+                    {/* COL 4 / ROW 1: info bezbednost — server room / data security */}
+                    <div className="bg-[#E8F0FB] rounded-2xl p-3 md:p-5 flex flex-col justify-end relative overflow-hidden" style={{
+                        backgroundImage: 'url(https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
+                        }} />
+                        <p className="relative text-[10px] md:text-xs text-dark-blue font-semibold leading-snug">
+                            Преглед тржишта<br />информациона<br />безбедност 2025
+                        </p>
+                    </div>
+
+                    {/* COL 2 / ROW 2: hidden on mobile — poštanske usluge — parcels / packages */}
+                    <div className="hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden" style={{
+                        backgroundImage: 'url(https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=600&q=80)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
+                        }} />
+                        <p className="relative text-xs text-dark-blue font-semibold leading-snug">
+                            Преглед тржишта<br />поштанских<br />услуга 2025
+                        </p>
+                    </div>
+
+                    {/* COL 4 / ROW 2: hidden on mobile — prethodni pregledi — analytics dashboard / reports */}
+                    <div className="hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden" style={{
+                        backgroundImage: 'url(https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}>
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
+                        }} />
+                        <p className="relative text-xs text-dark-blue font-semibold leading-snug">
+                            Погледајте претходне<br />прегледе тржишта
+                        </p>
+                    </div>
+                </div>
             </section>
 
-            {/* ── Document list ── */}
-            <section id="documents-section" className="bg-[#F0F2F5] pt-10 pb-20 min-h-[60vh]">
-                <div className="max-w-7xl mx-auto px-8">
+            {/* ── Издвојени садржај (bottom section) ── */}
+            <section id="documents-section" className="pt-8 md:pt-12 pb-16 md:pb-24 min-h-[60vh]">
+                <div className="max-w-7xl mx-auto px-4 md:px-8">
 
                     {/* Section header */}
-                    <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-                        <h2 className="font-extrabold text-lg text-dark-blue">Издвојени садржај</h2>
-                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 border border-slate-100 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 md:mb-8 gap-4">
+                        <div>
+                            <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#0056B3]/60 mb-1">
+                                Портал
+                            </p>
+                            <h2 className="font-extrabold text-xl md:text-2xl text-dark-blue leading-tight">
+                                Издвојени садржај
+                            </h2>
+                            <p className="text-xs md:text-sm text-slate-400 mt-1 hidden sm:block">
+                                Графикони, табеле и анализе из извештаја РАТЕЛ-а
+                            </p>
+                        </div>
+                        {/* Search */}
+                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 border border-slate-100 shadow-sm self-start sm:self-auto">
                             <Search size={13} className="text-slate-400 shrink-0" />
                             <input
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                placeholder="Претрага..."
-                                className="text-sm outline-none bg-transparent placeholder:text-slate-300 w-40"
+                                placeholder="Претрага садржаја..."
+                                className="text-sm outline-none bg-transparent placeholder:text-slate-300 w-36 md:w-48"
                             />
                         </div>
                     </div>
@@ -483,27 +557,54 @@ const LandingPage = () => {
                     ) : visibleGroups.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-24 text-slate-300 gap-3">
                             <Layers size={48} />
-                            <span className="text-sm font-semibold">Нема издвојеног садржаја</span>
+                            <span className="text-sm font-semibold">
+                                {search ? "Нема резултата претраге" : "Нема издвојеног садржаја"}
+                            </span>
+                            {search && (
+                                <button
+                                    onClick={() => setSearch("")}
+                                    className="text-xs text-[#0056B3] font-semibold underline underline-offset-2"
+                                >
+                                    Обриши претрагу
+                                </button>
+                            )}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            {visibleGroups.map(group => (
-                                <GroupCard key={group.id} group={group} onClick={() => openGroup(group.id)} />
-                            ))}
-                        </div>
+                        <>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                                {visibleGroups.map(group => (
+                                    <GroupCard key={group.id} group={group} onClick={() => openGroup(group.id)} />
+                                ))}
+                            </div>
+                            {visibleGroups.length >= 10 && (
+                                <div className="mt-8 md:mt-10 flex justify-center">
+                                    <p className="text-xs text-slate-400 font-semibold">
+                                        Приказано {visibleGroups.length} резултата
+                                    </p>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </section>
 
             {/* ── Footer ── */}
-            <footer className="bg-white border-t border-slate-100 py-8">
-                <div className="max-w-7xl mx-auto px-8 flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center gap-2">
-                        <img src={logo} alt="RATEL" className="h-5 opacity-40" />
-                        <span className="font-bold uppercase tracking-wide">RATEL</span>
-                        <span>— Регулаторна агенција за електронске комуникације и поштанске услуге</span>
+            <footer className="bg-white border-t border-slate-100 py-6 md:py-8">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-4">
+                    {/* Disclaimer */}
+                    <p className="text-[11px] text-slate-400 leading-relaxed border-l-2 border-slate-200 pl-3">
+                        RATEL не преузима одговорност за тачност података које су доставили оператори путем годишњих упитника.
+                    </p>
+                    {/* Bottom row */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                        <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
+                            <img src={logo} alt="RATEL" className="h-5 opacity-40" />
+                            <span className="font-bold uppercase tracking-wide">RATEL</span>
+                            <span className="hidden sm:inline">—</span>
+                            <span className="text-center sm:text-left">Регулаторна агенција за електронске комуникације и поштанске услуге</span>
+                        </div>
+                        <span className="shrink-0">© {new Date().getFullYear()}</span>
                     </div>
-                    <span>© {new Date().getFullYear()}</span>
                 </div>
             </footer>
         </div>

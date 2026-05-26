@@ -2,16 +2,20 @@ import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from 'react';
 import axiosClient from "../axios-client";
 
+export type UserRole = 'editor' | 'rukovodilac' | 'direktor' | 'kabinet' | null;
+
 interface User {
     id: number;
     name: string;
     email: string;
     avatar?: string | null;
     is_admin?: boolean;
+    role?: UserRole;
 }
 
 interface AuthContextType {
     user: User | null;
+    loading: boolean;
     login: (payload: any) => Promise<void>;
     logout: () => Promise<void>;
     getUser: () => Promise<void>;
@@ -19,6 +23,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
+    loading: true,
     login: async () => {},
     logout: async () => {},
     getUser: async () => {},
@@ -26,6 +31,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
+    // True until the first getUser() resolves. Guarded pages should wait on this
+    // before deciding to redirect to /login (otherwise refresh always bounces).
+    const [loading, setLoading] = useState(true);
 
     // CSRF zaštita - ovo se mora pozvati pre prvog POST zahteva (login/register)
     const csrf = () => axiosClient.get('/sanctum/csrf-cookie');
@@ -37,6 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) {
             // Nije ulogovan
             setUser(null);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -62,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, getUser }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, getUser }}>
             {children}
         </AuthContext.Provider>
     );

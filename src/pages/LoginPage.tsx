@@ -11,7 +11,7 @@ const LoginPage = () => {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    const { login } = useAuth();
+    const { login, getUser } = useAuth();
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -32,7 +32,15 @@ const LoginPage = () => {
         // Slanje zahteva na server
         try {
             await login({ email, password });
-            navigate("/panel"); // Preusmeri na editor (promeni u "/" ako ti je to glavna ruta)
+            // Role-aware redirect: admin → /admin, reviewer → /inbox, editor/legacy → /panel
+            await getUser();
+            try {
+                const { default: ax } = await import('../axios-client');
+                const me = (await ax.get('/api/user')).data as { is_admin?: boolean; role?: string | null };
+                if (me?.is_admin)                                             navigate('/admin');
+                else if (['rukovodilac', 'direktor', 'kabinet'].includes(me?.role || '')) navigate('/inbox');
+                else                                                          navigate('/panel');
+            } catch { navigate('/panel'); }
         } catch (err: any) {
             if (err.response && err.response.status === 422) {
                 setError("Погрешан е-маил или лозинка. Проверите податке.");

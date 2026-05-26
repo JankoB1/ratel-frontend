@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import axiosClient from "../axios-client.ts";
+import ApprovalPanel from "./ApprovalPanel";
 
 const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { value: string; onChange: (html: string) => void; elementKey: string; placeholder?: string }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -174,14 +175,21 @@ export const extractFootnoteIds = (html: string) => {
     return ids;
 };
 
-const RightSidebar = () => {
+interface RightSidebarProps {
+    /** ID trenutno aktivne sekcije — RightSidebar prikazuje approval tab samo ako je definisan. */
+    activeSectionId?: number | null;
+    /** Pozvano kad approval action promeni status (refresh) */
+    onApprovalChanged?: () => void;
+}
+
+const RightSidebar = ({ activeSectionId, onApprovalChanged }: RightSidebarProps = {}) => {
     const {
         selectedElement, updateElementSettings,
         isGroupingMode, setIsGroupingMode,
         groupSelection, setGroupSelection
     } = useEditor();
 
-    const [activeTab, setActiveTab] = useState<'element' | 'groups'>('element');
+    const [activeTab, setActiveTab] = useState<'element' | 'groups' | 'approval'>('element');
     const [newGroupName, setNewGroupName] = useState('');
 
     // --- NOVO: Stanja i funkcije za sačuvane grupe ---
@@ -223,10 +231,26 @@ const RightSidebar = () => {
     }, [activeTab]);
     // --- KRAJ NOVOG DELA ---
 
+    // Ako nema selektovanog elementa, prikazati sidebar samo sa tabovima — Approval tab je dostupan ako postoji aktivna sekcija
     if (!selectedElement) {
         return (
             <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-screen sticky top-0 custom-scrollbar z-40">
-                <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest hover:scale-105 transition-transform">Изаберите елемент</div>
+                <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+                    <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Елемент</button>
+                    <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Групе</button>
+                    {activeSectionId && (
+                        <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Одобр.</button>
+                    )}
+                </div>
+                {activeTab === 'element' && (
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент</div>
+                )}
+                {activeTab === 'approval' && activeSectionId && (
+                    <ApprovalPanel sectionId={activeSectionId} onChanged={onApprovalChanged} />
+                )}
+                {activeTab === 'groups' && (
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент за групе</div>
+                )}
             </aside>
         );
     }
@@ -441,7 +465,15 @@ const RightSidebar = () => {
             <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
                 <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Елемент</button>
                 <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Групе</button>
+                {activeSectionId && (
+                    <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Одобр.</button>
+                )}
             </div>
+
+            {/* Approval tab */}
+            {activeTab === 'approval' && activeSectionId && (
+                <ApprovalPanel sectionId={activeSectionId} onChanged={onApprovalChanged} />
+            )}
 
             {/* 2. НОВИ ДЕО: ТАБ "ГРУПЕ" */}
             {activeTab === 'groups' && (

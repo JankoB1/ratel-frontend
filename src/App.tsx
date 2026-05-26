@@ -8,6 +8,7 @@ import ViewPage from "./pages/ViewPage.tsx";
 import AdminPage from "./pages/AdminPage.tsx";
 import LandingPage from "./pages/LandingPage.tsx";
 import GroupPreviewPage from "./pages/GroupPreviewPage.tsx";
+import InboxPage from "./pages/InboxPage.tsx";
 
 function App() {
     return (
@@ -20,6 +21,14 @@ function App() {
                         <Route path="/login" element={<LoginPage />} />
 
                         <Route
+                            path="/panel/:docId"
+                            element={
+                                <EditorProvider>
+                                    <PanelPage />
+                                </EditorProvider>
+                            }
+                        />
+                        <Route
                             path="/panel"
                             element={
                                 <EditorProvider>
@@ -28,8 +37,8 @@ function App() {
                             }
                         />
 
-                        <Route path="*" element={<Navigate to="/" replace />} />
                         <Route path="/admin" element={<AdminPage />} />
+                        <Route path="/inbox" element={<InboxPage />} />
                         <Route path="/group/:id/preview" element={<GroupPreviewPage />} />
                         <Route path="/document/:id/print" element={<PrintView />} />
                         <Route path="/document/:id/view" element={
@@ -37,6 +46,7 @@ function App() {
                                 <ViewPage />
                             </EditorProvider>
                         } />
+                        <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </div>
             </AuthProvider>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import LeftSidebar from "../components/LeftSidebar";
 import Header from "../components/Header";
 import RightSidebar from "../components/RightSidebar";
@@ -6,13 +7,25 @@ import ContentList from "../components/ContentList";
 import Canvas from "../components/Canvas.tsx";
 
 import axiosClient from "../axios-client";
-import { Loader2, Search as SearchIcon, ChevronUp, ChevronDown, X, Lock } from "lucide-react";
+import { Loader2, Search as SearchIcon, ChevronUp, ChevronDown, X, Lock, Send, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import { useAuth } from "../contexts/AuthContext";
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2;
 const ZOOM_STEP = 0.1;
+
+// Approval status presentation
+const APPROVAL_STATUS_INFO: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    draft:                { label: 'У изради',                  color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
+    pending_rukovodilac:  { label: 'Чека руководиоца',          color: '#7c3aed', bg: '#f3e8ff', border: '#c4b5fd' },
+    pending_direktor:     { label: 'Чека директора',            color: '#d97706', bg: '#fef3c7', border: '#fcd34d' },
+    pending_kabinet:      { label: 'Чека кабинет',              color: '#059669', bg: '#d1fae5', border: '#6ee7b7' },
+    pending_admin:        { label: 'Чека админа (финално)',     color: '#0056B3', bg: '#dbeafe', border: '#93c5fd' },
+    approved:             { label: 'Одобрено',                  color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+    rejected:             { label: 'Одбијено',                  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+};
+const getApprovalInfo = (s: string | undefined) => APPROVAL_STATUS_INFO[s || 'draft'] || APPROVAL_STATUS_INFO.draft;
 
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ');
 
@@ -51,6 +64,10 @@ const extractElementText = (el: any): string => {
 const PanelPage = () => {
     const { setSelectedElement } = useEditor();
     const { user } = useAuth();
+    const { docId } = useParams<{ docId?: string }>();
+    const [searchParams] = useSearchParams();
+    const requestedSectionId = searchParams.get('section') ? Number(searchParams.get('section')) : null;
+    const DOCUMENT_ID = docId ? Number(docId) : 1; // fallback na 1 ako nije u URL-u
     const [sections, setSections] = useState<any[]>([]);
     const [documentInfo, setDocumentInfo] = useState<{ title: string; status: string } | null>(null);
     const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
@@ -153,8 +170,6 @@ const PanelPage = () => {
         setCurrentMatchIdx(i => (searchMatches.length ? (i - 1 + searchMatches.length) % searchMatches.length : 0));
     }, [searchMatches.length]);
 
-    const DOCUMENT_ID = 1;
-
     useEffect(() => {
         const fetchDocument = async () => {
             try {
@@ -165,14 +180,17 @@ const PanelPage = () => {
                 setDocumentInfo({ title: doc.title || 'Без наслова', status: doc.status || 'draft' });
                 setSections(fetchedSections);
                 if (fetchedSections && fetchedSections.length > 0) {
-                    const firstId = fetchedSections[0].id;
-                    setActiveSectionId(firstId);
-                    // Acquire lock for the first section (non-blocking)
-                    axiosClient.post(`/api/sections/${firstId}/lock`).then(res => {
+                    // Ako je deeplink ?section=X postoji, koristi tu sekciju
+                    const targetId = requestedSectionId && fetchedSections.some((s: any) => s.id === requestedSectionId)
+                        ? requestedSectionId
+                        : fetchedSections[0].id;
+                    setActiveSectionId(targetId);
+                    // Acquire lock for the target section (non-blocking)
+                    axiosClient.post(`/api/sections/${targetId}/lock`).then(res => {
                         if (res.data.acquired) {
-                            lockedSectionIdRef.current = firstId;
+                            lockedSectionIdRef.current = targetId;
                             lockHeartbeatRef.current = setInterval(async () => {
-                                try { await axiosClient.post(`/api/sections/${firstId}/lock`); } catch { /* ignore */ }
+                                try { await axiosClient.post(`/api/sections/${targetId}/lock`); } catch { /* ignore */ }
                             }, 90_000);
                         } else {
                             setSectionLockedBy(res.data.locked_by || 'Drugi korisnik');
@@ -281,6 +299,33 @@ const PanelPage = () => {
             setSections(prev => prev.map(sec =>
                 sec.id === id ? { ...sec, is_disabled: currentlyDisabled } : sec
             ));
+        }
+    };
+
+    const handleSubmitForReview = async () => {
+        if (!activeSectionId) return;
+        if (!confirm("Да ли си сигуран да желиш да пошаљеш ову секцију на преглед?\n\nНакон слања, секција ће бити закључана за измене док не прође све нивое одобрења.")) return;
+
+        // Prvo snimi tekuće promene (ako su otvorene)
+        try {
+            const activeSection = sections.find(s => s.id === activeSectionId);
+            if (activeSection) {
+                await axiosClient.put(`/api/sections/${activeSectionId}`, { canvas_data: activeSection.canvas_data });
+            }
+        } catch (_e) { /* ignore — submit ide čak iako save padne (sigurno već 423) */ }
+
+        try {
+            const { data } = await axiosClient.post(`/api/sections/${activeSectionId}/submit`);
+            const newStatus = data?.approval?.status || 'pending_rukovodilac';
+            setSections(prev => prev.map(sec =>
+                sec.id === activeSectionId
+                    ? { ...sec, approval_status: newStatus, rejected_reason: null, can_edit: false }
+                    : sec
+            ));
+            alert("✅ Секција је послата на преглед.");
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Грешка при слању секције на преглед.";
+            alert("❌ " + msg);
         }
     };
 
@@ -603,6 +648,40 @@ const PanelPage = () => {
 
                     {activeSection ? (
                         <div>
+                            {/* Approval status banner — info only. Action dugmad i sve detalje su sada u RightSidebar "Одобр." tab-u. */}
+                            {(() => {
+                                const status = activeSection.approval_status || 'draft';
+                                const info = getApprovalInfo(status);
+                                const isPending = status.startsWith('pending_');
+                                return (
+                                    <div style={{
+                                        position: 'sticky', top: 0, zIndex: 50,
+                                        background: info.bg,
+                                        border: `1px solid ${info.border}`,
+                                        borderRadius: '12px',
+                                        padding: '10px 16px',
+                                        marginBottom: '12px',
+                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                        fontSize: '13px', fontWeight: 600, color: info.color,
+                                    }}>
+                                        {status === 'approved' ? <CheckCircle2 size={16} /> :
+                                         status === 'rejected' ? <AlertCircle size={16} /> :
+                                         isPending ? <Clock size={16} /> :
+                                         <Send size={16} />}
+                                        <span style={{ flex: 1 }}>
+                                            <strong>{info.label}.</strong>
+                                            {status === 'draft'    && ' Уредник може да пошаље на преглед (десно, „Одобр." таб).'}
+                                            {isPending             && ' Сви додељени могу да едитују; акције за одобравање су десно, „Одобр." таб.'}
+                                            {status === 'approved' && ' Секција је јавна — измене утичу на јавни приказ.'}
+                                            {status === 'rejected' && activeSection.rejected_reason && (
+                                                <span style={{ display: 'block', marginTop: 4, fontWeight: 500, fontSize: 12 }}>
+                                                    Разлог: „{activeSection.rejected_reason}"
+                                                </span>
+                                            )}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                             {!canEditSection && !sectionLockedBy && (
                                 <div style={{
                                     position: 'sticky', top: 0, zIndex: 50,
@@ -620,7 +699,7 @@ const PanelPage = () => {
                                 }}>
                                     <Lock size={16} />
                                     <span>
-                                        Немате привилегију да мењате ову секцију. Можете је само прегледати.
+                                        Нисте додељени овој секцији — само је прегледате.
                                     </span>
                                 </div>
                             )}
@@ -663,7 +742,22 @@ const PanelPage = () => {
                     )}
                 </div>
 
-                <RightSidebar />
+                <RightSidebar
+                    activeSectionId={activeSectionId}
+                    onApprovalChanged={async () => {
+                        if (!activeSectionId) return;
+                        try {
+                            const { data } = await axiosClient.get(`/api/sections/${activeSectionId}`);
+                            setSections(prev => prev.map(sec => sec.id === activeSectionId ? {
+                                ...sec,
+                                approval_status: data.approval_status,
+                                rejected_reason: data.rejected_reason,
+                                can_edit: data.can_edit,
+                                has_assignment: data.has_assignment,
+                            } : sec));
+                        } catch { /* ignore */ }
+                    }}
+                />
             </section>
 
         </div>

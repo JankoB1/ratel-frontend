@@ -53,7 +53,7 @@ const ElementSelector = ({ onSelect }: any) => (
     </div>
 );
 
-export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDrop, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap, isGroupingMode, groupSelection, setGroupSelection, documentTitle, sectionTitle }: any) => {
+export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDragEnd, onDropAtZone, isDragging, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap, isGroupingMode, groupSelection, setGroupSelection, documentTitle, sectionTitle }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
 
@@ -160,7 +160,43 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                                         {row.columns.map((col: any) => {
                                             const isColActive = (activeColMenu?.pageId === page.id && activeColMenu?.colId === col.id) || (selectedElement?.pageId === page.id && selectedElement?.colId === col.id);
                                             return (
-                                                <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(page.id, row.id, col.id)} className={`canvas-col ${col.widthClass} ${isColActive ? 'is-active' : ''}`}>
+                                                <div
+                                                    key={col.id}
+                                                    className={`canvas-col ${col.widthClass} ${isColActive ? 'is-active' : ''}`}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault();
+                                                        e.dataTransfer.dropEffect = 'move';
+                                                        const elements = Array.from(e.currentTarget.querySelectorAll<HTMLElement>(':scope > [data-element-id]'));
+                                                        let dropIndex = elements.length;
+                                                        let target: HTMLElement | null = null;
+                                                        let pos: 'above' | 'below' = 'below';
+                                                        for (let i = 0; i < elements.length; i++) {
+                                                            const rect = elements[i].getBoundingClientRect();
+                                                            const middle = rect.top + rect.height / 2;
+                                                            if (e.clientY < middle) { dropIndex = i; target = elements[i]; pos = 'above'; break; }
+                                                        }
+                                                        if (!target && elements.length > 0) { target = elements[elements.length - 1]; pos = 'below'; }
+                                                        // Clear all previous indicators in this column
+                                                        elements.forEach(el => el.classList.remove('drop-above', 'drop-below'));
+                                                        if (target) target.classList.add(pos === 'above' ? 'drop-above' : 'drop-below');
+                                                        else e.currentTarget.classList.add('is-drop-target');
+                                                        e.currentTarget.setAttribute('data-drop-index', String(dropIndex));
+                                                    }}
+                                                    onDragLeave={(e) => {
+                                                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                                            e.currentTarget.classList.remove('is-drop-target');
+                                                            e.currentTarget.querySelectorAll('[data-element-id]').forEach(el => el.classList.remove('drop-above', 'drop-below'));
+                                                        }
+                                                    }}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        const dropIndex = parseInt(e.currentTarget.getAttribute('data-drop-index') || String(col.elements.length), 10);
+                                                        e.currentTarget.classList.remove('is-drop-target');
+                                                        e.currentTarget.querySelectorAll('[data-element-id]').forEach(el => el.classList.remove('drop-above', 'drop-below'));
+                                                        e.currentTarget.removeAttribute('data-drop-index');
+                                                        onDropAtZone(page.id, row.id, col.id, dropIndex);
+                                                    }}
+                                                >
                                                     {col.elements.map((el: any) => {
                                                         const isSelectedForGroup = groupSelection?.includes(el.id);
 
@@ -168,6 +204,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                                                             <div
                                                                 key={el.id}
                                                                 data-element-id={el.id}
+                                                                className="element-drop-wrapper"
                                                                 style={{ position: 'relative' }}
                                                                 onClickCapture={(e) => {
                                                                     if (isGroupingMode) {
@@ -196,11 +233,11 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                                                                     </div>
                                                                 )}
 
-                                                                {el.type === 'text' && <TextElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />}
-                                                                {el.type === 'image' && <ImageElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} elementLabel={elementLabelMap[el.id]} />}
-                                                                {el.type === 'table' && <TableElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} elementLabel={elementLabelMap[el.id]} />}
-                                                                {el.type === 'chart' && <ChartElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} elementLabel={elementLabelMap[el.id]} />}
-                                                                {el.type === 'map' && <MapElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} />}
+                                                                {el.type === 'text' && <TextElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} />}
+                                                                {el.type === 'image' && <ImageElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} elementLabel={elementLabelMap[el.id]} />}
+                                                                {el.type === 'table' && <TableElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} elementLabel={elementLabelMap[el.id]} />}
+                                                                {el.type === 'chart' && <ChartElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} elementLabel={elementLabelMap[el.id]} />}
+                                                                {el.type === 'map' && <MapElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} />}
                                                             </div>
                                                         );
                                                     })}

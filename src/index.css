@@ -182,6 +182,33 @@
 .action-btn.grab { cursor: grab; }
 .action-btn.grab:active { cursor: grabbing; }
 
+/* --- Drag & Drop --- */
+[data-element-id].is-dragging {
+    opacity: 0.4;
+}
+
+.element-drop-wrapper.drop-above::before,
+.element-drop-wrapper.drop-below::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #3b82f6;
+    border-radius: 2px;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+    z-index: 200;
+    pointer-events: none;
+}
+.element-drop-wrapper.drop-above::before { top: -3px; }
+.element-drop-wrapper.drop-below::after { bottom: -3px; }
+
+.canvas-col.is-drop-target {
+    background: rgba(59, 130, 246, 0.05);
+    outline: 2px dashed #3b82f6;
+    outline-offset: -2px;
+}
+
 /* --- Text Editor --- */
 .editor-content {
     outline: none; width: 100%; min-height: 30px;
