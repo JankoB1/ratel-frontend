@@ -423,12 +423,17 @@ const LandingPage = () => {
                 */}
                 <div className="w-full grid grid-cols-2 grid-rows-2 lg:grid-cols-4 lg:grid-rows-2 gap-2.5 md:gap-3 h-[240px] sm:h-[280px] lg:h-[420px]">
 
-                    {/* COL 1: tall white card — row-span-2 on desktop only */}
-                    <div className="lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden" style={{
-                        backgroundImage: `url(${trz1})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
+                    {/* COL 1: tall white card — row-span-2 on desktop only — link to preview doc #1 */}
+                    <button
+                        type="button"
+                        onClick={() => window.open('/document/1/view', '_blank')}
+                        className="lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                        style={{
+                            backgroundImage: `url(${trz1})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                        }}
+                    >
                         {/* Soft white-to-transparent gradient so the text stays legible over the photo */}
                         <div className="absolute inset-0 pointer-events-none" style={{
                             background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0) 65%)'
@@ -436,7 +441,13 @@ const LandingPage = () => {
                         <p className="relative text-xs md:text-sm text-slate-700 font-semibold leading-snug">
                             Погледајте комплетан<br />преглед тржишта 2025
                         </p>
-                    </div>
+                        {/* Hover arrow */}
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-7 h-7 bg-[#0056B3] rounded-full flex items-center justify-center shadow">
+                                <ChevronRight size={14} className="text-white" />
+                            </div>
+                        </div>
+                    </button>
 
                     {/* COL 2 / ROW 1: main featured doc — trz2.png */}
                     <div className="rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden" style={{
