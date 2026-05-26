@@ -85,14 +85,6 @@ const permissionLabelForRole = (role: UserRole, isAdmin: boolean): string => {
     return 'Корисник нема улогу — додели улогу да би могао нешто да ради са секцијама';
 };
 
-interface SectionItem {
-    id: number;
-    title: string;
-    order: number;
-    is_disabled: boolean;
-    updated_at: string;
-}
-
 interface ApprovalStage {
     name: string;
     at: string;
@@ -604,35 +596,6 @@ const ApprovalSectionRow = ({ section, idx, total, badge, onRename, onDelete, on
                 </div>
             </td>
         </tr>
-    );
-};
-
-const SectionRow = ({ section, canMoveUp, canMoveDown, onRename, onDelete, onMoveUp, onMoveDown }: any) => {
-    const [editing, setEditing] = useState(false);
-    const [title, setTitle] = useState(section.title);
-
-    const handleSave = async () => {
-        if (title.trim() && title.trim() !== section.title) await onRename(title.trim());
-        setEditing(false);
-    };
-
-    return (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition group">
-            <div className="flex flex-col gap-0.5">
-                <button onClick={onMoveUp} disabled={!canMoveUp} className="p-0.5 text-slate-300 hover:text-[#0056B3] disabled:opacity-30 disabled:cursor-not-allowed"><ChevronUp size={14} /></button>
-                <button onClick={onMoveDown} disabled={!canMoveDown} className="p-0.5 text-slate-300 hover:text-[#0056B3] disabled:opacity-30 disabled:cursor-not-allowed"><ChevronDown size={14} /></button>
-            </div>
-            <span className="text-xs font-bold text-slate-300 w-6">{section.order}.</span>
-            {editing ? (
-                <input autoFocus value={title} onChange={e => setTitle(e.target.value)} onBlur={handleSave}
-                    onKeyDown={e => e.key === 'Enter' && handleSave()}
-                    className="flex-1 border border-blue-300 rounded-lg px-2 py-1 text-sm outline-none" />
-            ) : (
-                <span onClick={() => setEditing(true)} className="flex-1 text-sm font-bold text-dark-blue cursor-text">{section.title}</span>
-            )}
-            <button onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50 transition-all"><PenLine size={14} /></button>
-            <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={14} /></button>
-        </div>
     );
 };
 

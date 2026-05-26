@@ -126,7 +126,8 @@ function elementsToPage(group: SavedGroup) {
 
 // ── Document featured card (hero) ─────────────────────────────────────────────
 
-const DocFeaturedCard = ({ doc, large, onClick }: { doc: PortalDoc; large?: boolean; onClick: () => void }) => {
+// Exported (with underscore prefix) — kept for future re-enabling of dynamic hero cards.
+export const _DocFeaturedCard = ({ doc, large, onClick }: { doc: PortalDoc; large?: boolean; onClick: () => void }) => {
     const scale = large ? 0.32 : 0.24;
     const w = Math.round(794 * scale);
     const h = Math.round(1123 * scale);
@@ -356,7 +357,6 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
 
 const LandingPage = () => {
     const navigate = useNavigate();
-    const [docs, setDocs] = useState<PortalDoc[]>([]);
     const [groups, setGroups] = useState<SavedGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -364,19 +364,12 @@ const LandingPage = () => {
     useEffect(() => {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
         const headers = { Accept: "application/json" };
-        Promise.all([
-            fetch(`${backendUrl}/api/portal/documents`, { headers }).then(r => r.json()),
-            fetch(`${backendUrl}/api/portal/saved-groups`, { headers }).then(r => r.json()),
-        ])
-            .then(([docsData, groupsData]) => {
-                setDocs(docsData.data ?? []);
-                setGroups(groupsData.data ?? []);
-            })
+        fetch(`${backendUrl}/api/portal/saved-groups`, { headers })
+            .then(r => r.json())
+            .then((groupsData) => setGroups(groupsData.data ?? []))
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
-
-    const featuredDocs = docs.slice(0, 5);
 
     const query = search.toLowerCase();
     const visibleGroups = groups.filter(g => {
@@ -385,7 +378,6 @@ const LandingPage = () => {
         return extractGroupText(g).toLowerCase().includes(query);
     });
 
-    const openDoc   = (id: number) => window.open(`/document/${id}/view`, "_blank");
     const openGroup = (id: number) => navigate(`/group/${id}/preview`);
 
     return (

@@ -302,33 +302,6 @@ const PanelPage = () => {
         }
     };
 
-    const handleSubmitForReview = async () => {
-        if (!activeSectionId) return;
-        if (!confirm("Да ли си сигуран да желиш да пошаљеш ову секцију на преглед?\n\nНакон слања, секција ће бити закључана за измене док не прође све нивое одобрења.")) return;
-
-        // Prvo snimi tekuće promene (ako su otvorene)
-        try {
-            const activeSection = sections.find(s => s.id === activeSectionId);
-            if (activeSection) {
-                await axiosClient.put(`/api/sections/${activeSectionId}`, { canvas_data: activeSection.canvas_data });
-            }
-        } catch (_e) { /* ignore — submit ide čak iako save padne (sigurno već 423) */ }
-
-        try {
-            const { data } = await axiosClient.post(`/api/sections/${activeSectionId}/submit`);
-            const newStatus = data?.approval?.status || 'pending_rukovodilac';
-            setSections(prev => prev.map(sec =>
-                sec.id === activeSectionId
-                    ? { ...sec, approval_status: newStatus, rejected_reason: null, can_edit: false }
-                    : sec
-            ));
-            alert("✅ Секција је послата на преглед.");
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || "Грешка при слању секције на преглед.";
-            alert("❌ " + msg);
-        }
-    };
-
     const handlePagesChange = (action: any) => {
         setSections(prevSections => prevSections.map(sec => {
             if (sec.id === activeSectionId) {
