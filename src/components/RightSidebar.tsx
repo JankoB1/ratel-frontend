@@ -178,11 +178,13 @@ export const extractFootnoteIds = (html: string) => {
 interface RightSidebarProps {
     /** ID trenutno aktivne sekcije — RightSidebar prikazuje approval tab samo ako je definisan. */
     activeSectionId?: number | null;
+    /** Broj strana aktivne sekcije (za page selector u rejection komentarima) */
+    activeSectionPageCount?: number;
     /** Pozvano kad approval action promeni status (refresh) */
     onApprovalChanged?: () => void;
 }
 
-const RightSidebar = ({ activeSectionId, onApprovalChanged }: RightSidebarProps = {}) => {
+const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalChanged }: RightSidebarProps = {}) => {
     const {
         selectedElement, updateElementSettings,
         isGroupingMode, setIsGroupingMode,
@@ -246,7 +248,7 @@ const RightSidebar = ({ activeSectionId, onApprovalChanged }: RightSidebarProps 
                     <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент</div>
                 )}
                 {activeTab === 'approval' && activeSectionId && (
-                    <ApprovalPanel sectionId={activeSectionId} onChanged={onApprovalChanged} />
+                    <ApprovalPanel sectionId={activeSectionId} pageCount={activeSectionPageCount} onChanged={onApprovalChanged} />
                 )}
                 {activeTab === 'groups' && (
                     <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент за групе</div>
@@ -472,7 +474,7 @@ const RightSidebar = ({ activeSectionId, onApprovalChanged }: RightSidebarProps 
 
             {/* Approval tab */}
             {activeTab === 'approval' && activeSectionId && (
-                <ApprovalPanel sectionId={activeSectionId} onChanged={onApprovalChanged} />
+                <ApprovalPanel sectionId={activeSectionId} pageCount={activeSectionPageCount} onChanged={onApprovalChanged} />
             )}
 
             {/* 2. НОВИ ДЕО: ТАБ "ГРУПЕ" */}

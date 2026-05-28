@@ -9,6 +9,8 @@ import AdminPage from "./pages/AdminPage.tsx";
 import LandingPage from "./pages/LandingPage.tsx";
 import GroupPreviewPage from "./pages/GroupPreviewPage.tsx";
 import InboxPage from "./pages/InboxPage.tsx";
+import CollectionPage from "./pages/CollectionPage.tsx";
+import QuarterlyPage from "./pages/QuarterlyPage.tsx";
 
 function App() {
     return (
@@ -40,6 +42,8 @@ function App() {
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/inbox" element={<InboxPage />} />
                         <Route path="/group/:id/preview" element={<GroupPreviewPage />} />
+                        <Route path="/collection/:id" element={<CollectionPage />} />
+                        <Route path="/quarterly" element={<QuarterlyPage />} />
                         <Route path="/document/:id/print" element={<PrintView />} />
                         <Route path="/document/:id/view" element={
                             <EditorProvider>

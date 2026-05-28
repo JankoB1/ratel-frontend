@@ -215,13 +215,31 @@ const PanelPage = () => {
             alert("❌ Немате привилегију да мењате ову секцију.");
             return;
         }
-        setIsSaving(true);
 
+        // Confirm pre snimanja ako je sekcija već odobrena — backend će automatski resetovati na draft.
+        if (activeSection?.approval_status === 'approved') {
+            const ok = confirm('Ова секција је већ одобрена. Чување измена ће поништити сва одобрења и вратити секцију у статус „у изради” (draft). Настављамо?');
+            if (!ok) return;
+        }
+
+        setIsSaving(true);
         try {
-            await axiosClient.put(`/api/sections/${activeSectionId}`, {
+            const { data } = await axiosClient.put(`/api/sections/${activeSectionId}`, {
                 canvas_data: activeSection.canvas_data
             });
-            alert("✅ Sekcija je uspešno sačuvana!");
+            // Backend može da je auto-resetovao status (kad je bila approved)
+            if (data?.approval_status) {
+                setSections(prev => prev.map(sec => sec.id === activeSectionId ? {
+                    ...sec,
+                    approval_status: data.approval_status,
+                    rejected_reason: data.approval_status === 'rejected' ? sec.rejected_reason : null,
+                } : sec));
+            }
+            if (data?.auto_reset) {
+                alert("✅ Сачувано. Сва претходна одобрења су поништена — секција је сада у статусу 'У изради'.");
+            } else {
+                alert("✅ Sekcija je uspešno sačuvana!");
+            }
         } catch (error: any) {
             if (error?.response?.status === 403) {
                 alert("❌ Немате привилегију да мењате ову секцију.");
@@ -717,6 +735,7 @@ const PanelPage = () => {
 
                 <RightSidebar
                     activeSectionId={activeSectionId}
+                    activeSectionPageCount={canvasData.length || 1}
                     onApprovalChanged={async () => {
                         if (!activeSectionId) return;
                         try {

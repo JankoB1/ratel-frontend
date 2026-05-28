@@ -355,21 +355,45 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
+interface LandingBoxConfig {
+    position: number;
+    title: string | null;
+    subtitle: string | null;
+    image_path: string | null;
+    link_type: 'none' | 'document' | 'collection' | 'quarterly';
+    link_url: string | null;
+    link_label: string | null;
+}
+
 const LandingPage = () => {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<SavedGroup[]>([]);
+    const [boxes, setBoxes] = useState<LandingBoxConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
 
     useEffect(() => {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
         const headers = { Accept: "application/json" };
-        fetch(`${backendUrl}/api/portal/saved-groups`, { headers })
-            .then(r => r.json())
-            .then((groupsData) => setGroups(groupsData.data ?? []))
+        Promise.all([
+            fetch(`${backendUrl}/api/portal/saved-groups`, { headers }).then(r => r.json()),
+            fetch(`${backendUrl}/api/portal/landing-boxes`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
+        ])
+            .then(([groupsData, boxesData]) => {
+                setGroups(groupsData.data ?? []);
+                setBoxes(boxesData.data ?? []);
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
+
+    // Helper: dohvati admin override za poziciju, ili koristi defaults
+    const boxAt = (pos: number) => boxes.find(b => b.position === pos) ?? null;
+    const openBox = (box: LandingBoxConfig | null, fallbackUrl?: string) => {
+        const url = box?.link_url || fallbackUrl;
+        if (!url) return;
+        window.open(url, '_blank');
+    };
 
     const query = search.toLowerCase();
     const visibleGroups = groups.filter(g => {
@@ -423,102 +447,116 @@ const LandingPage = () => {
                 */}
                 <div className="w-full grid grid-cols-2 grid-rows-2 lg:grid-cols-4 lg:grid-rows-2 gap-2.5 md:gap-3 h-[240px] sm:h-[280px] lg:h-[420px]">
 
-                    {/* COL 1: tall white card — row-span-2 on desktop only — link to preview doc #1 */}
-                    <button
-                        type="button"
-                        onClick={() => window.open('/document/1/view', '_blank')}
-                        className="lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
-                        style={{
-                            backgroundImage: `url(${trz1})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                        }}
-                    >
-                        {/* Soft white-to-transparent gradient so the text stays legible over the photo */}
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0) 65%)'
-                        }} />
-                        <p className="relative text-xs md:text-sm text-slate-700 font-semibold leading-snug">
-                            Погледајте комплетан<br />преглед тржишта 2025
-                        </p>
-                        {/* Hover arrow */}
-                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="w-7 h-7 bg-[#0056B3] rounded-full flex items-center justify-center shadow">
-                                <ChevronRight size={14} className="text-white" />
-                            </div>
-                        </div>
-                    </button>
+                    {/* COL 1 — pos 0 — tall white (light gradient) */}
+                    {(() => {
+                        const b = boxAt(0);
+                        const title = b?.title || 'Погледајте комплетан\nпреглед тржишта 2025';
+                        const image = b?.image_path || trz1;
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0) 65%)' }} />
+                                <p className="relative text-xs md:text-sm text-slate-700 font-semibold leading-snug whitespace-pre-line">{title}</p>
+                                {clickable && (
+                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="w-7 h-7 bg-[#0056B3] rounded-full flex items-center justify-center shadow">
+                                            <ChevronRight size={14} className="text-white" />
+                                        </div>
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })()}
 
-                    {/* COL 2 / ROW 1: main featured doc — trz2.png */}
-                    <div className="rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden" style={{
-                        backgroundImage: `url(${trz2})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
-                        {/* Dark gradient so white text stays legible */}
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)'
-                        }} />
-                        <p className="relative text-xs md:text-sm font-semibold leading-snug">
-                            Преглед тржишта електронских комуникација 2025
-                        </p>
-                    </div>
+                    {/* COL 2 / ROW 1 — pos 1 — blue/dark (dark gradient, white text) */}
+                    {(() => {
+                        const b = boxAt(1);
+                        const title = b?.title || 'Преглед тржишта електронских комуникација 2025';
+                        const image = b?.image_path || trz2;
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)' }} />
+                                <p className="relative text-xs md:text-sm font-semibold leading-snug whitespace-pre-line">{title}</p>
+                            </button>
+                        );
+                    })()}
 
-                    {/* COL 3: image — row-span-2 on desktop — trz3.png */}
-                    <div className="lg:row-span-2 rounded-2xl overflow-hidden relative" style={{
-                        backgroundImage: `url(${trz3})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)'
-                        }} />
-                        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
-                            <p className="text-white text-xs md:text-sm font-semibold">Квартални подаци</p>
-                        </div>
-                    </div>
+                    {/* COL 3 — pos 2 — tall dark (dark gradient, white text) */}
+                    {(() => {
+                        const b = boxAt(2);
+                        const title = b?.title || 'Квартални подаци';
+                        const image = b?.image_path || trz3;
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`lg:row-span-2 rounded-2xl overflow-hidden relative text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)' }} />
+                                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
+                                    <p className="text-white text-xs md:text-sm font-semibold whitespace-pre-line">{title}</p>
+                                </div>
+                            </button>
+                        );
+                    })()}
 
-                    {/* COL 4 / ROW 1: info bezbednost — server room / data security */}
-                    <div className="bg-[#E8F0FB] rounded-2xl p-3 md:p-5 flex flex-col justify-end relative overflow-hidden" style={{
-                        backgroundImage: 'url(https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
-                        }} />
-                        <p className="relative text-[10px] md:text-xs text-dark-blue font-semibold leading-snug">
-                            Преглед тржишта<br />информациона<br />безбедност 2025
-                        </p>
-                    </div>
+                    {/* COL 4 / ROW 1 — pos 3 — small light (light gradient, dark text) */}
+                    {(() => {
+                        const b = boxAt(3);
+                        const title = b?.title || 'Преглед тржишта\nинформациона\nбезбедност 2025';
+                        const image = b?.image_path || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80';
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`bg-[#E8F0FB] rounded-2xl p-3 md:p-5 flex flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
+                                <p className="relative text-[10px] md:text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
+                            </button>
+                        );
+                    })()}
 
-                    {/* COL 2 / ROW 2: hidden on mobile — poštanske usluge — parcels / packages */}
-                    <div className="hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden" style={{
-                        backgroundImage: 'url(https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=600&q=80)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
-                        }} />
-                        <p className="relative text-xs text-dark-blue font-semibold leading-snug">
-                            Преглед тржишта<br />поштанских<br />услуга 2025
-                        </p>
-                    </div>
+                    {/* COL 2 / ROW 2 — pos 4 — hidden on mobile, small light */}
+                    {(() => {
+                        const b = boxAt(4);
+                        const title = b?.title || 'Преглед тржишта\nпоштанских\nуслуга 2025';
+                        const image = b?.image_path || 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=600&q=80';
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
+                                <p className="relative text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
+                            </button>
+                        );
+                    })()}
 
-                    {/* COL 4 / ROW 2: hidden on mobile — prethodni pregledi — analytics dashboard / reports */}
-                    <div className="hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden" style={{
-                        backgroundImage: 'url(https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}>
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                            background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)'
-                        }} />
-                        <p className="relative text-xs text-dark-blue font-semibold leading-snug">
-                            Погледајте претходне<br />прегледе тржишта
-                        </p>
-                    </div>
+                    {/* COL 4 / ROW 2 — pos 5 — hidden on mobile, small light */}
+                    {(() => {
+                        const b = boxAt(5);
+                        const title = b?.title || 'Погледајте претходне\nпрегледе тржишта';
+                        const image = b?.image_path || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
+                                <p className="relative text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
+                            </button>
+                        );
+                    })()}
                 </div>
             </section>
 

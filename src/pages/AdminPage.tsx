@@ -5,7 +5,8 @@ import {
     LayoutDashboard, FolderOpen, Users, Bell, Search,
     ChevronDown, Plus, MoreHorizontal, FileText, Loader2, Trash2,
     PenLine, Eye, TrendingUp, Clock, AlertCircle, X, Check,
-    ShieldCheck, FileStack, ChevronUp, KeyRound, Tag, Activity
+    ShieldCheck, FileStack, ChevronUp, KeyRound, Tag, Activity, LayoutTemplate,
+    Upload, Link2, ListChecks
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import axiosClient from "../axios-client";
@@ -29,6 +30,11 @@ interface DocItem {
     type: string;
     category_id: number | null;
     category: { id: number; name: string; slug: string; color: string; icon: string | null } | null;
+    is_quarterly?: boolean;
+    q_category?: 'electronic_communications' | 'postal_services' | null;
+    q_subtype?: 'overview' | 'mobile' | 'porting' | null;
+    q_year?: number | null;
+    q_quarter?: number | null;
     sections_count: number;
     updated_at: string;
     created_at: string;
@@ -132,7 +138,7 @@ interface UserPermissionDoc {
     sections: { id: number; title: string; order: number; can_edit: boolean }[];
 }
 
-type TabKey = "dashboard" | "documents" | "approvals" | "users";
+type TabKey = "dashboard" | "documents" | "approvals" | "landing" | "users";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     draft: { label: "У изради", color: "text-orange-500 bg-orange-50" },
@@ -158,72 +164,163 @@ function timeAgo(iso: string | null) {
 
 // ── Modal za kreiranje dokumenta ──────────────────────────────────────────────
 
+interface QuarterlyPayload {
+    is_quarterly: true;
+    q_category: 'electronic_communications' | 'postal_services';
+    q_subtype: 'overview' | 'mobile' | 'porting' | null;
+    q_year: number;
+    q_quarter: number;
+}
+type CreateDocPayload =
+    | { is_quarterly: false; category_id: number }
+    | QuarterlyPayload;
+
 interface CreateModalProps {
     categories: Category[];
     onClose: () => void;
-    onCreate: (title: string, categoryId: number) => Promise<void>;
+    onCreate: (title: string, payload: CreateDocPayload) => Promise<void>;
 }
+
+const Q_SUBTYPES_EC = [
+    { value: 'overview', label: 'Преглед тржишта електронских комуникација у Републици Србији' },
+    { value: 'mobile',   label: 'Приказ мобилних мрежа оператора' },
+    { value: 'porting',  label: 'Преглед преноса бројева по операторима фиксне и мобилне телефоније' },
+] as const;
 
 const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
     const [title, setTitle] = useState("");
+    const [isQuarterly, setIsQuarterly] = useState(false);
     const [categoryId, setCategoryId] = useState<number | null>(categories[0]?.id ?? null);
+    const [qCategory, setQCategory] = useState<'electronic_communications' | 'postal_services'>('electronic_communications');
+    const [qSubtype, setQSubtype] = useState<'overview' | 'mobile' | 'porting'>('overview');
+    const currentYear = new Date().getFullYear();
+    const [qYear, setQYear] = useState<number>(currentYear);
+    const [qQuarter, setQQuarter] = useState<1 | 2 | 3 | 4>(1);
     const [saving, setSaving] = useState(false);
+
+    const canSubmit = (() => {
+        if (!title.trim()) return false;
+        if (isQuarterly) return !!qCategory && !!qYear && !!qQuarter;
+        return !!categoryId;
+    })();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !categoryId) return;
+        if (!canSubmit) return;
         setSaving(true);
-        await onCreate(title.trim(), categoryId);
-        setSaving(false);
+        try {
+            if (isQuarterly) {
+                await onCreate(title.trim(), {
+                    is_quarterly: true,
+                    q_category: qCategory,
+                    q_subtype: qCategory === 'electronic_communications' ? qSubtype : null,
+                    q_year: qYear,
+                    q_quarter: qQuarter,
+                });
+            } else {
+                await onCreate(title.trim(), { is_quarterly: false, category_id: categoryId! });
+            }
+        } finally { setSaving(false); }
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-extrabold text-lg text-dark-blue">Novi dokument</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-                        <X size={18} />
-                    </button>
+                    <h2 className="font-extrabold text-lg text-dark-blue">Нови документ</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naziv</label>
-                        <input
-                            autoFocus
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            placeholder="npr. Godišnji izveštaj 2026"
-                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition"
-                        />
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив</label>
+                        <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+                            placeholder="нпр. Преглед тржишта Q1 2026"
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
-                    <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Категорија</label>
-                        {categories.length === 0 ? (
-                            <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                                Нема категорија. Прво направите категорију кроз управљачку секцију.
+
+                    {/* Quarterly toggle */}
+                    <label className="flex items-center gap-3 cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+                        <input type="checkbox" checked={isQuarterly} onChange={e => setIsQuarterly(e.target.checked)} className="w-4 h-4 accent-[#0056B3]" />
+                        <Activity size={16} className={isQuarterly ? "text-[#0056B3]" : "text-slate-300"} />
+                        <span className="text-sm font-bold text-slate-700">Квартални извештај</span>
+                    </label>
+
+                    {/* Conditional fields */}
+                    {!isQuarterly ? (
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Категорија</label>
+                            {categories.length === 0 ? (
+                                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                                    Нема категорија. Прво направите категорију.
+                                </div>
+                            ) : (
+                                <select value={categoryId ?? ''} onChange={e => setCategoryId(Number(e.target.value))}
+                                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Категорија квартала</label>
+                                <div className="flex gap-2">
+                                    {([
+                                        { value: 'electronic_communications', label: 'Електронске комуникације' },
+                                        { value: 'postal_services',           label: 'Поштанске услуге' },
+                                    ] as const).map(opt => (
+                                        <button key={opt.value} type="button" onClick={() => setQCategory(opt.value)}
+                                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold border transition ${qCategory===opt.value ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        ) : (
-                            <select
-                                value={categoryId ?? ''}
-                                onChange={e => setCategoryId(Number(e.target.value))}
-                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition bg-white"
-                            >
-                                {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
+
+                            {qCategory === 'electronic_communications' && (
+                                <div>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Подкатегорија</label>
+                                    <select value={qSubtype} onChange={e => setQSubtype(e.target.value as any)}
+                                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                                        {Q_SUBTYPES_EC.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Година</label>
+                                    <select value={qYear} onChange={e => setQYear(Number(e.target.value))}
+                                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                                        {Array.from({ length: 6 }, (_, i) => currentYear + 1 - i).map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Квартал</label>
+                                    <div className="flex gap-1">
+                                        {[1,2,3,4].map(q => (
+                                            <button key={q} type="button" onClick={() => setQQuarter(q as any)}
+                                                className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${qQuarter===q ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                                Q{q}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
                             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">
-                            Otkaži
+                            Откажи
                         </button>
-                        <button type="submit" disabled={!title.trim() || !categoryId || saving}
+                        <button type="submit" disabled={!canSubmit || saving}
                             className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
                             {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                            Kreiraj
+                            Креирај
                         </button>
                     </div>
                 </form>
@@ -238,6 +335,55 @@ interface CreateUserModalProps {
     onClose: () => void;
     onCreate: (name: string, email: string, password: string, isAdmin: boolean, role: UserRole) => Promise<string | null>;
 }
+
+// ── Rename Document Modal ─────────────────────────────────────────────────────
+
+interface RenameDocModalProps {
+    doc: DocItem;
+    onClose: () => void;
+    onSave: (id: number, title: string) => Promise<void>;
+}
+
+const RenameDocModal = ({ doc, onClose, onSave }: RenameDocModalProps) => {
+    const [title, setTitle] = useState(doc.title);
+    const [saving, setSaving] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || title.trim() === doc.title) { onClose(); return; }
+        setSaving(true);
+        try {
+            await onSave(doc.id, title.trim());
+            onClose();
+        } finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={18} className="text-[#0056B3]" /> Преименуј документ</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив документа</label>
+                        <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
+                    </div>
+                    <div className="flex gap-3 mt-2">
+                        <button type="button" onClick={onClose}
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Откажи</button>
+                        <button type="submit" disabled={!title.trim() || saving}
+                            className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 const CreateUserModal = ({ onClose, onCreate }: CreateUserModalProps) => {
     const [name, setName] = useState("");
@@ -990,13 +1136,14 @@ const PortalDropdown = ({ anchorRef, open, onClose, children }: { anchorRef: Rea
 
 interface DocCardMenuProps {
     onEdit: () => void;
+    onRename: () => void;
     onView: () => void;
     onSections: () => void;
     onDelete: () => void;
     sectionsCount: number;
 }
 
-const DocCardMenu = ({ onEdit, onView, onSections, onDelete, sectionsCount }: DocCardMenuProps) => {
+const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, sectionsCount }: DocCardMenuProps) => {
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -1015,6 +1162,10 @@ const DocCardMenu = ({ onEdit, onView, onSections, onDelete, sectionsCount }: Do
                 <button onClick={() => { close(); onEdit(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
                     <PenLine size={14} className="text-blue-500" /> Уреди
+                </button>
+                <button onClick={() => { close(); onRename(); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
+                    <Tag size={14} className="text-blue-500" /> Преименуј
                 </button>
                 <button onClick={() => { close(); onView(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
@@ -1146,6 +1297,440 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
     );
 };
 
+// ── Landing Boxes + Collections (Почетна tab) ──────────────────────────────────
+
+interface LandingBox {
+    id: number;
+    position: number;
+    title: string | null;
+    subtitle: string | null;
+    image_path: string | null;
+    link_type: 'none' | 'document' | 'collection' | 'quarterly';
+    link_document_id: number | null;
+    link_collection_id: number | null;
+}
+
+interface CollectionItem {
+    id: number;
+    name: string;
+    document_id: number;
+    document: { id: number; title: string } | null;
+    section_ids: number[];
+    updated_at: string;
+}
+
+const BOX_DEFAULTS: Record<number, { title: string; style: string }> = {
+    0: { title: 'Погледајте комплетан\nпреглед тржишта 2025', style: 'tall light' },
+    1: { title: 'Преглед тржишта електронских комуникација 2025', style: 'dark' },
+    2: { title: 'Квартални подаци', style: 'tall dark' },
+    3: { title: 'Преглед тржишта\nинформациона\nбезбедност 2025', style: 'light' },
+    4: { title: 'Преглед тржишта\nпоштанских\nуслуга 2025', style: 'light' },
+    5: { title: 'Погледајте претходне\nпрегледе тржишта', style: 'light' },
+};
+
+const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
+    const [boxes, setBoxes] = useState<LandingBox[]>([]);
+    const [collections, setCollections] = useState<CollectionItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editingBox, setEditingBox] = useState<LandingBox | null>(null);
+    const [showCollectionsManager, setShowCollectionsManager] = useState(false);
+
+    const loadAll = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [boxesRes, colsRes] = await Promise.all([
+                axiosClient.get('/api/admin/landing-boxes'),
+                axiosClient.get('/api/admin/collections'),
+            ]);
+            setBoxes(boxesRes.data.data || []);
+            setCollections(colsRes.data.data || []);
+        } finally { setLoading(false); }
+    }, []);
+
+    useEffect(() => { loadAll(); }, [loadAll]);
+
+    return (
+        <div className="flex flex-col gap-5">
+            {/* Boxovi grid preview */}
+            <div className="bg-white border border-slate-100 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="font-extrabold text-sm text-dark-blue">Hero боксови (6 позиција)</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Кликни на бокс да измениш наслов, слику и линк</p>
+                    </div>
+                    <button onClick={() => setShowCollectionsManager(true)}
+                        className="text-xs font-bold text-[#0056B3] border border-[#0056B3] px-3 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-1.5">
+                        <ListChecks size={13} /> Колекције ({collections.length})
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {[0,1,2,3,4,5].map(pos => {
+                            const b = boxes.find(x => x.position === pos);
+                            const def = BOX_DEFAULTS[pos];
+                            const linkInfo = b?.link_type === 'document'
+                                ? documents.find(d => d.id === b.link_document_id)?.title
+                                : b?.link_type === 'collection'
+                                    ? collections.find(c => c.id === b.link_collection_id)?.name
+                                    : null;
+                            return (
+                                <button key={pos} onClick={() => setEditingBox(b || { id: 0, position: pos, title: null, subtitle: null, image_path: null, link_type: 'none', link_document_id: null, link_collection_id: null })}
+                                    className="flex flex-col gap-2 p-3 border border-slate-200 rounded-xl hover:border-[#0056B3] hover:bg-slate-50 transition text-left">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-white bg-[#0056B3] px-2 py-0.5 rounded">Pos {pos}</span>
+                                        <span className="text-[10px] text-slate-400 uppercase tracking-wide">{def.style}</span>
+                                    </div>
+                                    {b?.image_path && (
+                                        <img src={b.image_path} alt="" className="w-full h-20 object-cover rounded-lg border border-slate-100" />
+                                    )}
+                                    {!b?.image_path && (
+                                        <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] text-slate-400">подразумевана слика</div>
+                                    )}
+                                    <div className="text-xs font-bold text-dark-blue whitespace-pre-line line-clamp-3">
+                                        {b?.title || def.title}
+                                    </div>
+                                    {linkInfo ? (
+                                        <div className="text-[11px] text-[#0056B3] font-semibold flex items-center gap-1 truncate">
+                                            <Link2 size={11} /> {linkInfo}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[11px] text-slate-400">Без линка</div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {editingBox && (
+                <LandingBoxEditModal
+                    box={editingBox}
+                    documents={documents}
+                    collections={collections}
+                    onClose={() => setEditingBox(null)}
+                    onSaved={() => { setEditingBox(null); loadAll(); }}
+                />
+            )}
+
+            {showCollectionsManager && (
+                <CollectionsManagerModal
+                    documents={documents}
+                    onClose={() => setShowCollectionsManager(false)}
+                    onChange={loadAll}
+                />
+            )}
+        </div>
+    );
+};
+
+const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: {
+    box: LandingBox; documents: DocItem[]; collections: CollectionItem[];
+    onClose: () => void; onSaved: () => void;
+}) => {
+    const [title, setTitle] = useState(box.title ?? '');
+    const [linkType, setLinkType] = useState<'none'|'document'|'collection'|'quarterly'>(box.link_type);
+    const [linkDocId, setLinkDocId] = useState<number | null>(box.link_document_id);
+    const [linkCollId, setLinkCollId] = useState<number | null>(box.link_collection_id);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(box.image_path);
+    const [saving, setSaving] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setImageFile(f);
+        setImagePreview(URL.createObjectURL(f));
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            // 1. Upload image first if a new file was selected
+            if (imageFile) {
+                const fd = new FormData();
+                fd.append('image', imageFile);
+                await axiosClient.post(`/api/admin/landing-boxes/${box.position}/image`, fd, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            }
+            // 2. Save other fields
+            await axiosClient.put(`/api/admin/landing-boxes/${box.position}`, {
+                title: title.trim() || null,
+                link_type: linkType,
+                link_document_id: linkType === 'document' ? linkDocId : null,
+                link_collection_id: linkType === 'collection' ? linkCollId : null,
+            });
+            onSaved();
+        } catch (e: any) {
+            alert('Грешка: ' + (e?.response?.data?.message || e.message));
+        } finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2">
+                        <LayoutTemplate size={18} className="text-[#0056B3]" /> Уреди бокс — позиција {box.position}
+                    </h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                    {/* Title */}
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Наслов (празно = подразумевано)</label>
+                        <textarea value={title} onChange={e => setTitle(e.target.value)}
+                            placeholder={BOX_DEFAULTS[box.position].title}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] resize-none"
+                            rows={3} />
+                    </div>
+
+                    {/* Image */}
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Слика позадине</label>
+                        {imagePreview && (
+                            <img src={imagePreview} alt="" className="w-full h-32 object-cover rounded-lg border border-slate-200 mb-2" />
+                        )}
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                        <button type="button" onClick={() => fileInputRef.current?.click()}
+                            className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 font-bold hover:border-[#0056B3] hover:bg-blue-50 transition flex items-center justify-center gap-2">
+                            <Upload size={13} /> {imagePreview ? 'Замени слику' : 'Изабери слику'}
+                        </button>
+                    </div>
+
+                    {/* Link type */}
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Линк</label>
+                        <div className="flex gap-2">
+                            {(['none','document','collection','quarterly'] as const).map(t => (
+                                <button key={t} type="button" onClick={() => setLinkType(t)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${linkType===t ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                    {t==='none' ? 'Без' : t==='document' ? 'Документ' : t==='collection' ? 'Колекција' : 'Квартални'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Document picker */}
+                    {linkType === 'document' && (
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Изабери документ</label>
+                            <select value={linkDocId ?? ''} onChange={e => setLinkDocId(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                                <option value="">— изабери —</option>
+                                {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Collection picker */}
+                    {linkType === 'collection' && (
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Изабери колекцију</label>
+                            <select value={linkCollId ?? ''} onChange={e => setLinkCollId(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                                <option value="">— изабери —</option>
+                                {collections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.document?.title})</option>)}
+                            </select>
+                            {collections.length === 0 && (
+                                <p className="text-[11px] text-amber-600 mt-1">Прво направи колекцију у „Колекције" дугмету.</p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 mt-2">
+                        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Откажи</button>
+                        <button onClick={handleSave} disabled={saving}
+                            className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ── Collections Manager Modal ─────────────────────────────────────────────────
+
+const CollectionsManagerModal = ({ documents, onClose, onChange }: {
+    documents: DocItem[]; onClose: () => void; onChange: () => void;
+}) => {
+    const [collections, setCollections] = useState<CollectionItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editing, setEditing] = useState<CollectionItem | 'new' | null>(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const { data } = await axiosClient.get('/api/admin/collections');
+            setCollections(data.data || []);
+        } finally { setLoading(false); }
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    const handleDelete = async (id: number) => {
+        if (!confirm('Обриши ову колекцију?')) return;
+        await axiosClient.delete(`/api/admin/collections/${id}`);
+        await load();
+        onChange();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-5">
+                    <div>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><ListChecks size={20} className="text-[#0056B3]" /> Колекције</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Именован подскуп секција једног документа</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                </div>
+
+                <button onClick={() => setEditing('new')}
+                    className="self-start mb-4 px-4 py-2 rounded-xl bg-[#0056B3] text-white text-xs font-bold hover:bg-blue-700 flex items-center gap-2">
+                    <Plus size={13} /> Нова колекција
+                </button>
+
+                <div className="flex-1 overflow-y-auto">
+                    {loading ? (
+                        <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
+                    ) : collections.length === 0 ? (
+                        <div className="text-center py-12 text-slate-300 text-sm">Још увек нема ниједне колекције</div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            {collections.map(c => (
+                                <div key={c.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl hover:bg-slate-50 group">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-sm text-dark-blue truncate">{c.name}</div>
+                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} секција</div>
+                                    </div>
+                                    <button onClick={() => setEditing(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50"><PenLine size={13} /></button>
+                                    <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {editing && (
+                    <CollectionEditModal
+                        collection={editing === 'new' ? null : editing}
+                        documents={documents}
+                        onClose={() => setEditing(null)}
+                        onSaved={() => { setEditing(null); load(); onChange(); }}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+
+const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
+    collection: CollectionItem | null; documents: DocItem[];
+    onClose: () => void; onSaved: () => void;
+}) => {
+    const [name, setName] = useState(collection?.name ?? '');
+    const [docId, setDocId] = useState<number | null>(collection?.document_id ?? null);
+    const [sectionIds, setSectionIds] = useState<number[]>(collection?.section_ids ?? []);
+    const [docSections, setDocSections] = useState<{id:number; title:string; order:number}[]>([]);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!docId) { setDocSections([]); return; }
+        let cancelled = false;
+        axiosClient.get(`/api/admin/documents/${docId}/sections`).then(({ data }) => {
+            if (!cancelled) setDocSections(data.data || []);
+        });
+        return () => { cancelled = true; };
+    }, [docId]);
+
+    const toggleSection = (id: number) => {
+        setSectionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const handleSave = async () => {
+        if (!name.trim() || !docId || sectionIds.length === 0) {
+            alert('Унеси име, изабери документ и бар једну секцију.');
+            return;
+        }
+        setSaving(true);
+        try {
+            const payload = { name: name.trim(), document_id: docId, section_ids: sectionIds };
+            if (collection) await axiosClient.put(`/api/admin/collections/${collection.id}`, payload);
+            else            await axiosClient.post('/api/admin/collections', payload);
+            onSaved();
+        } catch (e: any) {
+            alert('Грешка: ' + (e?.response?.data?.message || e.message));
+        } finally { setSaving(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="font-extrabold text-lg text-dark-blue">{collection ? 'Уреди колекцију' : 'Нова колекција'}</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+                </div>
+
+                <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив колекције</label>
+                        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3]" />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Документ</label>
+                        <select value={docId ?? ''} onChange={e => { const v = e.target.value ? Number(e.target.value) : null; setDocId(v); setSectionIds([]); }}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
+                            <option value="">— изабери —</option>
+                            {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                        </select>
+                    </div>
+
+                    {docId && (
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">
+                                Секције ({sectionIds.length} изабрано)
+                            </label>
+                            {docSections.length === 0 ? (
+                                <div className="text-xs text-slate-400 italic py-4 text-center">Учитавам...</div>
+                            ) : (
+                                <div className="border border-slate-100 rounded-xl divide-y divide-slate-50 max-h-64 overflow-y-auto">
+                                    {docSections.map(s => (
+                                        <label key={s.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                                            <input type="checkbox" checked={sectionIds.includes(s.id)} onChange={() => toggleSection(s.id)}
+                                                className="w-4 h-4 accent-[#0056B3]" />
+                                            <span className="text-xs font-bold text-slate-300 w-6">{s.order}.</span>
+                                            <span className="text-sm text-slate-700">{s.title}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex gap-3 mt-5 pt-5 border-t border-slate-100">
+                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Откажи</button>
+                    <button onClick={handleSave} disabled={saving || !name.trim() || !docId || sectionIds.length === 0}
+                        className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ── Main AdminPage ─────────────────────────────────────────────────────────────
 
 const AdminPage = () => {
@@ -1167,6 +1752,7 @@ const AdminPage = () => {
     const [showCategoriesManager, setShowCategoriesManager] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [sectionsDoc, setSectionsDoc] = useState<DocItem | null>(null);
+    const [renameDoc, setRenameDoc] = useState<DocItem | null>(null);
     const [editingUser, setEditingUser] = useState<UserItem | null>(null);
     const [permissionsUser, setPermissionsUser] = useState<UserItem | null>(null);
 
@@ -1220,8 +1806,8 @@ const AdminPage = () => {
         await loadDocuments(cat);
     };
 
-    const handleCreateDocument = async (title: string, categoryId: number) => {
-        await axiosClient.post("/api/admin/documents", { title, category_id: categoryId });
+    const handleCreateDocument = async (title: string, payload: CreateDocPayload) => {
+        await axiosClient.post("/api/admin/documents", { title, ...payload });
         setShowCreateModal(false);
         await Promise.all([loadStats(), loadDocuments(categoryFilter), loadCategories()]);
     };
@@ -1230,6 +1816,11 @@ const AdminPage = () => {
         if (!confirm("Da li ste sigurni da želite da obrišete ovaj dokument?")) return;
         await axiosClient.delete(`/api/admin/documents/${id}`);
         await Promise.all([loadStats(), loadDocuments(categoryFilter), loadCategories()]);
+    };
+
+    const handleRenameDocument = async (id: number, title: string) => {
+        await axiosClient.put(`/api/admin/documents/${id}`, { title });
+        await loadDocuments(categoryFilter);
     };
 
     const handleCreateUser = async (name: string, email: string, password: string, isAdmin: boolean, role: UserRole): Promise<string | null> => {
@@ -1314,6 +1905,7 @@ const AdminPage = () => {
                         { key: "dashboard" as TabKey, label: "Преглед", icon: LayoutDashboard },
                         { key: "documents" as TabKey, label: "Пројекти", icon: FolderOpen },
                         { key: "approvals" as TabKey, label: "Одобравања", icon: ShieldCheck },
+                        { key: "landing" as TabKey,  label: "Почетна",     icon: LayoutTemplate },
                         { key: "users" as TabKey, label: "Корисници", icon: Users },
                     ].map(({ key, label, icon: Icon }) => (
                         <button
@@ -1429,6 +2021,7 @@ const AdminPage = () => {
                                 {activeTab === "dashboard" ? "Преглед" :
                                  activeTab === "users"     ? "Корисници" :
                                  activeTab === "approvals" ? "Одобравања по документу" :
+                                 activeTab === "landing"   ? "Почетна страна" :
                                                              "Пројекти"}
                             </h1>
                             <p className="text-sm text-slate-400 mt-0.5">
@@ -1563,7 +2156,12 @@ const AdminPage = () => {
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="flex-1 min-w-0">
                                                             <h3 className="font-extrabold text-sm text-dark-blue truncate">{doc.title}</h3>
-                                                            {doc.category ? (
+                                                            {doc.is_quarterly ? (
+                                                                <p className="text-xs mt-0.5 inline-flex items-center gap-1.5 font-semibold text-amber-700">
+                                                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-[10px] font-bold">Q{doc.q_quarter} {doc.q_year}</span>
+                                                                    {doc.q_category === 'electronic_communications' ? 'Електронске комуникације' : 'Поштанске услуге'}
+                                                                </p>
+                                                            ) : doc.category ? (
                                                                 <p className="text-xs mt-0.5 inline-flex items-center gap-1.5 font-semibold" style={{ color: doc.category.color }}>
                                                                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: doc.category.color }} />
                                                                     {doc.category.name}
@@ -1575,6 +2173,7 @@ const AdminPage = () => {
                                                         <DocCardMenu
                                                             sectionsCount={doc.sections_count}
                                                             onEdit={() => handleOpenEditor(doc.id)}
+                                                            onRename={() => setRenameDoc(doc)}
                                                             onView={() => handleOpenView(doc.id)}
                                                             onSections={() => setSectionsDoc(doc)}
                                                             onDelete={() => handleDeleteDocument(doc.id)}
@@ -1599,6 +2198,11 @@ const AdminPage = () => {
                     {/* ── Approvals tab ── */}
                     {activeTab === "approvals" && (
                         <ApprovalsOverview documents={documents} />
+                    )}
+
+                    {/* ── Landing (Почетна) tab ── */}
+                    {activeTab === "landing" && (
+                        <LandingBoxesTab documents={documents} />
                     )}
 
                     {/* ── Users tab ── */}
@@ -1701,6 +2305,11 @@ const AdminPage = () => {
             {/* ── Sections modal ── */}
             {sectionsDoc && (
                 <SectionsModal doc={sectionsDoc} onClose={() => { setSectionsDoc(null); loadDocuments(categoryFilter); }} />
+            )}
+
+            {/* ── Rename document modal ── */}
+            {renameDoc && (
+                <RenameDocModal doc={renameDoc} onClose={() => setRenameDoc(null)} onSave={handleRenameDocument} />
             )}
 
             {/* ── Permissions modal ── */}

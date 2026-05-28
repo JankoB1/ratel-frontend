@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, Layers, X } from "lucide-react";
 import { DocumentPage, buildMaps } from "../components/DocumentPageView";
+import SectionListSidebar from "../components/SectionListSidebar";
 import logo from "../assets/logo.svg";
 
 // Thumbnail dimensions: scale down A4 (794×1123px) to fit sidebar
@@ -337,13 +338,11 @@ const ViewPage = () => {
                 </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════
-                SECTION TABS (both desktop & mobile)
-            ═══════════════════════════════════════════════ */}
-            <div className="px-4 md:px-8 py-2 md:pb-4 shrink-0">
+            {/* Mobile-only section tabs (kept horizontal on mobile; desktop has right sidebar) */}
+            <div className="md:hidden px-4 py-2 shrink-0">
                 <div
                     ref={sectionTabsRef}
-                    className="flex items-center gap-1 md:gap-1.5 bg-white rounded-2xl px-2 md:px-2.5 py-1.5 md:py-2 border border-slate-100 shadow-sm overflow-x-auto"
+                    className="flex items-center gap-1 bg-white rounded-2xl px-2 py-1.5 border border-slate-100 shadow-sm overflow-x-auto"
                     style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
                 >
                     {sections.map(section => (
@@ -351,7 +350,7 @@ const ViewPage = () => {
                             key={section.id}
                             data-section-id={section.id}
                             onClick={() => handleSectionChange(section.id)}
-                            className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wide transition-all whitespace-nowrap shrink-0 ${
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all whitespace-nowrap shrink-0 ${
                                 activeSectionId === section.id
                                     ? "bg-[#0056B3] text-white shadow-sm"
                                     : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
@@ -442,6 +441,17 @@ const ViewPage = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                {/* Section list sidebar (right) — desktop only */}
+                <div className="hidden md:block pt-2 pb-2">
+                    <SectionListSidebar
+                        sections={sections}
+                        activeSectionId={activeSectionId}
+                        onPick={(id) => handleSectionChange(id)}
+                        currentPageIndex={currentPage}
+                        totalPages={activePages.length}
+                    />
                 </div>
             </div>
 
