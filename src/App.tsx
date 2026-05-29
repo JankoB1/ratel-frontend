@@ -11,6 +11,7 @@ import GroupPreviewPage from "./pages/GroupPreviewPage.tsx";
 import InboxPage from "./pages/InboxPage.tsx";
 import CollectionPage from "./pages/CollectionPage.tsx";
 import QuarterlyPage from "./pages/QuarterlyPage.tsx";
+import DashboardPage from "./pages/DashboardPage.tsx";
 
 function App() {
     return (
@@ -39,6 +40,7 @@ function App() {
                             }
                         />
 
+                        <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="/inbox" element={<InboxPage />} />
                         <Route path="/group/:id/preview" element={<GroupPreviewPage />} />

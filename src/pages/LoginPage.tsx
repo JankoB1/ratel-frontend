@@ -32,15 +32,15 @@ const LoginPage = () => {
         // Slanje zahteva na server
         try {
             await login({ email, password });
-            // Role-aware redirect: admin → /admin, reviewer → /inbox, editor/legacy → /panel
+            // Role-aware redirect: admin → /admin, svi ne-admin → /dashboard (моја поглавља).
+            // Reviewer-i imaju link na /inbox unutar dashboard-a kad žele да одобравaju.
             await getUser();
             try {
                 const { default: ax } = await import('../axios-client');
                 const me = (await ax.get('/api/user')).data as { is_admin?: boolean; role?: string | null };
-                if (me?.is_admin)                                             navigate('/admin');
-                else if (['rukovodilac', 'direktor', 'kabinet'].includes(me?.role || '')) navigate('/inbox');
-                else                                                          navigate('/panel');
-            } catch { navigate('/panel'); }
+                if (me?.is_admin) navigate('/admin');
+                else              navigate('/dashboard');
+            } catch { navigate('/dashboard'); }
         } catch (err: any) {
             if (err.response && err.response.status === 422) {
                 setError("Погрешан е-маил или лозинка. Проверите податке.");
