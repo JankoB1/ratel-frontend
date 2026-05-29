@@ -83,12 +83,12 @@ const ROLE_LABEL_MAP: Record<string, string> = {
 const roleLabel = (role: UserRole) => role ? (ROLE_LABEL_MAP[role] ?? role) : 'Без улоге';
 
 const permissionLabelForRole = (role: UserRole, isAdmin: boolean): string => {
-    if (isAdmin) return 'Администратор — приступ свим секцијама';
-    if (role === 'editor') return 'Уредник — секције које сме да едитује';
-    if (role === 'rukovodilac') return 'Руководилац — секције које сме да одобри';
-    if (role === 'direktor')    return 'Директор — секције које сме да одобри';
-    if (role === 'kabinet')     return 'Кабинет — секције које сме да одобри';
-    return 'Корисник нема улогу — додели улогу да би могао нешто да ради са секцијама';
+    if (isAdmin) return 'Администратор — приступ свим поглављима';
+    if (role === 'editor') return 'Уредник — поглавља које сме да едитује';
+    if (role === 'rukovodilac') return 'Руководилац — поглавља које сме да одобри';
+    if (role === 'direktor')    return 'Директор — поглавља које сме да одобри';
+    if (role === 'kabinet')     return 'Кабинет — поглавља које сме да одобри';
+    return 'Корисник нема улогу — додели улогу да би могао нешто да ради са поглављима';
 };
 
 interface ApprovalStage {
@@ -616,7 +616,7 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
     };
 
     const handleDelete = async (sectionId: number) => {
-        if (!confirm("Da li ste sigurni da želite da obrišete ovu sekciju?")) return;
+        if (!confirm("Da li ste sigurni da želite da obrišete ovo poglavlje?")) return;
         await axiosClient.delete(`/api/admin/sections/${sectionId}`);
         await load();
     };
@@ -640,14 +640,14 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
             <div className="bg-white rounded-2xl p-8 w-full max-w-6xl max-h-[90vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-2">
                     <div>
-                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><FileStack size={20} className="text-[#0056B3]" /> Секције документа</h2>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><FileStack size={20} className="text-[#0056B3]" /> Поглавља документа</h2>
                         <p className="text-sm text-slate-400 mt-0.5">{doc.title}</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
 
                 <form onSubmit={handleAdd} className="flex gap-2 mt-5">
-                    <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назив нове секције..."
+                    <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назив новог поглавља..."
                         className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     <button type="submit" disabled={!newTitle.trim() || adding}
                         className="px-5 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center gap-2">
@@ -659,13 +659,13 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
                     {loading ? (
                         <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
                     ) : sections.length === 0 ? (
-                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Нема секција</div>
+                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Нема поглавља</div>
                     ) : (
                         <table className="w-full text-sm border-separate border-spacing-0">
                             <thead>
                                 <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
                                     <th className="px-2 py-2 w-8"></th>
-                                    <th className="px-2 py-2">Секција</th>
+                                    <th className="px-2 py-2">Поглавље</th>
                                     <th className="px-2 py-2">Статус</th>
                                     <th className="px-2 py-2">Уредник</th>
                                     <th className="px-2 py-2">Руководилац</th>
@@ -802,7 +802,7 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
             <div className="bg-white rounded-2xl p-8 w-full max-w-3xl max-h-[85vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><KeyRound size={20} className="text-[#0056B3]" /> {user.is_admin ? 'Привилегије' : `Додели секције — ${roleLabel(user.role)}`}</h2>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><KeyRound size={20} className="text-[#0056B3]" /> {user.is_admin ? 'Привилегије' : `Додели поглавља — ${roleLabel(user.role)}`}</h2>
                         <p className="text-sm text-slate-400 mt-0.5">{user.name} — {user.email}</p>
                         {!user.is_admin && (
                             <p className="text-xs text-slate-500 mt-1.5 italic">{permissionLabelForRole(user.role, false)}</p>
@@ -813,13 +813,13 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
 
                 {user.is_admin && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 font-semibold mb-4 flex items-center gap-2">
-                        <ShieldCheck size={14} /> Овај корисник је администратор — има пуни приступ свим секцијама и одобрава последњи у току прегледа.
+                        <ShieldCheck size={14} /> Овај корисник је администратор — има пуни приступ свим поглављима и одобрава последњи у току прегледа.
                     </div>
                 )}
 
                 {!user.is_admin && !user.role && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-semibold mb-4 flex items-center gap-2">
-                        <AlertCircle size={14} /> Овом кориснику још увек није додељена улога. Додели улогу у „Уреди корисника" пре него што му додаш секције.
+                        <AlertCircle size={14} /> Овом кориснику још увек није додељена улога. Додели улогу у „Уреди корисника" пре него што му додаш поглавља.
                     </div>
                 )}
 
@@ -850,7 +850,7 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
                                         {expanded[d.id] && (
                                             <div className="divide-y divide-slate-50">
                                                 {d.sections.length === 0 ? (
-                                                    <div className="text-xs text-slate-300 text-center py-3">Нема секција</div>
+                                                    <div className="text-xs text-slate-300 text-center py-3">Нема поглавља</div>
                                                 ) : d.sections.map(s => (
                                                     <label key={s.id} className="flex items-center gap-3 px-6 py-2.5 hover:bg-slate-50 cursor-pointer">
                                                         <input type="checkbox" checked={s.can_edit} onChange={() => toggleSection(d.id, s.id)} className="w-4 h-4 accent-[#0056B3]" />
@@ -938,7 +938,7 @@ const DashboardView = ({ activity, categories }: { activity: ActivityData | null
             <div className="col-span-3 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Clock size={18} className="text-[#0056B3]" />
-                    <h3 className="font-bold text-sm text-dark-blue">Последње измене (секције)</h3>
+                    <h3 className="font-bold text-sm text-dark-blue">Последње измене (поглавља)</h3>
                 </div>
                 {!activity ? (
                     <div className="flex justify-center py-8 text-slate-300"><Loader2 className="animate-spin" /></div>
@@ -1173,7 +1173,7 @@ const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, sectionsC
                 </button>
                 <button onClick={() => { close(); onSections(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
-                    <FileStack size={14} className="text-blue-500" /> Секције ({sectionsCount})
+                    <FileStack size={14} className="text-blue-500" /> Поглавља ({sectionsCount})
                 </button>
                 <button onClick={() => { close(); onDelete(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
@@ -1227,7 +1227,7 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
                 <select value={selectedDocId ?? ''} onChange={e => setSelectedDocId(e.target.value ? Number(e.target.value) : null)}
                     className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
                     {documents.map(d => (
-                        <option key={d.id} value={d.id}>{d.title} ({d.sections_count} секција)</option>
+                        <option key={d.id} value={d.id}>{d.title} ({d.sections_count} поглавља)</option>
                     ))}
                 </select>
             </div>
@@ -1237,13 +1237,13 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
                 {loading ? (
                     <div className="flex justify-center py-16 text-slate-300"><Loader2 className="animate-spin" size={28} /></div>
                 ) : sections.length === 0 ? (
-                    <div className="text-center py-16 text-sm text-slate-400">Овај документ нема секција.</div>
+                    <div className="text-center py-16 text-sm text-slate-400">Овај документ нема поглавља.</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-slate-100 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    <th className="px-5 py-4">Секција</th>
+                                    <th className="px-5 py-4">Поглавље</th>
                                     <th className="px-3 py-4">Статус</th>
                                     <th className="px-3 py-4">Уредник</th>
                                     <th className="px-3 py-4">Руководилац</th>
@@ -1589,7 +1589,7 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
                 <div className="flex items-center justify-between mb-5">
                     <div>
                         <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><ListChecks size={20} className="text-[#0056B3]" /> Колекције</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">Именован подскуп секција једног документа</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Именован подскуп поглавља једног документа</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
@@ -1610,7 +1610,7 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
                                 <div key={c.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl hover:bg-slate-50 group">
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-sm text-dark-blue truncate">{c.name}</div>
-                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} секција</div>
+                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} поглавља</div>
                                     </div>
                                     <button onClick={() => setEditing(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50"><PenLine size={13} /></button>
                                     <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
@@ -1658,7 +1658,7 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
 
     const handleSave = async () => {
         if (!name.trim() || !docId || sectionIds.length === 0) {
-            alert('Унеси име, изабери документ и бар једну секцију.');
+            alert('Унеси име, изабери документ и бар једно поглавље.');
             return;
         }
         setSaving(true);
@@ -1699,7 +1699,7 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
                     {docId && (
                         <div>
                             <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">
-                                Секције ({sectionIds.length} изабрано)
+                                Поглавља ({sectionIds.length} изабрано)
                             </label>
                             {docSections.length === 0 ? (
                                 <div className="text-xs text-slate-400 italic py-4 text-center">Учитавам...</div>

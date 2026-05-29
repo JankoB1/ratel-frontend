@@ -120,7 +120,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
     const latestRejection = events.find(e => e.action === 'rejected') ?? null;
 
     const handleSubmit = async () => {
-        if (!confirm("Послаћеш ову секцију на преглед. Након слања, сваки наредни корисник у ланцу може да направи измене и да одобри/одбије. Настављамо?")) return;
+        if (!confirm("Послаћеш ово поглавље на преглед. Након слања, сваки наредни корисник у ланцу може да направи измене и да одобри/одбије. Настављамо?")) return;
         setActing(true);
         try {
             const { data } = await axiosClient.post(`/api/sections/${sectionId}/submit`);
@@ -154,7 +154,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
     const handleReject = async () => {
         const valid = rejectComments.filter(c => c.text.trim().length >= 3);
         if (valid.length === 0) { alert('Унесите бар један коментар (минимум 3 карактера).'); return; }
-        if (!confirm('Одбијање ресетује сва дотадашња одобрења и враћа секцију на ниво уредника. Настављамо?')) return;
+        if (!confirm('Одбијање ресетује сва дотадашња одобрења и враћа поглавље на ниво уредника. Настављамо?')) return;
         setActing(true);
         try {
             const payload = { comments: valid.map(c => ({ text: c.text.trim(), page: c.page })) };
@@ -216,7 +216,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             {status === 'approved' && (
                 <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 text-[11px] text-orange-700">
                     <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-                    <span>Сецкија је <strong>одобрена</strong>. Свака измена аутоматски ресетује сва одобрења и враћа је у draft.</span>
+                    <span>Поглавље је <strong>одобрено</strong>. Свака измена аутоматски ресетује сва одобрења и враћа га у draft.</span>
                 </div>
             )}
 

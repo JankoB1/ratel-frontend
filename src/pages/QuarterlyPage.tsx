@@ -204,7 +204,7 @@ export default function QuarterlyPage() {
                             {loadingDoc ? (
                                 <div className="flex justify-center py-20 text-slate-300"><Loader2 className="animate-spin" size={32} /></div>
                             ) : !activeSection ? (
-                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">Изаберите секцију.</div>
+                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">Изаберите поглавље.</div>
                             ) : (
                                 <div className="flex flex-col items-center gap-4 md:gap-6">
                                     {activePages.map((page: any, pageIdx: number) => (

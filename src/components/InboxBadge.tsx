@@ -38,7 +38,7 @@ export default function InboxBadge({ variant = 'dark' }: Props) {
         : 'text-slate-500 hover:text-[#0056B3]';
 
     return (
-        <Link to="/inbox" title="Inbox — секције за преглед"
+        <Link to="/inbox" title="Inbox — поглавља за преглед"
             className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition ${baseClass} ${hasPending ? 'font-bold' : ''}`}>
             <Inbox size={16} />
             <span className="text-xs">Inbox</span>

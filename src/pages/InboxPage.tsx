@@ -94,7 +94,7 @@ export default function InboxPage() {
                     <img src={logo} alt="Ratel" className="h-8" />
                     <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
                         <Inbox size={18} className="text-[#0056B3]" />
-                        <span>Преглед секција</span>
+                        <span>Преглед поглавља</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -119,9 +119,9 @@ export default function InboxPage() {
             {/* Content */}
             <main className="max-w-4xl mx-auto px-8 py-10">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-extrabold text-dark-blue mb-1">Секције за преглед</h1>
+                    <h1 className="text-2xl font-extrabold text-dark-blue mb-1">Поглавља за преглед</h1>
                     <p className="text-sm text-slate-500">
-                        Овде се појављују све секције које чекају ваш ниво одобрења. Кликни на ставку да отвориш и одобриш или одбијеш.
+                        Овде се појављују сва поглавља која чекају ваш ниво одобрења. Кликни на ставку да отвориш и одобриш или одбијеш.
                     </p>
                 </div>
 
@@ -137,15 +137,15 @@ export default function InboxPage() {
                     <div className="bg-white border border-slate-200 rounded-2xl px-10 py-16 text-center">
                         <Inbox size={48} className="mx-auto text-slate-200 mb-4" />
                         <p className="text-base font-bold text-slate-500 mb-1">Inbox је празан</p>
-                        <p className="text-sm text-slate-400 mb-6">Тренутно нема секција које чекају ваш преглед.</p>
+                        <p className="text-sm text-slate-400 mb-6">Тренутно нема поглавља која чекају ваш преглед.</p>
                         {diag && (
                             <div className="inline-block text-left bg-slate-50 border border-slate-100 rounded-xl px-5 py-4 text-xs text-slate-500 space-y-1">
                                 <div className="font-bold text-slate-600 mb-2">Дијагностика:</div>
                                 <div>• Улога: <strong>{diag.is_admin ? 'Администратор' : (diag.role || '— без улоге —')}</strong></div>
                                 <div>• Чека се статус: <strong>{diag.waiting_status || '— ниједан (нема одговарајуће улоге) —'}</strong></div>
-                                <div>• Додељене секције: <strong>{diag.is_admin ? 'све (админ)' : (diag.assigned_section_count ?? 0)}</strong></div>
+                                <div>• Додељена поглавља: <strong>{diag.is_admin ? 'сва (админ)' : (diag.assigned_section_count ?? 0)}</strong></div>
                                 {!diag.is_admin && (diag.assigned_section_count ?? 0) === 0 && (
-                                    <div className="text-amber-700 mt-2">⚠ Немате ниједну додељену секцију. Замоли админа да ти додели.</div>
+                                    <div className="text-amber-700 mt-2">⚠ Немате ниједно додељено поглавље. Замоли админа да ти додели.</div>
                                 )}
                                 {!diag.is_admin && !diag.role && (
                                     <div className="text-amber-700 mt-2">⚠ Нема улоге — админ мора да ти је додели.</div>

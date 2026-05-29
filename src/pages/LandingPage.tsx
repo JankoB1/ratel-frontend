@@ -40,6 +40,28 @@ interface SavedGroup {
     updated_at: string;
 }
 
+interface QuarterlyDoc {
+    id: number;
+    title: string;
+    q_category: 'electronic_communications' | 'postal_services';
+    q_subtype: 'overview' | 'mobile' | 'porting' | null;
+    q_year: number;
+    q_quarter: number;
+    updated_at: string;
+    first_page: any | null;
+}
+
+const Q_CATEGORY_LABELS: Record<string, string> = {
+    electronic_communications: 'Електронске комуникације',
+    postal_services:           'Поштанске услуге',
+};
+
+const Q_SUBTYPE_LABELS: Record<string, string> = {
+    overview: 'Преглед тржишта',
+    mobile:   'Мобилне мреже',
+    porting:  'Пренос бројева',
+};
+
 // Strips HTML tags and returns plain text
 function stripHtml(html: string): string {
     return (html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -353,6 +375,75 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
     );
 };
 
+// ── Quarterly report card (grid) ──────────────────────────────────────────────
+
+const QuarterlyCard = ({ doc, onClick }: { doc: QuarterlyDoc; onClick: () => void }) => {
+    const hasThumbnail = !!doc.first_page;
+
+    const { elementLabelMap, globalFootnoteMap } = useMemo(() => {
+        if (!doc.first_page) return { elementLabelMap: {} as Record<string, string>, globalFootnoteMap: {} as Record<string, number> };
+        return buildMaps([{ id: doc.id, canvas_data: [doc.first_page] }]);
+    }, [doc]);
+
+    const categoryLabel = Q_CATEGORY_LABELS[doc.q_category] ?? doc.q_category;
+    const subtypeLabel  = doc.q_subtype ? Q_SUBTYPE_LABELS[doc.q_subtype] : null;
+
+    return (
+        <button
+            onClick={onClick}
+            className="flex flex-col text-left group bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+        >
+            {/* Thumbnail with Q-badge overlay */}
+            <div
+                className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 shrink-0"
+                style={{ width: "100%", paddingBottom: `${(THUMB_H / THUMB_W) * 100}%` }}
+            >
+                <div className="absolute inset-0">
+                    {hasThumbnail ? (
+                        <div style={{ width: THUMB_W, height: THUMB_H, overflow: "hidden", position: "absolute", inset: 0, margin: "auto" }}>
+                            <div style={{
+                                transform: `scale(${THUMB_SCALE})`,
+                                transformOrigin: "top left",
+                                width: "794px",
+                                height: "1123px",
+                                pointerEvents: "none",
+                            }}>
+                                <DocumentPage
+                                    page={doc.first_page}
+                                    pageIndex={0}
+                                    globalFootnoteMap={globalFootnoteMap}
+                                    elementLabelMap={elementLabelMap}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <FileText size={32} className="text-slate-200" />
+                        </div>
+                    )}
+                    {/* Quarter badge top-left */}
+                    <div className="absolute top-2 left-2 bg-[#0056B3] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
+                        Q{doc.q_quarter} {doc.q_year}
+                    </div>
+                    <div className="absolute inset-0 bg-[#0056B3]/0 group-hover:bg-[#0056B3]/10 transition-colors duration-200 flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full px-3 py-1.5 text-xs font-bold text-[#0056B3] shadow flex items-center gap-1.5">
+                            <ExternalLink size={11} /> Отвори
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Info */}
+            <div className="px-3 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[#0056B3]/70 mb-1 truncate">
+                    {categoryLabel}{subtypeLabel ? ` · ${subtypeLabel}` : ''}
+                </p>
+                <h3 className="text-xs font-extrabold text-dark-blue line-clamp-2 leading-snug">{doc.title}</h3>
+            </div>
+        </button>
+    );
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 interface LandingBoxConfig {
@@ -369,8 +460,10 @@ const LandingPage = () => {
     const navigate = useNavigate();
     const [groups, setGroups] = useState<SavedGroup[]>([]);
     const [boxes, setBoxes] = useState<LandingBoxConfig[]>([]);
+    const [quarterlyDocs, setQuarterlyDocs] = useState<QuarterlyDoc[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+    const [quarterlySearch, setQuarterlySearch] = useState("");
 
     useEffect(() => {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
@@ -378,10 +471,12 @@ const LandingPage = () => {
         Promise.all([
             fetch(`${backendUrl}/api/portal/saved-groups`, { headers }).then(r => r.json()),
             fetch(`${backendUrl}/api/portal/landing-boxes`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
+            fetch(`${backendUrl}/api/portal/quarterly`,    { headers }).then(r => r.json()).catch(() => ({ data: [] })),
         ])
-            .then(([groupsData, boxesData]) => {
+            .then(([groupsData, boxesData, quarterlyData]) => {
                 setGroups(groupsData.data ?? []);
                 setBoxes(boxesData.data ?? []);
+                setQuarterlyDocs(quarterlyData.data ?? []);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
@@ -403,6 +498,17 @@ const LandingPage = () => {
     });
 
     const openGroup = (id: number) => navigate(`/group/${id}/preview`);
+    const openQuarterly = (id: number) => navigate(`/document/${id}/view`);
+
+    const quarterlyQuery = quarterlySearch.toLowerCase();
+    const visibleQuarterly = quarterlyDocs.filter(d => {
+        if (!quarterlyQuery) return true;
+        if (d.title.toLowerCase().includes(quarterlyQuery)) return true;
+        const cat = (Q_CATEGORY_LABELS[d.q_category] || '').toLowerCase();
+        const sub = d.q_subtype ? (Q_SUBTYPE_LABELS[d.q_subtype] || '').toLowerCase() : '';
+        const qStr = `q${d.q_quarter} ${d.q_year}`.toLowerCase();
+        return cat.includes(quarterlyQuery) || sub.includes(quarterlyQuery) || qStr.includes(quarterlyQuery);
+    });
 
     return (
         <div className="min-h-screen font-sans text-dark-blue" style={{
@@ -625,6 +731,66 @@ const LandingPage = () => {
                                 </div>
                             )}
                         </>
+                    )}
+                </div>
+            </section>
+
+            {/* ── Издвојен садржај — Квартални извештаји ── */}
+            <section id="quarterly-section" className="pb-16 md:pb-24">
+                <div className="max-w-7xl mx-auto px-4 md:px-8">
+
+                    {/* Section header */}
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 md:mb-8 gap-4">
+                        <div>
+                            <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#0056B3]/60 mb-1">
+                                Портал
+                            </p>
+                            <h2 className="font-extrabold text-xl md:text-2xl text-dark-blue leading-tight">
+                                Издвојен садржај — Квартални извештаји
+                            </h2>
+                            <p className="text-xs md:text-sm text-slate-400 mt-1 hidden sm:block">
+                                Тромесечни прегледи тржишта електронских комуникација и поштанских услуга
+                            </p>
+                        </div>
+                        {/* Search */}
+                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-2 border border-slate-100 shadow-sm self-start sm:self-auto">
+                            <Search size={13} className="text-slate-400 shrink-0" />
+                            <input
+                                value={quarterlySearch}
+                                onChange={e => setQuarterlySearch(e.target.value)}
+                                placeholder="Категорија, квартал, година..."
+                                className="text-sm outline-none bg-transparent placeholder:text-slate-300 w-44 md:w-56"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Quarterly cards grid */}
+                    {loading ? (
+                        <div className="flex items-center justify-center py-16 gap-4 text-slate-300">
+                            <Loader2 className="animate-spin text-blue-300" size={32} />
+                            <span className="text-sm font-semibold">Учитавање...</span>
+                        </div>
+                    ) : visibleQuarterly.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-300 gap-3">
+                            <FileText size={48} />
+                            <span className="text-sm font-semibold">
+                                {quarterlySearch ? "Нема резултата претраге" : "Нема кварталних извештаја"}
+                            </span>
+                            {quarterlySearch && (
+                                <button
+                                    onClick={() => setQuarterlySearch("")}
+                                    className="text-xs text-[#0056B3] font-semibold underline underline-offset-2"
+                                >
+                                    Обриши претрагу
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                            {visibleQuarterly.map(doc => (
+                                <QuarterlyCard key={doc.id} doc={doc} onClick={() => openQuarterly(doc.id)} />
+                            ))}
+                        </div>
                     )}
                 </div>
             </section>

@@ -27,6 +27,17 @@ const APPROVAL_STATUS_INFO: Record<string, { label: string; color: string; bg: s
 };
 const getApprovalInfo = (s: string | undefined) => APPROVAL_STATUS_INFO[s || 'draft'] || APPROVAL_STATUS_INFO.draft;
 
+// Hijerarhija nivoa za edit-after-approve pravilo (mora da matchuje SectionApproval::LEVEL_ORDER na backendu).
+const LEVEL_ORDER: Record<string, number> = { editor: 0, rukovodilac: 1, direktor: 2, kabinet: 3, admin: 4 };
+const LEVEL_LABEL_SR: Record<string, string> = {
+    editor: 'уредника', rukovodilac: 'руководиоца', direktor: 'директора', kabinet: 'кабинета', admin: 'администратора',
+};
+const resolveUserLevel = (u: { is_admin?: boolean; role?: string | null } | null | undefined): string => {
+    if (!u) return 'editor';
+    if (u.is_admin) return 'admin';
+    return u.role && LEVEL_ORDER[u.role] !== undefined ? u.role : 'editor';
+};
+
 const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ');
 
 const extractElementText = (el: any): string => {
@@ -212,13 +223,26 @@ const PanelPage = () => {
         const activeSection = sections.find(s => s.id === activeSectionId);
         const canEdit = !!user?.is_admin || activeSection?.can_edit !== false;
         if (!canEdit) {
-            alert("❌ Немате привилегију да мењате ову секцију.");
+            alert("❌ Немате привилегију да мењате ово поглавље.");
             return;
         }
 
-        // Confirm pre snimanja ako je sekcija već odobrena — backend će automatski resetovati na draft.
-        if (activeSection?.approval_status === 'approved') {
-            const ok = confirm('Ова секција је већ одобрена. Чување измена ће поништити сва одобрења и вратити секцију у статус „у изради” (draft). Настављамо?');
+        // EDIT-AFTER-APPROVAL confirm: predikcija nivoa koji će biti poništeni.
+        // Admin edit nikad ne resetuje. Ostali resetuju sve approved_levels >= njihov nivo.
+        const userLevel = resolveUserLevel(user);
+        const approvedLevels: string[] = activeSection?.approved_levels || [];
+        const willReset = userLevel !== 'admin'
+            ? approvedLevels.filter(l => LEVEL_ORDER[l] !== undefined && LEVEL_ORDER[l] >= LEVEL_ORDER[userLevel])
+            : [];
+
+        if (willReset.length > 0) {
+            const labels = willReset.map(l => LEVEL_LABEL_SR[l] || l).join(', ');
+            const newStatusLabel = userLevel === 'editor'
+                ? '„у изради” (draft) — поглавље ћете морати поново да пошаљете на преглед'
+                : `„чека ${LEVEL_LABEL_SR[userLevel] || userLevel}” — мораћете поново да одобрите`;
+            const ok = confirm(
+                `Чување ће поништити одобрења: ${labels}.\n\nПоглавље ће бити враћено у статус ${newStatusLabel}.\n\nНастављамо?`
+            );
             if (!ok) return;
         }
 
@@ -227,24 +251,25 @@ const PanelPage = () => {
             const { data } = await axiosClient.put(`/api/sections/${activeSectionId}`, {
                 canvas_data: activeSection.canvas_data
             });
-            // Backend može da je auto-resetovao status (kad je bila approved)
             if (data?.approval_status) {
                 setSections(prev => prev.map(sec => sec.id === activeSectionId ? {
                     ...sec,
                     approval_status: data.approval_status,
+                    approved_levels: data.approved_levels || [],
                     rejected_reason: data.approval_status === 'rejected' ? sec.rejected_reason : null,
                 } : sec));
             }
-            if (data?.auto_reset) {
-                alert("✅ Сачувано. Сва претходна одобрења су поништена — секција је сада у статусу 'У изради'.");
+            if (data?.auto_reset && Array.isArray(data?.reset_levels) && data.reset_levels.length > 0) {
+                const labels = data.reset_levels.map((l: string) => LEVEL_LABEL_SR[l] || l).join(', ');
+                alert(`✅ Сачувано. Поништена одобрења: ${labels}. Нови статус: „${getApprovalInfo(data.approval_status).label}”.`);
             } else {
-                alert("✅ Sekcija je uspešno sačuvana!");
+                alert("✅ Poglavlje je uspešno sačuvano!");
             }
         } catch (error: any) {
             if (error?.response?.status === 403) {
-                alert("❌ Немате привилегију да мењате ову секцију.");
+                alert("❌ Немате привилегију да мењате ово поглавље.");
             } else {
-                alert("❌ Greška pri čuvanju sekcije!");
+                alert("❌ Greška pri čuvanju poglavlja!");
             }
         } finally {
             setIsSaving(false);
@@ -285,8 +310,16 @@ const PanelPage = () => {
         try {
             const response = await axiosClient.get(`/api/sections/${id}`);
             const freshSection = response.data.section;
+            // showSection vraća approve metadata na top-level response-a, mergeujemo u section objekat.
             setSections(prevSections => prevSections.map(sec =>
-                sec.id === id ? freshSection : sec
+                sec.id === id ? {
+                    ...freshSection,
+                    can_edit:        response.data.can_edit,
+                    has_assignment:  response.data.has_assignment,
+                    approval_status: response.data.approval_status,
+                    approved_levels: response.data.approved_levels || [],
+                    rejected_reason: response.data.rejected_reason,
+                } : sec
             ));
         } catch (error) {
             console.error("Greška pri osvežavanju sekcije:", error);
@@ -663,7 +696,7 @@ const PanelPage = () => {
                                             <strong>{info.label}.</strong>
                                             {status === 'draft'    && ' Уредник може да пошаље на преглед (десно, „Одобр." таб).'}
                                             {isPending             && ' Сви додељени могу да едитују; акције за одобравање су десно, „Одобр." таб.'}
-                                            {status === 'approved' && ' Секција је јавна — измене утичу на јавни приказ.'}
+                                            {status === 'approved' && ' Поглавље је јавно — измене утичу на јавни приказ.'}
                                             {status === 'rejected' && activeSection.rejected_reason && (
                                                 <span style={{ display: 'block', marginTop: 4, fontWeight: 500, fontSize: 12 }}>
                                                     Разлог: „{activeSection.rejected_reason}"
@@ -690,7 +723,7 @@ const PanelPage = () => {
                                 }}>
                                     <Lock size={16} />
                                     <span>
-                                        Нисте додељени овој секцији — само је прегледате.
+                                        Нисте додељени овом поглављу — само га прегледате.
                                     </span>
                                 </div>
                             )}
@@ -711,7 +744,7 @@ const PanelPage = () => {
                                 }}>
                                     <span style={{ fontSize: '18px' }}>🔒</span>
                                     <span>
-                                        <strong>{sectionLockedBy}</strong> тренутно уређује ову секцију. Уређивање је онемогућено.
+                                        <strong>{sectionLockedBy}</strong> тренутно уређује ово поглавље. Уређивање је онемогућено.
                                     </span>
                                 </div>
                             )}
@@ -728,7 +761,7 @@ const PanelPage = () => {
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full text-slate-400 w-full">
-                            Изаберите секцију.
+                            Изаберите поглавље.
                         </div>
                     )}
                 </div>
@@ -743,6 +776,7 @@ const PanelPage = () => {
                             setSections(prev => prev.map(sec => sec.id === activeSectionId ? {
                                 ...sec,
                                 approval_status: data.approval_status,
+                                approved_levels: data.approved_levels || [],
                                 rejected_reason: data.rejected_reason,
                                 can_edit: data.can_edit,
                                 has_assignment: data.has_assignment,

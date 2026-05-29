@@ -249,11 +249,13 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
     const legendRows = showAnyInternalLegend ? Math.ceil((isPie ? data.length : keys.length) / Math.max(1, Math.floor(6))) : 0;
     const chartAreaHeight = baseChartHeight + legendRows * 22;
 
+    // Za pie: prvo sortiramo po vrednosti desc (isto kao i Cell-i u Pie), pa tek tada
+    // dodeljujemo palette fallback po sortiranom indeksu — inače legenda i parčad одступају.
     const renderSideLegend = () => {
         const items = isPie
-            ? chartData
-                .map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length], val: d[keys[0]] ?? 0 }))
+            ? [...chartData.map((d: any) => ({ label: d.name, val: d[keys[0]] ?? 0 }))]
                 .sort((a: any, b: any) => b.val - a.val)
+                .map((d: any, i: number) => ({ label: d.label, color: colors[d.label] || CHART_PALETTE[i % CHART_PALETTE.length] }))
             : keys.map((key: string, i: number) => ({ label: key, color: colors[key] || CHART_PALETTE[i % CHART_PALETTE.length] }));
 
         return (
@@ -272,11 +274,9 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
 
     const renderTopLegend = () => {
         const items = isPie
-            ? [...chartData.map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length] }))].sort((a, b) => {
-                const av = chartData.find((d: any) => d.name === a.label)?.[keys[0]] ?? 0;
-                const bv = chartData.find((d: any) => d.name === b.label)?.[keys[0]] ?? 0;
-                return bv - av;
-            })
+            ? [...chartData.map((d: any) => ({ label: d.name, val: d[keys[0]] ?? 0 }))]
+                .sort((a: any, b: any) => b.val - a.val)
+                .map((d: any, i: number) => ({ label: d.label, color: colors[d.label] || CHART_PALETTE[i % CHART_PALETTE.length] }))
             : keys.map((key: string, i: number) => ({ label: key, color: colors[key] || CHART_PALETTE[i % CHART_PALETTE.length] }));
         const align = s.legendAlign || 'center';
         const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';

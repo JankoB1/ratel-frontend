@@ -42,7 +42,7 @@ const ContentList: React.FC<ContentListProps> = ({ sections, activeSectionId, on
                                             e.stopPropagation();
                                             onSectionToggleDisabled(section.id, isDisabled);
                                         }}
-                                        title={isDisabled ? 'Активирај секцију' : 'Деактивирај секцију'}
+                                        title={isDisabled ? 'Активирај поглавље' : 'Деактивирај поглавље'}
                                         className={`mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 hover:bg-slate-100 ${
                                             isDisabled ? '!opacity-100 text-slate-400' : 'text-slate-400 hover:text-slate-600'
                                         }`}

@@ -370,12 +370,12 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const showAnyInternalLegend = showRechartsLegend || showTopLegend;
     const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0);
 
-    // Custom vertical legend for right-side layout
+    // Custom vertical legend for right-side layout.
+    // Za pie: koristi `pieData` (već sortirana po vrednosti desc) — tako boje iz palette
+    // fallback-a odgovaraju indeksu Cell-a u Pie-u. Inače legenda i parčad odstupaju.
     const renderSideLegend = () => {
         const items = isPie
-            ? chartData
-                .map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length], val: d[keys[0]] ?? 0 }))
-                .sort((a: any, b: any) => b.val - a.val)
+            ? pieData.map((d: any, i: number) => ({ label: d.name, color: colors[d.name] || CHART_PALETTE[i % CHART_PALETTE.length] }))
             : keys.map((key: string, i: number) => ({ label: key, color: colors[key] || CHART_PALETTE[i % CHART_PALETTE.length] }));
 
         return (
