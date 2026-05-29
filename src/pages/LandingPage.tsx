@@ -800,7 +800,7 @@ const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-4">
                     {/* Disclaimer */}
                     <p className="text-[11px] text-slate-400 leading-relaxed border-l-2 border-slate-200 pl-3">
-                        RATEL не преузима одговорност за тачност података које су доставили оператори путем годишњих упитника.
+                        RATEL не преузима одговорност за тачност података које су доставили оператори.
                     </p>
                     {/* Bottom row */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
