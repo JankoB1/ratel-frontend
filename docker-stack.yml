@@ -42,7 +42,10 @@ services:
         # Service
         - "traefik.http.services.ratel-frontend.loadbalancer.server.port=80"
     networks:
-      - traefik-public
+      traefik-public:
+      ratel-net:
+        aliases:
+          - frontend.internal
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
@@ -51,5 +54,7 @@ services:
       start_period: 10s
 
 networks:
+  ratel-net:
+    external: true
   traefik-public:
     external: true
