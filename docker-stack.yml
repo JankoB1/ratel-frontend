@@ -30,7 +30,7 @@ services:
         - "traefik.http.routers.ratel-frontend.rule=Host(`pregledtrzista.rs`)"
         - "traefik.http.routers.ratel-frontend.entrypoints=websecure"
         - "traefik.http.routers.ratel-frontend.tls=true"
-        - "traefik.http.routers.ratel-frontend.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.ratel-frontend.tls.certresolver=le"
 
         # HTTP → HTTPS redirect
         - "traefik.http.routers.ratel-frontend-http.rule=Host(`pregledtrzista.rs`)"
