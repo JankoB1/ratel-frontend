@@ -15,12 +15,12 @@ const PrintView = () => {
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             try {
                 const params = new URLSearchParams(window.location.search);
-                const token = params.get('token');
+                const dataUrl = params.get('dataUrl');
                 let data: any;
-                if (token) {
-                    const res = await fetch(`/print-data/${token}.json`, { signal: controller.signal });
+                if (dataUrl) {
+                    const res = await fetch(dataUrl);
                     clearTimeout(timeoutId);
-                    if (!res.ok) throw new Error(`Statički fajl nije nađen: HTTP ${res.status}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     data = await res.json();
                 } else {
                     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
