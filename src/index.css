@@ -265,6 +265,14 @@
 .col-span-3 { grid-column: span 3 / span 3; }
 .gap-0 { gap: 0; }
 
+@media print {
+    body, #root {
+        width: 210mm;
+        max-width: 210mm;
+        overflow-x: hidden;
+    }
+}
+
 .break-inside-avoid { break-inside: avoid; }
 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
