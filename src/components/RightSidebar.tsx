@@ -1205,6 +1205,29 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         </div>
 
                                         <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Величина фонта</label>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => { const cellKey = selectedElement.activeCell!; const cur = settings.cells?.[cellKey]?.fontSize || (settings.cells?.[cellKey]?.type === 'headline' ? 15 : 14); updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], fontSize: Math.max(6, cur - 1) } } }); }}
+                                                    className="w-8 h-8 flex items-center justify-center bg-[#F8FAFC] border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 text-lg font-bold"
+                                                >−</button>
+                                                <input
+                                                    type="number"
+                                                    min="6"
+                                                    max="72"
+                                                    value={settings.cells?.[selectedElement.activeCell!]?.fontSize || (settings.cells?.[selectedElement.activeCell!]?.type === 'headline' ? 15 : 14)}
+                                                    onChange={(e) => { const cellKey = selectedElement.activeCell!; const val = Math.max(6, Math.min(72, parseInt(e.target.value) || 14)); updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], fontSize: val } } }); }}
+                                                    className="w-16 bg-[#F8FAFC] border border-slate-200 rounded-lg p-2 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400"
+                                                />
+                                                <button
+                                                    onClick={() => { const cellKey = selectedElement.activeCell!; const cur = settings.cells?.[cellKey]?.fontSize || (settings.cells?.[cellKey]?.type === 'headline' ? 15 : 14); updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], fontSize: Math.min(72, cur + 1) } } }); }}
+                                                    className="w-8 h-8 flex items-center justify-center bg-[#F8FAFC] border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 text-lg font-bold"
+                                                >+</button>
+                                                <span className="text-[10px] text-slate-400">px</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
                                             <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Поравнање</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 gap-1">

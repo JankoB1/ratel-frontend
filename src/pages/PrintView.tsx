@@ -1,6 +1,21 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { DocumentPage, buildMaps } from "../components/DocumentPageView";
+import { DocumentPage, CoverPage, buildMaps, COVER_IMAGE_URL } from "../components/DocumentPageView";
+
+// Browsershot čeka samo na #print-ready selektor, ne na učitavanje slika. Korica je
+// najteži (265KB) i jedini cross-origin asset, pa se ne stigne iscrtati pre snimanja →
+// prazna prva strana u PDF-u. Zato je preload-ujemo i tek onda signaliziramo spremnost.
+const preloadImage = (src: string, timeoutMs = 8000) =>
+    new Promise<void>((resolve) => {
+        const img = new Image();
+        let settled = false;
+        const done = () => { if (!settled) { settled = true; resolve(); } };
+        img.onload = done;
+        img.onerror = done;
+        img.src = src;
+        if (img.complete) done();
+        setTimeout(done, timeoutMs);
+    });
 
 const PrintView = () => {
     const { id } = useParams();
@@ -34,7 +49,8 @@ const PrintView = () => {
                 }
                 setDocumentTitle(data.document.title || '');
                 setSections(data.document.sections);
-                setTimeout(() => setIsReady(true), 1500);
+                await preloadImage(COVER_IMAGE_URL, 8000);
+                setTimeout(() => setIsReady(true), 1000);
             } catch (error: any) {
                 clearTimeout(timeoutId);
                 setErrorMsg(`Greška: ${error.message}`);
@@ -54,6 +70,7 @@ const PrintView = () => {
     }
     return (
         <div id="print-ready" style={{ background: '#fff' }}>
+            <CoverPage isPrint={true} />
             {sections.map(section =>
                 (section.canvas_data || []).map((page: any, pageIndex: number) => (
                     <DocumentPage key={page.id} page={page} pageIndex={pageIndex} globalFootnoteMap={globalFootnoteMap} elementLabelMap={elementLabelMap} isPrint={true} documentTitle={documentTitle} sectionTitle={section.title} />

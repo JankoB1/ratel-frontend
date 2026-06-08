@@ -84,6 +84,7 @@ const PanelPage = () => {
     const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     const historyRef = useRef<string[]>([]);
     const isUndoingRef = useRef(false);
@@ -276,15 +277,18 @@ const PanelPage = () => {
         }
     };
 
-    const handleDownloadPdf = async () => {
+    const handleDownloadPdf = async (sectionId?: number) => {
         await handleSave();
 
         // Otvaramo prazan tab odmah (pre await), jer browseri blokiraju window.open posle async operacija
         const pdfWindow = window.open('', '_blank');
-        setIsSaving(true);
+        setIsExportingPdf(true);
 
         try {
-            const response = await axiosClient.post(`/api/documents/${DOCUMENT_ID}/export`);
+            const response = await axiosClient.post(
+                `/api/documents/${DOCUMENT_ID}/export`,
+                sectionId ? { section_id: sectionId } : {}
+            );
 
             if (response.data.success && pdfWindow) {
                 pdfWindow.location.href = response.data.download_url;
@@ -294,7 +298,7 @@ const PanelPage = () => {
             alert("Greška pri generisanju PDF-a!");
             console.error(error);
         } finally {
-            setIsSaving(false);
+            setIsExportingPdf(false);
         }
     };
 
@@ -659,6 +663,8 @@ const PanelPage = () => {
                     currentPage={currentPageIndex}
                     totalPages={canvasData.length}
                     onPageChange={handlePageChange}
+                    activeSectionId={activeSectionId}
+                    activeSectionTitle={activeSection?.title}
                 />
 
                 <div ref={scrollContainerRef} className="flex-1 flex p-10 pt-0 gap-10 justify-center overflow-y-auto custom-scrollbar relative">
@@ -785,6 +791,19 @@ const PanelPage = () => {
                     }}
                 />
             </section>
+
+            {/* PDF export loading popup */}
+            {isExportingPdf && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-[340px] text-center">
+                        <Loader2 className="animate-spin text-blue-600" size={44} />
+                        <span className="text-base font-bold text-slate-700">Генерисање PDF-а…</span>
+                        <span className="text-sm text-slate-400 font-medium leading-snug">
+                            Молимо сачекајте, ово може потрајати неколико тренутака.
+                        </span>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

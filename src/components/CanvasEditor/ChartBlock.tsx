@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import {
@@ -9,6 +9,25 @@ import {
 } from "recharts";
 import { CHART_PALETTE } from "./constants";
 import { parseVal, formatChartValue } from "./utils";
+
+const CursorPreservingInput = ({ value, onChange, className, style, placeholder, type }: any) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const cursorRef = useRef<{ start: number; end: number } | null>(null);
+
+    useLayoutEffect(() => {
+        if (inputRef.current && cursorRef.current && document.activeElement === inputRef.current) {
+            inputRef.current.setSelectionRange(cursorRef.current.start, cursorRef.current.end);
+            cursorRef.current = null;
+        }
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        cursorRef.current = { start: e.target.selectionStart ?? 0, end: e.target.selectionEnd ?? 0 };
+        onChange(e);
+    };
+
+    return <input ref={inputRef} type={type} value={value} onChange={handleChange} className={className} style={style} placeholder={placeholder} />;
+};
 
 const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     if (!label) return null;
@@ -223,10 +242,10 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                     </tr>
                     <tr>
                         <td className="bg-light" style={{ width: '120px', fontWeight: 500, verticalAlign: 'top', paddingTop: '8px' }}>
-                            <input
+                            <CursorPreservingInput
                                 value={settings.xAxisLabel ?? ''}
                                 placeholder="Ознака"
-                                onChange={e => updateSettings({ xAxisLabel: e.target.value })}
+                                onChange={(e: any) => updateSettings({ xAxisLabel: e.target.value })}
                                 className="data-input"
                             />
                         </td>
@@ -244,7 +263,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
 
                             return (
                                 <td key={`head-${i}`} style={{ minWidth: '80px', verticalAlign: 'top', padding: '4px' }}>
-                                    <input value={k} onChange={e => handleKeyChange(i, e.target.value)} className="data-input" style={{ width: '100%' }} />
+                                    <CursorPreservingInput value={k} onChange={(e: any) => handleKeyChange(i, e.target.value)} className="data-input" style={{ width: '100%' }} />
 
                                     {isComposed && (
                                         <select
@@ -276,7 +295,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                                         {settings.activeColorKey === row.name && <div style={{position:'absolute', inset:0, border:'2px solid #2563eb'}} />}
                                     </div>
                                 )}
-                                <input value={row.name} onChange={e => handleNameChange(rIdx, e.target.value)} className="data-input data-input-left" style={{ paddingLeft: isPerRowColor ? '20px' : '8px' }} />
+                                <CursorPreservingInput value={row.name} onChange={(e: any) => handleNameChange(rIdx, e.target.value)} className="data-input data-input-left" style={{ paddingLeft: isPerRowColor ? '20px' : '8px' }} />
                             </td>
                             {displayKeys.map((k: string) => (
                                 <td key={`cell-${rIdx}-${k}`}>
@@ -595,6 +614,42 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
         const chartMargin = currentSettings.chartType === 'circular' ? { top: 0, right: 0, left: 0, bottom: 0 } : { top: 25, right: 15, left: 5, bottom: 5 };
 
+        // Compute Y-axis label width based on the longest formatted value in the dataset
+        const allYValues = chartData.flatMap((d: any) => keys.map((k: string) => Math.abs(d[k] || 0)));
+        const maxYVal = allYValues.length ? Math.max(...allYValues) : 0;
+        const maxYLabel = formatVal(yMax !== 'auto' ? yMax : maxYVal);
+        const computedYAxisWidth = Math.max(45, Math.min(110, maxYLabel.length * 8 + 8));
+
+        // Smart line label renderer — avoids overlap for close values
+        const makeSmartLineLabel = (key: string, keyIdx: number) => (p: any) => {
+            const { x, y, value, index } = p;
+            if (value === null || value === undefined) return null;
+
+            const isAbove = (() => {
+                // Multi-series: alternate above/below by key index to separate overlapping labels
+                if (keys.length > 1) return keyIdx % 2 === 0;
+
+                // Single series: use pixel-proximity check
+                const allVals = chartData.map((d: any) => { const v = Number(d[key]); return isNaN(v) ? 0 : v; });
+                const effectiveMin = yMin !== 'auto' ? (yMin as number) : Math.min(...allVals);
+                const effectiveMax = yMax !== 'auto' ? (yMax as number) : Math.max(...allVals);
+                const range = Math.max(effectiveMax - effectiveMin, 1);
+                const pixelsPerUnit = 240 / range; // approx inner chart height
+                const prevVal = index > 0 ? allVals[index - 1] : null;
+                const nextVal = index < allVals.length - 1 ? allVals[index + 1] : null;
+                const prevClose = prevVal !== null && Math.abs(value - prevVal) * pixelsPerUnit < 16;
+                const nextClose = nextVal !== null && Math.abs(value - nextVal) * pixelsPerUnit < 16;
+                if (prevClose || nextClose) return index % 2 === 0;
+                return true;
+            })();
+
+            return (
+                <text x={x} y={y + (isAbove ? -14 : 14)} textAnchor="middle" fill="#64748b" fontSize={11}>
+                    {formatVal(value)}
+                </text>
+            );
+        };
+
         switch (currentSettings.chartType) {
             case 'bar': {
                 const isStacked = subType === 'stacked_v' || subType === 'stacked_h';
@@ -614,7 +669,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             ) : (
                                 <>
                                     <XAxis type="category" dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                                    <YAxis yAxisId="left" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                                    <YAxis yAxisId="left" type="number" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                                     {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
                             )}
@@ -645,7 +700,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                         <ChartComponent data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
@@ -660,7 +715,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                         dot={hasDots ? { r: 4 } : false}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
                                         isAnimationActive={false}
-                                        label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
+                                        label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false}
                                     />
                                 );
                                 return (
@@ -670,7 +725,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                         dot={hasDots ? { r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' } : { r: 0 }}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
                                         isAnimationActive={false}
-                                        label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
+                                        label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false}
                                     />
                                 );
                             })}
@@ -764,7 +819,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                         <ComposedChart data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
                             <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
-                            <YAxis yAxisId="left" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
+                            <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
                             {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
@@ -781,12 +836,12 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 }
 
                                 if (typeToRender === 'area') {
-                                    return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
+                                    return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false} />;
                                 }
                                 if (typeToRender === 'bar') {
-                                    return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}><LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} /></Bar>;
+                                    return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}>{currentSettings.showLabels && <LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} />}</Bar>;
                                 }
-                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y - 8} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false} />;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false} />;
                             })}
                         </ComposedChart>
                     </ResponsiveContainer>
@@ -819,7 +874,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 <XAxis type="number" dataKey="x" name={xKey} tickFormatter={formatVal} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} domain={hasCustomXDomain ? xDomain : ['auto', 'auto']} allowDataOverflow={hasCustomXDomain} padding={xAxisPadding}>
                                     {xTitle && <Label value={xTitle} position="insideBottom" offset={-18} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                                 </XAxis>
-                                <YAxis type="number" dataKey="y" name={yKey} tickFormatter={formatVal} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
+                                <YAxis type="number" dataKey="y" name={yKey} width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
                                     {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                                 </YAxis>
                                 <ZAxis type="number" dataKey="z" range={[80, 1200]} />
@@ -842,7 +897,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding}>
                                 {xTitle && <Label value={xTitle} position="insideBottom" offset={-18} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </XAxis>
-                            <YAxis type="number" dataKey="value" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
+                            <YAxis type="number" dataKey="value" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
                                 {yTitle && <Label value={yTitle} angle={-90} position="insideLeft" offset={15} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </YAxis>
                             <ZAxis type="number" dataKey="value" range={isBubble ? [60, 600] : [50, 50]} />

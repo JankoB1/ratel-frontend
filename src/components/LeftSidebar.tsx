@@ -1,5 +1,6 @@
-import { ChevronDown, ChevronUp, Download, type LucideProps, Loader2, Save } from "lucide-react";
-import { type ReactElement, type FC, useState, useEffect } from "react";
+import { ChevronDown, ChevronUp, Download, type LucideProps, Loader2, Save, FileText, Files } from "lucide-react";
+import { type ReactElement, type FC, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface SidebarActionButtonProps {
     icon: ReactElement<LucideProps>;
@@ -34,19 +35,53 @@ const SidebarIcon: FC<SidebarActionButtonProps> = ({ icon, label, isBlue = false
 
 export interface LeftSidebarProps {
     onSave: () => void | Promise<void>;
-    onDownload: () => void | Promise<void>;
+    onDownload: (sectionId?: number) => void | Promise<void>;
     isSaving: boolean;
     currentPage: number;
     totalPages: number;
     onPageChange: (index: number) => void;
+    activeSectionId?: number | null;
+    activeSectionTitle?: string | null;
 }
 
-const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, currentPage, totalPages, onPageChange }) => {
+const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, currentPage, totalPages, onPageChange, activeSectionId, activeSectionTitle }) => {
     const [inputValue, setInputValue] = useState(String(currentPage + 1));
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+    const downloadRef = useRef<HTMLDivElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setInputValue(String(currentPage + 1));
     }, [currentPage]);
+
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handler = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (downloadRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+            setMenuOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [menuOpen]);
+
+    // Menu se renderuje preko portala (fixed) jer ga overflow/scroll i z-index sidebar-a
+    // inače seku — pozicioniramo ga desno od dugmeta na osnovu njegovog bounding rect-a.
+    const toggleMenu = () => {
+        if (menuOpen) { setMenuOpen(false); return; }
+        const el = downloadRef.current;
+        if (el) {
+            const r = el.getBoundingClientRect();
+            setMenuPos({ left: r.right + 8, bottom: window.innerHeight - r.bottom });
+        }
+        setMenuOpen(true);
+    };
+
+    const triggerDownload = (sectionId?: number) => {
+        setMenuOpen(false);
+        onDownload(sectionId);
+    };
 
     const commit = (raw: string) => {
         const page = parseInt(raw) - 1;
@@ -108,13 +143,46 @@ const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, curre
                     disabled={isSaving}
                 />
 
-                <SidebarIcon
-                    icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
-                    label="ПРЕУЗМИ PDF"
-                    isBlue
-                    onClick={onDownload}
-                    disabled={isSaving}
-                />
+                <div ref={downloadRef} className="relative w-full">
+                    <SidebarIcon
+                        icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
+                        label="ПРЕУЗМИ PDF"
+                        isBlue
+                        isActive={menuOpen}
+                        onClick={toggleMenu}
+                        disabled={isSaving}
+                    />
+                    {menuOpen && menuPos && createPortal(
+                        <div
+                            ref={menuRef}
+                            style={{ position: 'fixed', left: menuPos.left, bottom: menuPos.bottom }}
+                            className="z-[9999] w-56 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden"
+                        >
+                            <button
+                                onClick={() => triggerDownload()}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                            >
+                                <Files size={18} className="text-blue-600 shrink-0" />
+                                <span className="text-sm font-medium text-slate-700">Цео документ</span>
+                            </button>
+                            <div className="h-[1px] bg-slate-100" />
+                            <button
+                                onClick={() => activeSectionId != null && triggerDownload(activeSectionId)}
+                                disabled={activeSectionId == null}
+                                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <FileText size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-medium text-slate-700">Тренутна секција</span>
+                                    {activeSectionTitle && (
+                                        <span className="block text-[11px] text-slate-400 font-normal truncate">{activeSectionTitle}</span>
+                                    )}
+                                </span>
+                            </button>
+                        </div>,
+                        document.body
+                    )}
+                </div>
             </div>
         </aside>
     )

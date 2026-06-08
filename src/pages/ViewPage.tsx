@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, Layers, X } from "lucide-react";
-import { DocumentPage, buildMaps } from "../components/DocumentPageView";
+import { DocumentPage, CoverPage, buildMaps } from "../components/DocumentPageView";
 import SectionListSidebar from "../components/SectionListSidebar";
 import logo from "../assets/logo.svg";
 
@@ -457,6 +457,7 @@ const ViewPage = () => {
                         className="canvas-wrapper origin-top-left"
                         style={{ zoom: effectiveZoom / 100 }}
                     >
+                        <CoverPage />
                         {globalPages.map((gp) => (
                             <div
                                 key={`${gp.sectionId}-${gp.page.id}-${gp.globalIndex}`}

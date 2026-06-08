@@ -121,7 +121,7 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
                 onMouseUp={saveSelection}
                 onKeyUp={saveSelection}
                 className="outline-none text-sm break-words"
-                style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.type === 'headline' ? '15px' : '14px', outline: 'none', wordBreak: 'break-word', display: 'inline-block', minHeight: '24px', width: '100%' }}
+                style={{ fontWeight: cellSt.type === 'headline' ? 'bold' : 'normal', fontSize: cellSt.fontSize ? `${cellSt.fontSize}px` : (cellSt.type === 'headline' ? '15px' : '14px'), outline: 'none', wordBreak: 'break-word', display: 'inline-block', minHeight: '24px', width: '100%' }}
             />
         </td>
     );
