@@ -26,37 +26,37 @@ interface DashboardDoc {
 }
 
 const ROLE_LABEL_MAP: Record<string, string> = {
-    editor: 'Уредник',
-    rukovodilac: 'Руководилац',
-    direktor: 'Директор',
-    kabinet: 'Кабинет',
+    editor: 'Urednik',
+    rukovodilac: 'Rukovodilac',
+    direktor: 'Direktor',
+    kabinet: 'Kabinet',
 };
 
 const TYPE_LABEL: Record<string, string> = {
-    annual_report:    'Годишњи извештај',
-    financial_report: 'Финансијски извештај',
-    financial_plan:   'Финансијски план',
+    annual_report:    'Godišnji izveštaj',
+    financial_report: 'Finansijski izveštaj',
+    financial_plan:   'Finansijski plan',
 };
 
 // Status badge boje + labela
 const STATUS_INFO: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-    draft:                { label: 'У изради',          color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', icon: FilePlus },
-    pending_rukovodilac:  { label: 'Чека руководиоца',   color: '#7c3aed', bg: '#f3e8ff', border: '#c4b5fd', icon: Clock },
-    pending_direktor:     { label: 'Чека директора',     color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: Clock },
-    pending_kabinet:      { label: 'Чека кабинет',       color: '#059669', bg: '#d1fae5', border: '#6ee7b7', icon: Clock },
-    pending_admin:        { label: 'Чека админа',        color: '#0056B3', bg: '#dbeafe', border: '#93c5fd', icon: Clock },
-    approved:             { label: 'Одобрено',           color: '#15803d', bg: '#dcfce7', border: '#86efac', icon: CheckCircle2 },
-    rejected:             { label: 'Одбијено',           color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: AlertCircle },
+    draft:                { label: 'U izradi',          color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', icon: FilePlus },
+    pending_rukovodilac:  { label: 'Čeka rukovodioca',   color: '#7c3aed', bg: '#f3e8ff', border: '#c4b5fd', icon: Clock },
+    pending_direktor:     { label: 'Čeka direktora',     color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: Clock },
+    pending_kabinet:      { label: 'Čeka kabinet',       color: '#059669', bg: '#d1fae5', border: '#6ee7b7', icon: Clock },
+    pending_admin:        { label: 'Čeka admina',        color: '#0056B3', bg: '#dbeafe', border: '#93c5fd', icon: Clock },
+    approved:             { label: 'Odobreno',           color: '#15803d', bg: '#dcfce7', border: '#86efac', icon: CheckCircle2 },
+    rejected:             { label: 'Odbijeno',           color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: AlertCircle },
 };
 const getStatusInfo = (s: string) => STATUS_INFO[s] || STATUS_INFO.draft;
 
 const fmtWhen = (iso: string | null) => {
     if (!iso) return '—';
     const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-    if (diff < 60)    return 'малопре';
-    if (diff < 3600)  return `пре ${Math.floor(diff / 60)} мин`;
-    if (diff < 86400) return `пре ${Math.floor(diff / 3600)} ч`;
-    if (diff < 604800) return `пре ${Math.floor(diff / 86400)} дана`;
+    if (diff < 60)    return 'malopre';
+    if (diff < 3600)  return `pre ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `pre ${Math.floor(diff / 3600)} č`;
+    if (diff < 604800) return `pre ${Math.floor(diff / 86400)} dana`;
     return new Date(iso).toLocaleDateString('sr-RS', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
@@ -103,7 +103,7 @@ export default function DashboardPage() {
     );
     if (!user) return null;
 
-    const roleLabel = user.role ? ROLE_LABEL_MAP[user.role] : 'Без улоге';
+    const roleLabel = user.role ? ROLE_LABEL_MAP[user.role] : 'Bez uloge';
     const isReviewer = user.role && ['rukovodilac', 'direktor', 'kabinet'].includes(user.role);
     const totalSections = docs.reduce((sum, d) => sum + d.sections.length, 0);
 
@@ -114,8 +114,8 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                     <img src={logo} alt="Ratel" className="h-7 md:h-8" />
                     <div className="hidden sm:block">
-                        <div className="text-xs text-slate-400 uppercase tracking-wide font-bold">Портал</div>
-                        <div className="font-extrabold text-sm md:text-base text-dark-blue">Моја поглавља</div>
+                        <div className="text-xs text-slate-400 uppercase tracking-wide font-bold">Portal</div>
+                        <div className="font-extrabold text-sm md:text-base text-dark-blue">Moja poglavlja</div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     {isReviewer && (
-                        <Link to="/inbox" title="Inbox — поглавља за преглед"
+                        <Link to="/inbox" title="Inbox — poglavlja za pregled"
                             className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-500 hover:text-[#0056B3] hover:bg-slate-50 transition">
                             <Inbox size={16} />
                             <span className="text-xs font-bold hidden sm:inline">Inbox</span>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
                             )}
                         </Link>
                     )}
-                    <button onClick={handleLogout} title="Одјави се"
+                    <button onClick={handleLogout} title="Odjavi se"
                         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition">
                         <LogOut size={18} />
                     </button>
@@ -148,14 +148,14 @@ export default function DashboardPage() {
             <main className="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-10">
                 <div className="mb-6 md:mb-8">
                     <h1 className="text-2xl md:text-3xl font-extrabold text-dark-blue mb-1">
-                        Добродошли, {user.name.split(' ')[0]}
+                        Dobrodošli, {user.name.split(' ')[0]}
                     </h1>
                     <p className="text-sm text-slate-500">
                         {loading
-                            ? 'Учитавање ваших додељених поглавља...'
+                            ? 'Učitavanje vaših dodeljenih poglavlja...'
                             : totalSections === 0
-                                ? 'Тренутно вам није додељено ниједно поглавље.'
-                                : `Имате приступ за уређивање ${totalSections} ${totalSections === 1 ? 'поглавља' : 'поглавља'} у ${docs.length} ${docs.length === 1 ? 'документу' : 'докумената'}.`}
+                                ? 'Trenutno vam nije dodeljeno nijedno poglavlje.'
+                                : `Imate pristup za uređivanje ${totalSections} ${totalSections === 1 ? 'poglavlja' : 'poglavlja'} u ${docs.length} ${docs.length === 1 ? 'dokumentu' : 'dokumenata'}.`}
                     </p>
                 </div>
 
@@ -166,12 +166,12 @@ export default function DashboardPage() {
                 ) : docs.length === 0 ? (
                     <div className="bg-white border border-slate-200 rounded-2xl px-10 py-16 text-center">
                         <FileText size={48} className="mx-auto text-slate-200 mb-4" />
-                        <p className="text-base font-bold text-slate-500 mb-1">Нема додељених поглавља</p>
+                        <p className="text-base font-bold text-slate-500 mb-1">Nema dodeljenih poglavlja</p>
                         <p className="text-sm text-slate-400 mb-2">
-                            Тренутно вам није додељено ниједно поглавље за уређивање.
+                            Trenutno vam nije dodeljeno nijedno poglavlje za uređivanje.
                         </p>
                         <p className="text-xs text-slate-400">
-                            Контактирајте администратора ако сматрате да је ово грешка.
+                            Kontaktirajte administratora ako smatrate da je ovo greška.
                         </p>
                     </div>
                 ) : (
@@ -196,7 +196,7 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <span className="text-xs text-slate-400 font-bold whitespace-nowrap">
-                                        {doc.sections.length} {doc.sections.length === 1 ? 'поглавље' : 'поглавља'}
+                                        {doc.sections.length} {doc.sections.length === 1 ? 'poglavlje' : 'poglavlja'}
                                     </span>
                                 </div>
 
@@ -227,12 +227,12 @@ export default function DashboardPage() {
                                                     </span>
                                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                                                         {sec.is_disabled && (
-                                                            <span title="Поглавље је деактивирано" className="text-slate-400">
+                                                            <span title="Poglavlje je deaktivirano" className="text-slate-400">
                                                                 <EyeOff size={10} />
                                                             </span>
                                                         )}
                                                         {!sec.is_disabled && (
-                                                            <span title="Поглавље је активно" className="text-slate-300">
+                                                            <span title="Poglavlje je aktivno" className="text-slate-300">
                                                                 <Eye size={10} />
                                                             </span>
                                                         )}

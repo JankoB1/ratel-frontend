@@ -280,7 +280,7 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
         let newSettings = { ...currentSettings };
         if (newFnId) {
-            newSettings.footnotes = { ...(newSettings.footnotes || {}), [newFnId]: 'Унесите текст фусноте...' };
+            newSettings.footnotes = { ...(newSettings.footnotes || {}), [newFnId]: 'Unesite tekst fusnote...' };
         }
 
         const allHtml = Object.values(newContent).join(' ');
@@ -325,7 +325,7 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                 </div>
             )}
 
-            <ElementLabel label={elementLabel} title={currentSettings.title} />
+            {!currentSettings.hideLabel && <ElementLabel label={elementLabel} title={currentSettings.title} />}
 
             <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>

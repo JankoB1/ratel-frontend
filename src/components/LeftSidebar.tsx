@@ -137,7 +137,7 @@ const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, curre
             <div className="mt-auto flex flex-col gap-2 w-full pb-4">
                 <SidebarIcon
                     icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
-                    label={isSaving ? "Чување..." : "САЧУВАЈ"}
+                    label={isSaving ? "Čuvanje..." : "SAČUVAJ"}
                     isBlue
                     onClick={onSave}
                     disabled={isSaving}
@@ -146,7 +146,7 @@ const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, curre
                 <div ref={downloadRef} className="relative w-full">
                     <SidebarIcon
                         icon={isSaving ? <Loader2 size={24} className="animate-spin" /> : <Download size={24} />}
-                        label="ПРЕУЗМИ PDF"
+                        label="PREUZMI PDF"
                         isBlue
                         isActive={menuOpen}
                         onClick={toggleMenu}
@@ -163,7 +163,7 @@ const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, curre
                                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
                             >
                                 <Files size={18} className="text-blue-600 shrink-0" />
-                                <span className="text-sm font-medium text-slate-700">Цео документ</span>
+                                <span className="text-sm font-medium text-slate-700">Ceo dokument</span>
                             </button>
                             <div className="h-[1px] bg-slate-100" />
                             <button
@@ -173,7 +173,7 @@ const LeftSidebar: FC<LeftSidebarProps> = ({ onSave, onDownload, isSaving, curre
                             >
                                 <FileText size={18} className="text-blue-600 shrink-0 mt-0.5" />
                                 <span className="min-w-0">
-                                    <span className="block text-sm font-medium text-slate-700">Тренутна секција</span>
+                                    <span className="block text-sm font-medium text-slate-700">Trenutna sekcija</span>
                                     {activeSectionTitle && (
                                         <span className="block text-[11px] text-slate-400 font-normal truncate">{activeSectionTitle}</span>
                                     )}

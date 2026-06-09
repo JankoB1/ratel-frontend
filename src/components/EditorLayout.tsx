@@ -68,7 +68,7 @@ const EditorLayout = () => {
         return (
             <div className="w-full h-screen flex flex-col items-center justify-center gap-4 text-slate-400 bg-slate-50">
                 <Loader2 className="animate-spin text-blue-500" size={40} />
-                <span className="font-semibold tracking-wider uppercase text-sm">Учитавање извештаја...</span>
+                <span className="font-semibold tracking-wider uppercase text-sm">Učitavanje izveštaja...</span>
             </div>
         );
     }
@@ -92,7 +92,7 @@ const EditorLayout = () => {
                     <Canvas pages={canvasData} setPages={handlePagesChange} />
                 ) : (
                     <div className="flex items-center justify-center h-full text-slate-400">
-                        Изаберите секцију са леве стране.
+                        Izaberite sekciju sa leve strane.
                     </div>
                 )}
             </main>

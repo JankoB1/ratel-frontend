@@ -7,14 +7,14 @@ import logo from "../assets/logo.svg";
 const PAGE_W = 794;
 
 const Q_CATEGORY_LABELS: Record<string, string> = {
-    electronic_communications: 'Електронске комуникације',
-    postal_services:           'Поштанске услуге',
+    electronic_communications: 'Elektronske komunikacije',
+    postal_services:           'Poštanske usluge',
 };
 
 const Q_SUBTYPE_LABELS: Record<string, string> = {
-    overview: 'Преглед тржишта електронских комуникација у Републици Србији',
-    mobile:   'Приказ мобилних мрежа оператора',
-    porting:  'Преглед преноса бројева по операторима фиксне и мобилне телефоније',
+    overview: 'Pregled tržišta elektronskih komunikacija u Republici Srbiji',
+    mobile:   'Prikaz mobilnih mreža operatora',
+    porting:  'Pregled prenosa brojeva po operatorima fiksne i mobilne telefonije',
 };
 
 interface QuarterlyDocMeta {
@@ -130,26 +130,26 @@ export default function QuarterlyPage() {
                     <img src={logo} alt="Ratel" className="h-7 md:h-8" />
                     <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
                         <Activity size={18} className="text-[#0056B3]" />
-                        <span>Квартални подаци</span>
+                        <span>Kvartalni podaci</span>
                     </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Категорија</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Kategorija</label>
                         <select value={fCategory ?? ''} onChange={e => { const v = e.target.value as any; setFCategory(v || null); if (v !== 'electronic_communications') setFSubtype(null); }}
                             className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#0056B3] bg-white">
-                            <option value="">— изабери —</option>
-                            <option value="electronic_communications">Електронске комуникације</option>
-                            <option value="postal_services">Поштанске услуге</option>
+                            <option value="">— izaberi —</option>
+                            <option value="electronic_communications">Elektronske komunikacije</option>
+                            <option value="postal_services">Poštanske usluge</option>
                         </select>
                     </div>
 
                     {fCategory === 'electronic_communications' && (
                         <div className="col-span-2 md:col-span-1">
-                            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Подкатегорија</label>
+                            <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Podkategorija</label>
                             <select value={fSubtype ?? ''} onChange={e => setFSubtype((e.target.value || null) as any)}
                                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#0056B3] bg-white">
-                                <option value="">— изабери —</option>
+                                <option value="">— izaberi —</option>
                                 {['overview', 'mobile', 'porting'].map(s => (
                                     <option key={s} value={s} disabled={!availableSubtypes.includes(s as any)}>{Q_SUBTYPE_LABELS[s]}</option>
                                 ))}
@@ -158,16 +158,16 @@ export default function QuarterlyPage() {
                     )}
 
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Година</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Godina</label>
                         <select value={fYear ?? ''} onChange={e => setFYear(e.target.value ? Number(e.target.value) : null)}
                             className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#0056B3] bg-white">
-                            <option value="">— изабери —</option>
+                            <option value="">— izaberi —</option>
                             {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                     </div>
 
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Квартал</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1 block">Kvartal</label>
                         <div className="flex gap-1">
                             {[1,2,3,4].map(q => (
                                 <button key={q} type="button" onClick={() => setFQuarter(q)}
@@ -187,8 +187,8 @@ export default function QuarterlyPage() {
                 ) : !matchedDoc ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 px-4 text-center">
                         <AlertCircle size={32} className="mb-3 text-slate-300" />
-                        <p className="text-sm font-bold">Нема извештаја за изабране филтере</p>
-                        <p className="text-xs mt-1">Промени категорију, годину или квартал.</p>
+                        <p className="text-sm font-bold">Nema izveštaja za izabrane filtere</p>
+                        <p className="text-xs mt-1">Promeni kategoriju, godinu ili kvartal.</p>
                     </div>
                 ) : (
                     <>
@@ -204,7 +204,7 @@ export default function QuarterlyPage() {
                             {loadingDoc ? (
                                 <div className="flex justify-center py-20 text-slate-300"><Loader2 className="animate-spin" size={32} /></div>
                             ) : !activeSection ? (
-                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">Изаберите поглавље.</div>
+                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">Izaberite poglavlje.</div>
                             ) : (
                                 <div className="flex flex-col items-center gap-4 md:gap-6">
                                     {activePages.map((page: any, pageIdx: number) => (

@@ -19,17 +19,17 @@ const LayoutSelector = ({ onSelect, position = "bottom" }: any) => {
             className={`popover-menu ${position}`}
         >
             <button onClick={() => onSelect('1/1')} className="menu-btn blue">
-                <LayoutTemplate size={18} /><span>Пуна ширина</span>
+                <LayoutTemplate size={18} /><span>Puna širina</span>
             </button>
             <div className="divider"></div>
-            <div className="menu-title">Две колоне</div>
+            <div className="menu-title">Dve kolone</div>
             <div className="layout-grid">
                 {['1:1', '1:2', '2:1', '1:3', '3:1'].map(l => (
                     <button key={l} onClick={() => onSelect(l)} className="layout-btn">{l}</button>
                 ))}
             </div>
             <div className="divider"></div>
-            <div className="menu-title">Три колоне</div>
+            <div className="menu-title">Tri kolone</div>
             <div className="layout-grid">
                 {['1:1:1', '2:1:1', '1:1:2', '1:2:1'].map(l => (
                     <button key={l} onClick={() => onSelect(l)} className="layout-btn">{l}</button>
@@ -44,12 +44,12 @@ const ElementSelector = ({ onSelect }: any) => (
         onClick={(e) => e.stopPropagation()}
         className="popover-menu bottom" style={{ width: '12rem' }}
     >
-        <button onClick={() => onSelect('text')} className="menu-btn"><Type size={18} color="#3b82f6" /> ТЕКСТ</button>
-        <button onClick={() => onSelect('image')} className="menu-btn"><ImageIcon size={18} color="#22c55e" /> СЛИКА</button>
-        <button onClick={() => onSelect('table')} className="menu-btn"><Table2 size={18} color="#f97316" /> ТАБЕЛА</button>
+        <button onClick={() => onSelect('text')} className="menu-btn"><Type size={18} color="#3b82f6" /> TEKST</button>
+        <button onClick={() => onSelect('image')} className="menu-btn"><ImageIcon size={18} color="#22c55e" /> SLIKA</button>
+        <button onClick={() => onSelect('table')} className="menu-btn"><Table2 size={18} color="#f97316" /> TABELA</button>
         <div className="divider" style={{ margin: '0.25rem 0' }}></div>
-        <button onClick={() => onSelect('chart')} className="menu-btn"><BarChart3 size={18} color="#a855f7" /> ГРАФИКОН</button>
-        <button onClick={() => onSelect('map')} className="menu-btn"><MapIcon size={18} color="#14b8a6" /> МАПА</button>
+        <button onClick={() => onSelect('chart')} className="menu-btn"><BarChart3 size={18} color="#a855f7" /> GRAFIKON</button>
+        <button onClick={() => onSelect('map')} className="menu-btn"><MapIcon size={18} color="#14b8a6" /> MAPA</button>
     </div>
 );
 
@@ -135,7 +135,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                                 )}
                                 {row.columns.length === 0 ? (
                                     <div className="empty-row-container">
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteRow(page.id, row.id); }} className="empty-row-delete" title="Обриши празан ред"><Trash2 size={16} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteRow(page.id, row.id); }} className="empty-row-delete" title="Obriši prazan red"><Trash2 size={16} /></button>
                                         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                             <button onClick={(e) => { e.stopPropagation(); setActiveRowMenu({ pageId: page.id, rowId: row.id }); }} className="add-icon-btn"><img src={addIcon} alt="Add" style={{ width: '48px', height: '48px' }} /></button>
                                             {activeRowMenu?.rowId === row.id && (
@@ -256,7 +256,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                 </div>
                 {showAddBtn && !lastRowEmpty && (
                     <div style={{ width: '100%', paddingTop: '1rem', paddingBottom: '2rem', flexShrink: 0, position: 'relative', zIndex: 10 }}>
-                        <button onClick={() => setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: [...p.rows, { id: Math.random().toString(36).substr(2, 9), columns: [] }] } : p))} className="add-row-btn-main"><Plus size={18} /> Додај нови ред</button>
+                        <button onClick={() => setPages((prev: any) => prev.map((p: any) => p.id === page.id ? { ...p, rows: [...p.rows, { id: Math.random().toString(36).substr(2, 9), columns: [] }] } : p))} className="add-row-btn-main"><Plus size={18} /> Dodaj novi red</button>
                     </div>
                 )}
             </div>

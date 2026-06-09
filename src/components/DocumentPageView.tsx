@@ -179,7 +179,7 @@ const TableBlockReadonly = ({ el, label }: any) => {
                 border: 'none', cursor: 'default',
             }}
         >
-            <ElementLabel label={label} title={s.title} />
+            {!s.hideLabel && <ElementLabel label={label} title={s.title} />}
             <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0' }}>
                     <colgroup>
@@ -288,7 +288,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
     const dynamicInnerRadius = isDoughnut ? dynamicOuterRadius * 0.6 : 0;
 
     // Za pie: prvo sortiramo po vrednosti desc (isto kao i Cell-i u Pie), pa tek tada
-    // dodeljujemo palette fallback po sortiranom indeksu — inače legenda i parčad одступају.
+    // dodeljujemo palette fallback po sortiranom indeksu — inače legenda i parčad odstupaju.
     const renderSideLegend = () => {
         const items = isPie
             ? [...chartData.map((d: any) => ({ label: d.name, val: d[keys[0]] ?? 0 }))]
@@ -844,16 +844,16 @@ const MapBlockReadonly = ({ el }: any) => {
     const baseColor = s.baseColor || '#3b82f6';
     const width = s.width || 100;
 
-    const values = data.map((d: any) => parseFloat(d['Вредност'])).filter((v: number) => !isNaN(v));
+    const values = data.map((d: any) => parseFloat(d['Vrednost'])).filter((v: number) => !isNaN(v));
     const min = values.length ? Math.min(...values) : 0;
     const max = values.length ? Math.max(...values) : 0;
 
     const calculatedColors: any = {};
     const calculatedValues: any = {};
     data.forEach((d: any) => {
-        calculatedValues[d.name] = d['Вредност'];
-        const val = parseFloat(d['Вредност']);
-        if (isNaN(val) || d['Вредност'] === '' || d['Вредност'] === undefined) {
+        calculatedValues[d.name] = d['Vrednost'];
+        const val = parseFloat(d['Vrednost']);
+        if (isNaN(val) || d['Vrednost'] === '' || d['Vrednost'] === undefined) {
             calculatedColors[d.name] = '#f1f5f9';
         } else {
             let opacity = 0.2;
@@ -876,7 +876,7 @@ const MapBlockReadonly = ({ el }: any) => {
             legendItems.push({ color: hexToRgba(baseColor, 1), label: `${formatVal(min + 2 * step)} - ${formatVal(max)}` });
         }
     }
-    legendItems.push({ color: '#f1f5f9', label: 'Нема података', isNoData: true });
+    legendItems.push({ color: '#f1f5f9', label: 'Nema podataka', isNoData: true });
 
     return (
         <div
@@ -936,6 +936,81 @@ export const CoverPage = ({ isPrint = false }: { isPrint?: boolean }) => (
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
+    </div>
+);
+
+// --- FULL-PAGE SLIKA (puna A4 strana, npr. strana posle korice i kontakt na kraju) ---
+
+// Strana odmah posle korice (pre Sadržaja) i poslednja (kontakt) strana — pune A4 slike.
+export const SECOND_PAGE_IMAGE_URL = '/images/pdf-2.svg';
+export const CONTACT_PAGE_IMAGE_URL = '/images/pdf-kontakt.svg';
+
+export const FullPageImage = ({ src, isPrint = false }: { src: string; isPrint?: boolean }) => (
+    <div
+        className="canvas-page"
+        style={isPrint
+            ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+            : { padding: 0, overflow: 'hidden' }}
+    >
+        <img
+            src={src}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+    </div>
+);
+
+// --- SADRŽAJ (TABLE OF CONTENTS) PAGE ---
+
+// Pozadinska slika za "Sadržaj" stranicu. Trenutno prazno — korisnik će kasnije dodati
+// sliku (npr. staviti fajl u frontend `public/images/` i ovde upisati '/images/pdf-sadrzaj.svg').
+// Kada se postavi, PrintView je automatski preload-uje pre snimanja PDF-a (kao i koricu),
+// a komponenta ispod je render-uje kao pozadinski sloj ispod teksta.
+export const TOC_BACKGROUND_URL = '';
+
+// Stavke sadržaja: naziv sekcije + globalni broj strane na kojoj ona počinje.
+export type TocEntry = { title: string; page: number };
+
+export const TableOfContents = ({ entries, isPrint = false }: {
+    entries: TocEntry[];
+    isPrint?: boolean;
+}) => (
+    <div
+        className="canvas-page"
+        style={isPrint
+            ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+            : { padding: 0, overflow: 'hidden' }}
+    >
+        {/* Pozadinski sloj — spreman za buduću sliku (vidi TOC_BACKGROUND_URL). */}
+        {TOC_BACKGROUND_URL && (
+            <img
+                src={TOC_BACKGROUND_URL}
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 0 }}
+            />
+        )}
+
+        {/* Tekstualni sloj iznad pozadine */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', padding: '110px 70px 70px' }}>
+            <h1 style={{ fontSize: '42px', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Sadržaj
+            </h1>
+            <div style={{ width: '80px', height: '4px', background: '#2563eb', borderRadius: '2px', marginTop: '18px', marginBottom: '48px', flexShrink: 0 }} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                {entries.map((entry, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: '12px', fontSize: '17px', lineHeight: 1.3 }}>
+                        <span style={{ color: '#334155', fontWeight: 600, flexShrink: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {entry.title}
+                        </span>
+                        <span style={{ flex: 1, borderBottom: '2px dotted #cbd5e1', transform: 'translateY(-5px)' }} />
+                        <span style={{ color: '#2563eb', fontWeight: 800, flexShrink: 0, minWidth: '24px', textAlign: 'right' }}>
+                            {entry.page}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
     </div>
 );
 

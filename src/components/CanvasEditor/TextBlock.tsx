@@ -174,7 +174,7 @@ export const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selecte
             const oldFootnotes = currentSettings.footnotes || {};
             const newFootnotes: any = {};
             currentIds.forEach(cid => { newFootnotes[cid] = oldFootnotes[cid] || ''; });
-            newFootnotes[id] = 'Унесите текст фусноте...';
+            newFootnotes[id] = 'Unesite tekst fusnote...';
 
             updateElementSettings({ content: newHtml, footnotes: newFootnotes });
             editorRef.current.dispatchEvent(new Event('input', { bubbles: true }));
@@ -226,7 +226,7 @@ export const TextElementBlock = ({ el, pageId, rowId, colId, isSelected, selecte
 
             <div
                 id={`editor-${el.id}`}
-                ref={editorRef} contentEditable suppressContentEditableWarning data-placeholder="Унесите текст..."
+                ref={editorRef} contentEditable suppressContentEditableWarning data-placeholder="Unesite tekst..."
                 onInput={handleInput}
                 onPaste={(e) => {
                     e.preventDefault();

@@ -36,7 +36,7 @@ export const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             const csrfToken = match ? decodeURIComponent(match[2]) : '';
             const response = await axiosClient.post("/api/upload-image", formData, { headers: { 'Content-Type': 'multipart/form-data', 'X-XSRF-TOKEN': csrfToken } });
             if (response.data?.url) updateElementSettings({ url: response.data.url });
-        } catch (error) { alert("Грешка при отпремању."); } finally { setIsUploading(false); }
+        } catch (error) { alert("Greška pri otpremanju."); } finally { setIsUploading(false); }
     };
 
     return (
@@ -66,11 +66,11 @@ export const ImageElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             ) : (
                 <div style={{ padding: '2rem', width: '100%', minHeight: '180px', backgroundColor: '#f8fafc', border: '2px dashed #cbd5e1', borderRadius: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     {isUploading ? (
-                        <span style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', fontSize: '14px', fontWeight: 600, color: '#3b82f6' }}>Отпремање...</span>
+                        <span style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', fontSize: '14px', fontWeight: 600, color: '#3b82f6' }}>Otpremanje...</span>
                     ) : (
                         <label style={{ cursor: 'pointer', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                             <UploadCloud size={32} />
-                            <span style={{ fontSize: '12px', fontWeight: 600 }}>Одабери слику</span>
+                            <span style={{ fontSize: '12px', fontWeight: 600 }}>Odaberi sliku</span>
                             <input type="file" style={{ display: 'none' }} onChange={handleImageUpload} />
                         </label>
                     )}

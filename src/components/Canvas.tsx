@@ -230,7 +230,7 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                 window.dispatchEvent(new Event('group-saved'));
             } catch (error) {
                 console.error("Greška pri čuvanju grupe:", error);
-                alert("Дошло је до грешке приликом чувања.");
+                alert("Došlo je do greške prilikom čuvanja.");
             }
 
             setIsGroupingMode(false);
@@ -378,8 +378,8 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
         if (type === 'text') payload.settings = { type: 'paragraph', alignment: 'left', content: '', color: '#1E293B', bold: false, footnotes: {} };
         else if (type === 'image') payload.settings = { url: '', altText: '', alignment: 'center' };
         else if (type === 'table') { payload.settings = { rows: 3, columns: 2, cells: { "0_0": { backgroundColor: "#f3f4f6", type: "headline" }, "0_1": { backgroundColor: "#f3f4f6", type: "headline" } } }; payload.sr = { content: { "0_0": "Prihodi", "0_1": "Rashodi" } }; }
-        else if (type === 'chart') { payload.settings = { chartType: 'bar', subChartType: 'grouped_v', showLegend: true, showGrid: true, showLabels: false, showDataEditor: true, xAxisLabel: 'Месец' }; payload.data = [{ name: 'Јануар', 'Prihodi': 400, 'Rashodi': 240 }, { name: 'Фебруар', 'Prihodi': 300, 'Rashodi': 139 }, { name: 'Март', 'Prihodi': 200, 'Rashodi': 980 }]; payload.keys = ['Prihodi', 'Rashodi']; payload.colors = { 'Prihodi': '#8b98ff', 'Rashodi': '#34d399' }; }
-        else if (type === 'map') { payload.settings = { showLegend: true, width: 100, baseColor: '#3b82f6' }; payload.keys = ['Вредност']; payload.data = SERBIAN_DISTRICTS.map(d => ({ name: d, 'Вредност': '' })); }
+        else if (type === 'chart') { payload.settings = { chartType: 'bar', subChartType: 'grouped_v', showLegend: true, showGrid: true, showLabels: false, showDataEditor: true, xAxisLabel: 'Mesec' }; payload.data = [{ name: 'Januar', 'Prihodi': 400, 'Rashodi': 240 }, { name: 'Februar', 'Prihodi': 300, 'Rashodi': 139 }, { name: 'Mart', 'Prihodi': 200, 'Rashodi': 980 }]; payload.keys = ['Prihodi', 'Rashodi']; payload.colors = { 'Prihodi': '#8b98ff', 'Rashodi': '#34d399' }; }
+        else if (type === 'map') { payload.settings = { showLegend: true, width: 100, baseColor: '#3b82f6' }; payload.keys = ['Vrednost']; payload.data = SERBIAN_DISTRICTS.map(d => ({ name: d, 'Vrednost': '' })); }
 
         setPages((prev: any[]) => prev.map(page => page.id === pageId ? { ...page, rows: page.rows.map((row: any) => row.id === rowId ? { ...row, columns: row.columns.map((col: any) => col.id === colId ? { ...col, elements: [...col.elements, { id, type, payload }] } : col) } : row) } : page));
         setActiveColMenu(null);
@@ -432,16 +432,16 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
                     )}
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px 0' }}>
                         <button onClick={(e) => { e.stopPropagation(); handleInsertPage(index + 1); }} style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #cbd5e1', cursor: 'pointer', background: 'white', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Plus size={12} /> Уметни страницу
+                            <Plus size={12} /> Umetni stranicu
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDuplicatePage(index); }} title="Дуплирај ову страницу" style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #93c5fd', cursor: 'pointer', background: 'white', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Copy size={12} /> Дуплирај
+                        <button onClick={(e) => { e.stopPropagation(); handleDuplicatePage(index); }} title="Dupliraj ovu stranicu" style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '4px', border: '1px dashed #93c5fd', cursor: 'pointer', background: 'white', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Copy size={12} /> Dupliraj
                         </button>
                     </div>
                 </div>
             ))}
             <button onClick={(e) => { e.stopPropagation(); setPages((prev: any[]) => [...prev, { id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }]); }} style={{ padding: '0.875rem 1.75rem', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '9999px', color: '#64748b', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '2.5rem' }}>
-                <Plus size={20} /> Нова страница
+                <Plus size={20} /> Nova stranica
             </button>
         </div>
     );

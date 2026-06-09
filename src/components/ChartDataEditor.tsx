@@ -52,13 +52,13 @@ const ChartDataEditor = () => {
     };
 
     const addRow = () => {
-        const newRow: any = { name: `Ставка ${localData.length + 1}` };
+        const newRow: any = { name: `Stavka ${localData.length + 1}` };
         localKeys.forEach(k => newRow[k] = 0);
         setLocalData([...localData, newRow]);
     };
 
     const addColumn = () => {
-        const newKey = `Серија ${localKeys.length + 1}`;
+        const newKey = `Serija ${localKeys.length + 1}`;
         setLocalKeys([...localKeys, newKey]);
         setLocalData(localData.map(row => ({ ...row, [newKey]: 0 })));
     };
@@ -89,7 +89,7 @@ const ChartDataEditor = () => {
             onDragStart={(e) => e.stopPropagation()}
         >
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h2 className="text-lg font-bold text-slate-700">Уређивање података и боја</h2>
+                <h2 className="text-lg font-bold text-slate-700">Uređivanje podataka i boja</h2>
                 <button onClick={() => setIsChartModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-all">
                     <X size={20} />
                 </button>
@@ -100,7 +100,7 @@ const ChartDataEditor = () => {
                     <thead>
                     <tr>
                         <th className="p-2 border-b border-r border-slate-200 bg-slate-50 min-w-[150px]">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Категорија</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kategorija</span>
                         </th>
                         {localKeys.map((key, kIdx) => (
                             <th key={kIdx} className="p-2 border-b border-r border-slate-200 bg-slate-50 min-w-[150px] relative group">
@@ -166,16 +166,16 @@ const ChartDataEditor = () => {
                 </table>
 
                 <button onClick={addRow} className="mt-4 flex items-center gap-2 text-sm text-blue-500 font-bold hover:text-blue-600 p-2 hover:bg-blue-50 rounded-lg transition-all">
-                    <Plus size={16} /> Додај ред (категорију)
+                    <Plus size={16} /> Dodaj red (kategoriju)
                 </button>
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                 <button onClick={() => setIsChartModalOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">
-                    Откажи
+                    Otkaži
                 </button>
                 <button onClick={handleSave} className="px-5 py-2.5 text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg rounded-xl transition-all">
-                    Сачувај податке
+                    Sačuvaj podatke
                 </button>
             </div>
         </div>

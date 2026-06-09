@@ -119,7 +119,7 @@ const GroupPreviewPage = () => {
                         className="flex items-center gap-1.5 text-slate-500 hover:text-dark-blue transition-colors"
                     >
                         <ChevronLeft size={16} />
-                        <span className="font-bold text-[13px]">Назад</span>
+                        <span className="font-bold text-[13px]">Nazad</span>
                     </button>
                     <div className="h-5 w-px bg-slate-200" />
                     <img src={logo} alt="RATEL" className="h-5" />
@@ -131,7 +131,7 @@ const GroupPreviewPage = () => {
                 {/* Document link (if bound) */}
                 {group.document && (
                     <div className="flex items-center gap-2 bg-white rounded-[50px] py-[10px] px-[20px] border border-slate-100 shadow-sm">
-                        <span className="text-[12px] text-slate-400">Из документа:</span>
+                        <span className="text-[12px] text-slate-400">Iz dokumenta:</span>
                         <button
                             onClick={() => window.open(`/document/${group.document!.id}/view`, "_blank")}
                             className="flex items-center gap-1.5 font-bold text-[13px] text-[#0056B3] hover:underline"

@@ -14,9 +14,9 @@ const THUMB_W = Math.round(794 * THUMB_SCALE); // ~175px
 const THUMB_H = Math.round(1123 * THUMB_SCALE); // ~247px
 
 const TYPE_LABELS: Record<string, string> = {
-    annual_report:    "Годишњи извештај",
-    financial_report: "Финансијски извештај",
-    financial_plan:   "Финансијски план",
+    annual_report:    "Godišnji izveštaj",
+    financial_report: "Finansijski izveštaj",
+    financial_plan:   "Finansijski plan",
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -52,14 +52,14 @@ interface QuarterlyDoc {
 }
 
 const Q_CATEGORY_LABELS: Record<string, string> = {
-    electronic_communications: 'Електронске комуникације',
-    postal_services:           'Поштанске услуге',
+    electronic_communications: 'Elektronske komunikacije',
+    postal_services:           'Poštanske usluge',
 };
 
 const Q_SUBTYPE_LABELS: Record<string, string> = {
-    overview: 'Преглед тржишта',
-    mobile:   'Мобилне мреже',
-    porting:  'Пренос бројева',
+    overview: 'Pregled tržišta',
+    mobile:   'Mobilne mreže',
+    porting:  'Prenos brojeva',
 };
 
 // Strips HTML tags and returns plain text
@@ -235,13 +235,13 @@ export const _GroupFeaturedCard = ({ group, large, onClick }: { group: SavedGrou
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-white/60 mb-1 flex items-center gap-1">
-                    <Layers size={10} /> Издвојени садржај
+                    <Layers size={10} /> Izdvojeni sadržaj
                 </p>
                 <p className={`font-extrabold text-white leading-snug ${large ? "text-sm" : "text-xs"}`}>
                     {group.name}
                 </p>
                 {group.document && (
-                    <p className="text-[10px] text-white/50 mt-0.5 truncate">из: {group.document.title}</p>
+                    <p className="text-[10px] text-white/50 mt-0.5 truncate">iz: {group.document.title}</p>
                 )}
             </div>
 
@@ -300,7 +300,7 @@ export const _DocCard = ({ doc, onClick }: { doc: PortalDoc; onClick: () => void
                     )}
                     <div className="absolute inset-0 bg-[#0056B3]/0 group-hover:bg-[#0056B3]/10 transition-colors duration-200 flex items-center justify-center">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full px-3 py-1.5 text-xs font-bold text-[#0056B3] shadow flex items-center gap-1.5">
-                            <ExternalLink size={11} /> Отвори
+                            <ExternalLink size={11} /> Otvori
                         </div>
                     </div>
                 </div>
@@ -355,7 +355,7 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
                     )}
                     <div className="absolute inset-0 bg-[#0056B3]/0 group-hover:bg-[#0056B3]/10 transition-colors duration-200 flex items-center justify-center">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full px-3 py-1.5 text-xs font-bold text-[#0056B3] shadow flex items-center gap-1.5">
-                            <ExternalLink size={11} /> Отвори
+                            <ExternalLink size={11} /> Otvori
                         </div>
                     </div>
                 </div>
@@ -364,11 +364,11 @@ const GroupCard = ({ group, onClick }: { group: SavedGroup; onClick: () => void 
             {/* Info */}
             <div className="px-3 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-[#0056B3]/70 mb-1 flex items-center gap-1">
-                    <Layers size={9} /> Издвојени садржај
+                    <Layers size={9} /> Izdvojeni sadržaj
                 </p>
                 <h3 className="text-xs font-extrabold text-dark-blue line-clamp-2 leading-snug">{group.name}</h3>
                 {group.document && (
-                    <p className="text-[10px] text-slate-400 mt-1 truncate">из: {group.document.title}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 truncate">iz: {group.document.title}</p>
                 )}
             </div>
         </button>
@@ -427,7 +427,7 @@ const QuarterlyCard = ({ doc, onClick }: { doc: QuarterlyDoc; onClick: () => voi
                     </div>
                     <div className="absolute inset-0 bg-[#0056B3]/0 group-hover:bg-[#0056B3]/10 transition-colors duration-200 flex items-center justify-center">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full px-3 py-1.5 text-xs font-bold text-[#0056B3] shadow flex items-center gap-1.5">
-                            <ExternalLink size={11} /> Отвори
+                            <ExternalLink size={11} /> Otvori
                         </div>
                     </div>
                 </div>
@@ -524,7 +524,7 @@ const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 md:h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="RATEL" className="h-6 md:h-7" />
-                        <span className="font-extrabold text-[13px] md:text-[15px] uppercase tracking-wide">РАТЕЛ</span>
+                        <span className="font-extrabold text-[13px] md:text-[15px] uppercase tracking-wide">RATEL</span>
                     </div>
 
                 </div>
@@ -536,12 +536,12 @@ const LandingPage = () => {
                 {/* Left: title */}
                 <div>
                     <h1 className="text-[30px] md:text-[38px] lg:text-[40px] font-extrabold leading-[1.1] text-dark-blue tracking-tight">
-                        Добродошли на<br />Рателов Портал<br />прегледа тржишта електронских комуникација и поштанских услуга у Републици Србији.
+                        Dobrodošli na<br />Ratelov Portal<br />pregleda tržišta elektronskih komunikacija i poštanskih usluga u Republici Srbiji.
                     </h1>
                     <button
                         onClick={() => document.getElementById("documents-section")?.scrollIntoView({ behavior: "smooth" })}
                         className="mt-8 md:mt-12 w-10 h-10 rounded-full flex items-center justify-center text-slate-300 hover:text-[#0056B3] transition"
-                        aria-label="Скроли до садржаја"
+                        aria-label="Skroli do sadržaja"
                     >
                         <ChevronDown size={28} />
                     </button>
@@ -556,7 +556,7 @@ const LandingPage = () => {
                     {/* COL 1 — pos 0 — tall white (light gradient) */}
                     {(() => {
                         const b = boxAt(0);
-                        const title = b?.title || 'Погледајте комплетан\nпреглед тржишта 2025';
+                        const title = b?.title || 'Pogledajte kompletan\npregled tržišta 2025';
                         const image = b?.image_path || trz1;
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -580,7 +580,7 @@ const LandingPage = () => {
                     {/* COL 2 / ROW 1 — pos 1 — blue/dark (dark gradient, white text) */}
                     {(() => {
                         const b = boxAt(1);
-                        const title = b?.title || 'Преглед тржишта електронских комуникација 2025';
+                        const title = b?.title || 'Pregled tržišta elektronskih komunikacija 2025';
                         const image = b?.image_path || trz2;
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -597,7 +597,7 @@ const LandingPage = () => {
                     {/* COL 3 — pos 2 — tall dark (dark gradient, white text) */}
                     {(() => {
                         const b = boxAt(2);
-                        const title = b?.title || 'Квартални подаци';
+                        const title = b?.title || 'Kvartalni podaci';
                         const image = b?.image_path || trz3;
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -616,7 +616,7 @@ const LandingPage = () => {
                     {/* COL 4 / ROW 1 — pos 3 — small light (light gradient, dark text) */}
                     {(() => {
                         const b = boxAt(3);
-                        const title = b?.title || 'Преглед тржишта\nинформациона\nбезбедност 2025';
+                        const title = b?.title || 'Pregled tržišta\ninformaciona\nbezbednost 2025';
                         const image = b?.image_path || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=600&q=80';
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -633,7 +633,7 @@ const LandingPage = () => {
                     {/* COL 2 / ROW 2 — pos 4 — hidden on mobile, small light */}
                     {(() => {
                         const b = boxAt(4);
-                        const title = b?.title || 'Преглед тржишта\nпоштанских\nуслуга 2025';
+                        const title = b?.title || 'Pregled tržišta\npoštanskih\nusluga 2025';
                         const image = b?.image_path || 'https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=600&q=80';
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -650,7 +650,7 @@ const LandingPage = () => {
                     {/* COL 4 / ROW 2 — pos 5 — hidden on mobile, small light */}
                     {(() => {
                         const b = boxAt(5);
-                        const title = b?.title || 'Погледајте претходне\nпрегледе тржишта';
+                        const title = b?.title || 'Pogledajte prethodne\npreglede tržišta';
                         const image = b?.image_path || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
                         const link = b?.link_url ?? null;
                         const clickable = !!link;
@@ -666,7 +666,7 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* ── Издвојени садржај (bottom section) ── */}
+            {/* ── Izdvojeni sadržaj (bottom section) ── */}
             <section id="documents-section" className="pt-8 md:pt-12 pb-16 md:pb-24 min-h-[60vh]">
                 <div className="max-w-7xl mx-auto px-4 md:px-8">
 
@@ -674,13 +674,13 @@ const LandingPage = () => {
                     <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 md:mb-8 gap-4">
                         <div>
                             <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#0056B3]/60 mb-1">
-                                Портал
+                                Portal
                             </p>
                             <h2 className="font-extrabold text-xl md:text-2xl text-dark-blue leading-tight">
-                                Издвојени садржај
+                                Izdvojeni sadržaj
                             </h2>
                             <p className="text-xs md:text-sm text-slate-400 mt-1 hidden sm:block">
-                                Графикони, табеле и анализе из извештаја РАТЕЛ-а
+                                Grafikoni, tabele i analize iz izveštaja RATEL-a
                             </p>
                         </div>
                         {/* Search */}
@@ -689,7 +689,7 @@ const LandingPage = () => {
                             <input
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                placeholder="Претрага садржаја..."
+                                placeholder="Pretraga sadržaja..."
                                 className="text-sm outline-none bg-transparent placeholder:text-slate-300 w-36 md:w-48"
                             />
                         </div>
@@ -699,20 +699,20 @@ const LandingPage = () => {
                     {loading ? (
                         <div className="flex items-center justify-center py-24 gap-4 text-slate-300">
                             <Loader2 className="animate-spin text-blue-300" size={32} />
-                            <span className="text-sm font-semibold">Учитавање...</span>
+                            <span className="text-sm font-semibold">Učitavanje...</span>
                         </div>
                     ) : visibleGroups.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-24 text-slate-300 gap-3">
                             <Layers size={48} />
                             <span className="text-sm font-semibold">
-                                {search ? "Нема резултата претраге" : "Нема издвојеног садржаја"}
+                                {search ? "Nema rezultata pretrage" : "Nema izdvojenog sadržaja"}
                             </span>
                             {search && (
                                 <button
                                     onClick={() => setSearch("")}
                                     className="text-xs text-[#0056B3] font-semibold underline underline-offset-2"
                                 >
-                                    Обриши претрагу
+                                    Obriši pretragu
                                 </button>
                             )}
                         </div>
@@ -726,7 +726,7 @@ const LandingPage = () => {
                             {visibleGroups.length >= 10 && (
                                 <div className="mt-8 md:mt-10 flex justify-center">
                                     <p className="text-xs text-slate-400 font-semibold">
-                                        Приказано {visibleGroups.length} резултата
+                                        Prikazano {visibleGroups.length} rezultata
                                     </p>
                                 </div>
                             )}
@@ -735,7 +735,7 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* ── Издвојен садржај — Квартални извештаји ── */}
+            {/* ── Izdvojen sadržaj — Kvartalni izveštaji ── */}
             <section id="quarterly-section" className="pb-16 md:pb-24">
                 <div className="max-w-7xl mx-auto px-4 md:px-8">
 
@@ -743,13 +743,13 @@ const LandingPage = () => {
                     <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 md:mb-8 gap-4">
                         <div>
                             <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#0056B3]/60 mb-1">
-                                Портал
+                                Portal
                             </p>
                             <h2 className="font-extrabold text-xl md:text-2xl text-dark-blue leading-tight">
-                                Издвојен садржај — Квартални извештаји
+                                Izdvojen sadržaj — Kvartalni izveštaji
                             </h2>
                             <p className="text-xs md:text-sm text-slate-400 mt-1 hidden sm:block">
-                                Тромесечни прегледи тржишта електронских комуникација и поштанских услуга
+                                Tromesečni pregledi tržišta elektronskih komunikacija i poštanskih usluga
                             </p>
                         </div>
                         {/* Search */}
@@ -758,7 +758,7 @@ const LandingPage = () => {
                             <input
                                 value={quarterlySearch}
                                 onChange={e => setQuarterlySearch(e.target.value)}
-                                placeholder="Категорија, квартал, година..."
+                                placeholder="Kategorija, kvartal, godina..."
                                 className="text-sm outline-none bg-transparent placeholder:text-slate-300 w-44 md:w-56"
                             />
                         </div>
@@ -768,20 +768,20 @@ const LandingPage = () => {
                     {loading ? (
                         <div className="flex items-center justify-center py-16 gap-4 text-slate-300">
                             <Loader2 className="animate-spin text-blue-300" size={32} />
-                            <span className="text-sm font-semibold">Учитавање...</span>
+                            <span className="text-sm font-semibold">Učitavanje...</span>
                         </div>
                     ) : visibleQuarterly.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-slate-300 gap-3">
                             <FileText size={48} />
                             <span className="text-sm font-semibold">
-                                {quarterlySearch ? "Нема резултата претраге" : "Нема кварталних извештаја"}
+                                {quarterlySearch ? "Nema rezultata pretrage" : "Nema kvartalnih izveštaja"}
                             </span>
                             {quarterlySearch && (
                                 <button
                                     onClick={() => setQuarterlySearch("")}
                                     className="text-xs text-[#0056B3] font-semibold underline underline-offset-2"
                                 >
-                                    Обриши претрагу
+                                    Obriši pretragu
                                 </button>
                             )}
                         </div>
@@ -800,7 +800,7 @@ const LandingPage = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-4">
                     {/* Disclaimer */}
                     <p className="text-[11px] text-slate-400 leading-relaxed border-l-2 border-slate-200 pl-3">
-                        RATEL не преузима одговорност за тачност података које су доставили оператори.
+                        RATEL ne preuzima odgovornost za tačnost podataka koje su dostavili operatori.
                     </p>
                     {/* Bottom row */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
@@ -808,7 +808,7 @@ const LandingPage = () => {
                             <img src={logo} alt="RATEL" className="h-5 opacity-40" />
                             <span className="font-bold uppercase tracking-wide">RATEL</span>
                             <span className="hidden sm:inline">—</span>
-                            <span className="text-center sm:text-left">Регулаторна агенција за електронске комуникације и поштанске услуге</span>
+                            <span className="text-center sm:text-left">Regulatorna agencija za elektronske komunikacije i poštanske usluge</span>
                         </div>
                         <span className="shrink-0">© {new Date().getFullYear()}</span>
                     </div>

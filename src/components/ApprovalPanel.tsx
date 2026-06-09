@@ -47,26 +47,26 @@ interface Props {
 }
 
 const STATUS_INFO: Record<string, { label: string; color: string }> = {
-    draft:                { label: 'У изради',              color: 'text-slate-600 bg-slate-100' },
-    pending_rukovodilac:  { label: 'Чека руководиоца',      color: 'text-purple-700 bg-purple-100' },
-    pending_direktor:     { label: 'Чека директора',        color: 'text-amber-700 bg-amber-100' },
-    pending_kabinet:      { label: 'Чека кабинет',          color: 'text-emerald-700 bg-emerald-100' },
-    pending_admin:        { label: 'Чека админа',           color: 'text-blue-700 bg-blue-100' },
-    approved:             { label: 'Одобрено',              color: 'text-green-700 bg-green-100' },
-    rejected:             { label: 'Одбијено',              color: 'text-red-700 bg-red-100' },
+    draft:                { label: 'U izradi',              color: 'text-slate-600 bg-slate-100' },
+    pending_rukovodilac:  { label: 'Čeka rukovodioca',      color: 'text-purple-700 bg-purple-100' },
+    pending_direktor:     { label: 'Čeka direktora',        color: 'text-amber-700 bg-amber-100' },
+    pending_kabinet:      { label: 'Čeka kabinet',          color: 'text-emerald-700 bg-emerald-100' },
+    pending_admin:        { label: 'Čeka admina',           color: 'text-blue-700 bg-blue-100' },
+    approved:             { label: 'Odobreno',              color: 'text-green-700 bg-green-100' },
+    rejected:             { label: 'Odbijeno',              color: 'text-red-700 bg-red-100' },
 };
 
 const ROLE_LABEL: Record<string, string> = {
-    editor: 'Уредник', rukovodilac: 'Руководилац', direktor: 'Директор', kabinet: 'Кабинет', admin: 'Администратор',
+    editor: 'Urednik', rukovodilac: 'Rukovodilac', direktor: 'Direktor', kabinet: 'Kabinet', admin: 'Administrator',
 };
 
 const ACTION_INFO: Record<string, { label: string; color: string; icon: any }> = {
-    submitted:            { label: 'послао на преглед',                color: 'text-slate-600', icon: Clock },
-    approved:             { label: 'одобрио',                           color: 'text-green-700', icon: CheckCircle2 },
-    rejected:             { label: 'одбио',                             color: 'text-red-700',   icon: X },
-    reset:                { label: 'ресетовао',                         color: 'text-slate-500', icon: AlertCircle },
-    revoked:              { label: 'поништио одобрење',                color: 'text-orange-700', icon: ShieldOff },
-    edit_after_approval:  { label: 'изменио након одобрења',           color: 'text-orange-700', icon: AlertCircle },
+    submitted:            { label: 'poslao na pregled',                color: 'text-slate-600', icon: Clock },
+    approved:             { label: 'odobrio',                           color: 'text-green-700', icon: CheckCircle2 },
+    rejected:             { label: 'odbio',                             color: 'text-red-700',   icon: X },
+    reset:                { label: 'resetovao',                         color: 'text-slate-500', icon: AlertCircle },
+    revoked:              { label: 'poništio odobrenje',                color: 'text-orange-700', icon: ShieldOff },
+    edit_after_approval:  { label: 'izmenio nakon odobrenja',           color: 'text-orange-700', icon: AlertCircle },
 };
 
 const fmtDateTime = (iso: string | null) => iso
@@ -120,14 +120,14 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
     const latestRejection = events.find(e => e.action === 'rejected') ?? null;
 
     const handleSubmit = async () => {
-        if (!confirm("Послаћеш ово поглавље на преглед. Након слања, сваки наредни корисник у ланцу може да направи измене и да одобри/одбије. Настављамо?")) return;
+        if (!confirm("Poslaćeš ovo poglavlje na pregled. Nakon slanja, svaki naredni korisnik u lancu može da napravi izmene i da odobri/odbije. Nastavljamo?")) return;
         setActing(true);
         try {
             const { data } = await axiosClient.post(`/api/sections/${sectionId}/submit`);
             onChanged?.(data?.approval?.status || 'pending_rukovodilac');
             await load();
         } catch (e: any) {
-            alert("❌ " + (e?.response?.data?.message || 'Грешка при слању.'));
+            alert("❌ " + (e?.response?.data?.message || 'Greška pri slanju.'));
         } finally { setActing(false); }
     };
 
@@ -139,7 +139,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             onChanged?.(data?.approval?.status || status);
             await load();
         } catch (e: any) {
-            alert("❌ " + (e?.response?.data?.message || 'Грешка при одобравању.'));
+            alert("❌ " + (e?.response?.data?.message || 'Greška pri odobravanju.'));
         } finally { setActing(false); }
     };
 
@@ -153,8 +153,8 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
 
     const handleReject = async () => {
         const valid = rejectComments.filter(c => c.text.trim().length >= 3);
-        if (valid.length === 0) { alert('Унесите бар један коментар (минимум 3 карактера).'); return; }
-        if (!confirm('Одбијање ресетује сва дотадашња одобрења и враћа поглавље на ниво уредника. Настављамо?')) return;
+        if (valid.length === 0) { alert('Unesite bar jedan komentar (minimum 3 karaktera).'); return; }
+        if (!confirm('Odbijanje resetuje sva dotadašnja odobrenja i vraća poglavlje na nivo urednika. Nastavljamo?')) return;
         setActing(true);
         try {
             const payload = { comments: valid.map(c => ({ text: c.text.trim(), page: c.page })) };
@@ -164,23 +164,23 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             onChanged?.(data?.approval?.status || 'rejected');
             await load();
         } catch (e: any) {
-            alert("❌ " + (e?.response?.data?.message || 'Грешка при одбијању.'));
+            alert("❌ " + (e?.response?.data?.message || 'Greška pri odbijanju.'));
         } finally { setActing(false); }
     };
 
     // Admin revoke (per-level or all)
     const handleRevoke = async (level: 'rukovodilac' | 'direktor' | 'kabinet' | 'admin' | 'all') => {
-        const labelMap: Record<string, string> = { ...ROLE_LABEL, all: 'свих нивоа (враћање на draft)' };
-        const reason = prompt(`Поништавање одобрења на нивоу: ${labelMap[level]}\n\nРазлог поништавања (обавезно):`);
+        const labelMap: Record<string, string> = { ...ROLE_LABEL, all: 'svih nivoa (vraćanje na draft)' };
+        const reason = prompt(`Poništavanje odobrenja na nivou: ${labelMap[level]}\n\nRazlog poništavanja (obavezno):`);
         if (reason === null) return;
-        if (reason.trim().length < 3) { alert('Разлог мора бити најмање 3 карактера.'); return; }
+        if (reason.trim().length < 3) { alert('Razlog mora biti najmanje 3 karaktera.'); return; }
         setActing(true);
         try {
             const { data } = await axiosClient.post(`/api/sections/${sectionId}/revoke`, { level, reason: reason.trim() });
             onChanged?.(data?.approval?.status || status);
             await load();
         } catch (e: any) {
-            alert("❌ " + (e?.response?.data?.message || 'Грешка при поништавању.'));
+            alert("❌ " + (e?.response?.data?.message || 'Greška pri poništavanju.'));
         } finally { setActing(false); }
     };
 
@@ -189,11 +189,11 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
     }
 
     const timeline: { key: 'rukovodilac' | 'direktor' | 'kabinet' | 'admin' | 'editor'; label: string; user: ApprovalStage | null | undefined }[] = [
-        { key: 'editor',      label: 'Уредник',      user: approval?.submitted_by },
-        { key: 'rukovodilac', label: 'Руководилац',  user: approval?.rukovodilac },
-        { key: 'direktor',    label: 'Директор',     user: approval?.direktor },
-        { key: 'kabinet',     label: 'Кабинет',      user: approval?.kabinet },
-        { key: 'admin',       label: 'Администратор', user: approval?.admin },
+        { key: 'editor',      label: 'Urednik',      user: approval?.submitted_by },
+        { key: 'rukovodilac', label: 'Rukovodilac',  user: approval?.rukovodilac },
+        { key: 'direktor',    label: 'Direktor',     user: approval?.direktor },
+        { key: 'kabinet',     label: 'Kabinet',      user: approval?.kabinet },
+        { key: 'admin',       label: 'Administrator', user: approval?.admin },
     ];
 
     const hasDownstreamApprovals = !!(approval?.rukovodilac || approval?.direktor || approval?.kabinet);
@@ -210,13 +210,13 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             {isEditingApproved && status !== 'approved' && (
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-[11px] text-amber-700">
                     <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-                    <span>Сваки чувани измена утиче на сву даљу проверу. Претходни нивои који су већ одобрили <strong>неће</strong> бити аутоматски ресетовани.</span>
+                    <span>Svaki čuvani izmena utiče na svu dalju proveru. Prethodni nivoi koji su već odobrili <strong>neće</strong> biti automatski resetovani.</span>
                 </div>
             )}
             {status === 'approved' && (
                 <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 text-[11px] text-orange-700">
                     <ShieldAlert size={14} className="shrink-0 mt-0.5" />
-                    <span>Поглавље је <strong>одобрено</strong>. Свака измена аутоматски ресетује сва одобрења и враћа га у draft.</span>
+                    <span>Poglavlje je <strong>odobreno</strong>. Svaka izmena automatski resetuje sva odobrenja i vraća ga u draft.</span>
                 </div>
             )}
 
@@ -224,44 +224,44 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             {canSubmit && (
                 <button onClick={handleSubmit} disabled={acting}
                     className="w-full py-2.5 rounded-xl bg-[#0056B3] text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                    {acting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Пошаљи на преглед
+                    {acting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Pošalji na pregled
                 </button>
             )}
 
             {canActNow && !showRejectInput && (
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Коментар (опционо)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Komentar (opciono)</label>
                     <textarea value={comment} onChange={e => setComment(e.target.value)}
-                        placeholder="Опционо уз одобрење"
+                        placeholder="Opciono uz odobrenje"
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-[#0056B3] resize-none"
                         rows={2} />
                     <button onClick={handleApprove} disabled={acting}
                         className="w-full py-2.5 rounded-xl bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                        {acting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Одобри
+                        {acting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Odobri
                     </button>
                     <button onClick={() => setShowRejectInput(true)} disabled={acting}
                         className="w-full py-2 rounded-xl border border-red-200 text-red-600 text-xs font-bold hover:bg-red-50 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                        <X size={13} /> Одбиј
+                        <X size={13} /> Odbij
                     </button>
                 </div>
             )}
 
             {canActNow && showRejectInput && (
                 <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-bold uppercase tracking-wide text-red-500">Разлози одбијања *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-red-500">Razlozi odbijanja *</label>
                     {rejectComments.map((c, i) => (
                         <div key={i} className="flex gap-2 items-start">
                             <textarea value={c.text} onChange={e => updateRejComment(i, 'text', e.target.value)}
-                                placeholder="Шта није у реду..."
+                                placeholder="Šta nije u redu..."
                                 className="flex-1 border border-red-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-red-500 resize-none"
                                 rows={2} />
                             <div className="flex flex-col gap-1 shrink-0">
                                 <select value={c.page ?? ''} onChange={e => updateRejComment(i, 'page', e.target.value)}
-                                    title="Број стране (опционо)"
+                                    title="Broj strane (opciono)"
                                     className="border border-red-200 rounded-lg px-1.5 py-1 text-[11px] outline-none focus:border-red-500 bg-white">
                                     <option value="">—</option>
                                     {Array.from({ length: Math.max(1, pageCount) }, (_, idx) => (
-                                        <option key={idx + 1} value={idx + 1}>Стр. {idx + 1}</option>
+                                        <option key={idx + 1} value={idx + 1}>Str. {idx + 1}</option>
                                     ))}
                                 </select>
                                 {rejectComments.length > 1 && (
@@ -274,15 +274,15 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
                     ))}
                     <button onClick={addRejComment} disabled={acting}
                         className="w-full py-1.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-[11px] font-bold hover:bg-slate-50 transition flex items-center justify-center gap-1.5">
-                        <Plus size={12} /> Додај коментар
+                        <Plus size={12} /> Dodaj komentar
                     </button>
                     <button onClick={handleReject} disabled={acting || rejectComments.every(c => c.text.trim().length < 3)}
                         className="w-full py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                        {acting ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />} Потврди одбијање
+                        {acting ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />} Potvrdi odbijanje
                     </button>
                     <button onClick={() => { setShowRejectInput(false); setRejectComments([{ text: '', page: 1 }]); }} disabled={acting}
                         className="w-full py-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-700">
-                        Откажи
+                        Otkaži
                     </button>
                 </div>
             )}
@@ -291,25 +291,25 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             {user?.is_admin && status !== 'draft' && (
                 <button onClick={() => handleRevoke('all')} disabled={acting}
                     className="w-full py-2 rounded-xl border border-orange-200 text-orange-700 text-[11px] font-bold hover:bg-orange-50 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                    <RotateCcw size={12} /> Поништи сва одобрења (admin)
+                    <RotateCcw size={12} /> Poništi sva odobrenja (admin)
                 </button>
             )}
 
             {!canSubmit && !canActNow && (
                 <div className="text-[11px] text-slate-500 px-3 py-2.5 bg-slate-50 rounded-xl">
                     {status === 'approved'
-                        ? 'Финално одобрено — без додатних акција (осим ресета админа).'
+                        ? 'Finalno odobreno — bez dodatnih akcija (osim reseta admina).'
                         : status === 'rejected'
-                            ? 'Одбијено — само уредник може да пошаље поново.'
+                            ? 'Odbijeno — samo urednik može da pošalje ponovo.'
                             : status === 'draft'
-                                ? 'Чека уредника да пошаље на преглед.'
-                                : 'Овај ниво прегледа није твој.'}
+                                ? 'Čeka urednika da pošalje na pregled.'
+                                : 'Ovaj nivo pregleda nije tvoj.'}
                 </div>
             )}
 
             {/* Status pipeline */}
             <div className="bg-white border border-slate-100 rounded-xl p-3">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Ток одобравања</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Tok odobravanja</div>
                 <div className="flex flex-col gap-2">
                     {timeline.map(stage => {
                         const isAdmin = !!user?.is_admin;
@@ -327,7 +327,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
                                 </div>
                                 {canRevoke && (
                                     <button onClick={() => handleRevoke(stage.key as any)} disabled={acting}
-                                        title={`Поништи одобрење — ${stage.label}`}
+                                        title={`Poništi odobrenje — ${stage.label}`}
                                         className="p-1 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition shrink-0">
                                         <ShieldOff size={11} />
                                     </button>
@@ -341,7 +341,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
                                 <X size={10} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-[11px] font-bold text-red-700">Одбијено</div>
+                                <div className="text-[11px] font-bold text-red-700">Odbijeno</div>
                                 <div className="text-[10px] text-slate-400">{approval.rejected_by.name} • {fmtDateTime(approval.rejected_by.at)}</div>
 
                                 {/* Strukturirani komentari grupisani po stranicama, ako postoje */}
@@ -351,7 +351,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
                                             <div key={i} className="flex items-start gap-1.5 text-[11px]">
                                                 {c.page && (
                                                     <span className="shrink-0 px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">
-                                                        Стр. {c.page}
+                                                        Str. {c.page}
                                                     </span>
                                                 )}
                                                 <span className="text-slate-700">{c.text}</span>
@@ -371,7 +371,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
             {events.length > 0 && (
                 <div className="bg-white border border-slate-100 rounded-xl p-3">
                     <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1.5">
-                        <MessageSquare size={11} /> Историјат
+                        <MessageSquare size={11} /> Istorijat
                     </div>
                     <div className="flex flex-col gap-2.5">
                         {events.map(ev => {
@@ -391,7 +391,7 @@ export default function ApprovalPanel({ sectionId, pageCount = 1, onChanged }: P
                                             <div className="mt-1 flex flex-col gap-0.5">
                                                 {ev.comments.map((c, i) => (
                                                     <div key={i} className="flex items-start gap-1.5">
-                                                        {c.page && <span className="text-[10px] font-bold text-slate-400 shrink-0">Стр. {c.page}:</span>}
+                                                        {c.page && <span className="text-[10px] font-bold text-slate-400 shrink-0">Str. {c.page}:</span>}
                                                         <span className="text-slate-600 italic">„{c.text}"</span>
                                                     </div>
                                                 ))}

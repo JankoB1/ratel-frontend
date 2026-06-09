@@ -21,9 +21,9 @@ interface HeaderProps {
 }
 
 const STATUS_INFO: Record<string, { label: string; dotClass: string }> = {
-    draft: { label: 'У ИЗРАДИ', dotClass: 'bg-orange-400' },
-    published: { label: 'ОБЈАВЉЕНО', dotClass: 'bg-green-500' },
-    archived: { label: 'АРХИВИРАНО', dotClass: 'bg-slate-400' },
+    draft: { label: 'U IZRADI', dotClass: 'bg-orange-400' },
+    published: { label: 'OBJAVLjENO', dotClass: 'bg-green-500' },
+    archived: { label: 'ARHIVIRANO', dotClass: 'bg-slate-400' },
 };
 
 const getInitials = (name: string) => {
@@ -125,7 +125,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
         navigate('/login');
     };
 
-    const displayName = user?.name || 'Гост';
+    const displayName = user?.name || 'Gost';
 
     return (
         <header className="h-20 px-8 m-8 w-full flex items-center justify-between bg-background-grey">
@@ -153,9 +153,9 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                         <h1
                             onClick={onDocumentUpdate ? startEditTitle : undefined}
                             className={`font-extrabold text-[15px] leading-none tracking-[0.05em] uppercase truncate ${onDocumentUpdate ? 'cursor-text hover:bg-slate-50 rounded px-1 -mx-1 py-1' : ''}`}
-                            title={onDocumentUpdate ? 'Кликни за уређивање назива' : (documentTitle || '')}
+                            title={onDocumentUpdate ? 'Klikni za uređivanje naziva' : (documentTitle || '')}
                         >
-                            {documentTitle || 'Без наслова'}
+                            {documentTitle || 'Bez naslova'}
                         </h1>
                     )}
 
@@ -164,7 +164,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                             type="button"
                             onClick={() => onDocumentUpdate && setStatusOpen(o => !o)}
                             className={`font-normal text-base leading-none tracking-[0.05em] uppercase inline-flex items-center gap-2 px-1 -mx-1 py-1 rounded ${onDocumentUpdate ? 'cursor-pointer hover:bg-slate-50' : ''}`}
-                            title={onDocumentUpdate ? 'Промени статус' : ''}
+                            title={onDocumentUpdate ? 'Promeni status' : ''}
                         >
                             <span className={`w-2 h-2 ${statusInfo.dotClass} rounded-full inline-block`}></span>
                             {statusInfo.label}
@@ -199,7 +199,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                     <button
                         onClick={onUndo}
                         disabled={!canUndo}
-                        title="Поништи (Ctrl+Z)"
+                        title="Poništi (Ctrl+Z)"
                         className="disabled:cursor-not-allowed"
                     >
                         <Undo2 size={20} className={canUndo ? "text-dark-blue" : "text-slate-300"} />
@@ -208,14 +208,14 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                     <button
                         onClick={onZoomIn}
                         disabled={!canZoomIn}
-                        title="Увећај (Ctrl+ +)"
+                        title="Uvećaj (Ctrl+ +)"
                         className="disabled:cursor-not-allowed"
                     >
                         <ZoomIn size={20} className={canZoomIn ? "text-dark-blue" : "text-slate-300"} />
                     </button>
                     <button
                         onClick={onZoomReset}
-                        title="Поништи зум (Ctrl+0)"
+                        title="Poništi zum (Ctrl+0)"
                         className="text-dark-blue text-sm font-bold min-w-[42px]"
                     >
                         {Math.round(zoom * 100)}%
@@ -223,7 +223,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                     <button
                         onClick={onZoomOut}
                         disabled={!canZoomOut}
-                        title="Умањи (Ctrl+ -)"
+                        title="Umanji (Ctrl+ -)"
                         className="disabled:cursor-not-allowed"
                     >
                         <ZoomOut size={20} className={canZoomOut ? "text-dark-blue" : "text-slate-300"} />
@@ -233,7 +233,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-6 mr-4 bg-white rounded-[50px] py-[20px] px-[35px]">
-                    <button onClick={onSearchClick} title="Претражи (Ctrl+F)">
+                    <button onClick={onSearchClick} title="Pretraži (Ctrl+F)">
                         <Search size={20} className="text-dark-blue" />
                     </button>
                     <InboxBadge />
@@ -246,7 +246,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                     <button
                         onClick={() => setMenuOpen(o => !o)}
                         className="flex items-center gap-4 bg-white rounded-[50px] py-[14px] px-[20px] hover:bg-slate-50 transition-colors"
-                        title={user?.email || 'Налог'}
+                        title={user?.email || 'Nalog'}
                     >
                         <Avatar src={user?.avatar} name={displayName} size={36} />
                         <span className="text-base tracking-wider uppercase max-w-[140px] truncate" title={displayName}>
@@ -275,7 +275,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                                     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-[#0056B3] hover:bg-blue-50 transition-colors text-left border-b border-slate-100"
                                 >
                                     <ShieldCheck size={16} />
-                                    Админ панел
+                                    Admin panel
                                 </button>
                             )}
                             <button
@@ -283,7 +283,7 @@ const Header = ({ onUndo, canUndo = false, zoom = 1, onZoomIn, onZoomOut, onZoom
                                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors text-left"
                             >
                                 <LogOut size={16} />
-                                Одјави се
+                                Odjavi se
                             </button>
                         </div>
                     )}

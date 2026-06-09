@@ -17,20 +17,20 @@ const ZOOM_STEP = 0.1;
 
 // Approval status presentation
 const APPROVAL_STATUS_INFO: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    draft:                { label: 'У изради',                  color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
-    pending_rukovodilac:  { label: 'Чека руководиоца',          color: '#7c3aed', bg: '#f3e8ff', border: '#c4b5fd' },
-    pending_direktor:     { label: 'Чека директора',            color: '#d97706', bg: '#fef3c7', border: '#fcd34d' },
-    pending_kabinet:      { label: 'Чека кабинет',              color: '#059669', bg: '#d1fae5', border: '#6ee7b7' },
-    pending_admin:        { label: 'Чека админа (финално)',     color: '#0056B3', bg: '#dbeafe', border: '#93c5fd' },
-    approved:             { label: 'Одобрено',                  color: '#15803d', bg: '#dcfce7', border: '#86efac' },
-    rejected:             { label: 'Одбијено',                  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
+    draft:                { label: 'U izradi',                  color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
+    pending_rukovodilac:  { label: 'Čeka rukovodioca',          color: '#7c3aed', bg: '#f3e8ff', border: '#c4b5fd' },
+    pending_direktor:     { label: 'Čeka direktora',            color: '#d97706', bg: '#fef3c7', border: '#fcd34d' },
+    pending_kabinet:      { label: 'Čeka kabinet',              color: '#059669', bg: '#d1fae5', border: '#6ee7b7' },
+    pending_admin:        { label: 'Čeka admina (finalno)',     color: '#0056B3', bg: '#dbeafe', border: '#93c5fd' },
+    approved:             { label: 'Odobreno',                  color: '#15803d', bg: '#dcfce7', border: '#86efac' },
+    rejected:             { label: 'Odbijeno',                  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5' },
 };
 const getApprovalInfo = (s: string | undefined) => APPROVAL_STATUS_INFO[s || 'draft'] || APPROVAL_STATUS_INFO.draft;
 
 // Hijerarhija nivoa za edit-after-approve pravilo (mora da matchuje SectionApproval::LEVEL_ORDER na backendu).
 const LEVEL_ORDER: Record<string, number> = { editor: 0, rukovodilac: 1, direktor: 2, kabinet: 3, admin: 4 };
 const LEVEL_LABEL_SR: Record<string, string> = {
-    editor: 'уредника', rukovodilac: 'руководиоца', direktor: 'директора', kabinet: 'кабинета', admin: 'администратора',
+    editor: 'urednika', rukovodilac: 'rukovodioca', direktor: 'direktora', kabinet: 'kabineta', admin: 'administratora',
 };
 const resolveUserLevel = (u: { is_admin?: boolean; role?: string | null } | null | undefined): string => {
     if (!u) return 'editor';
@@ -104,10 +104,10 @@ const PanelPage = () => {
         try {
             const response = await axiosClient.put(`/api/admin/documents/${DOCUMENT_ID}`, updates);
             const doc = response.data.document;
-            setDocumentInfo({ title: doc.title || 'Без наслова', status: doc.status || 'draft' });
+            setDocumentInfo({ title: doc.title || 'Bez naslova', status: doc.status || 'draft' });
         } catch (e) {
             console.error(e);
-            alert('Грешка при чувању документа!');
+            alert('Greška pri čuvanju dokumenta!');
         }
     }, []);
 
@@ -189,7 +189,7 @@ const PanelPage = () => {
                 const doc = response.data.document;
                 const fetchedSections = doc.sections;
 
-                setDocumentInfo({ title: doc.title || 'Без наслова', status: doc.status || 'draft' });
+                setDocumentInfo({ title: doc.title || 'Bez naslova', status: doc.status || 'draft' });
                 setSections(fetchedSections);
                 if (fetchedSections && fetchedSections.length > 0) {
                     // Ako je deeplink ?section=X postoji, koristi tu sekciju
@@ -224,7 +224,7 @@ const PanelPage = () => {
         const activeSection = sections.find(s => s.id === activeSectionId);
         const canEdit = !!user?.is_admin || activeSection?.can_edit !== false;
         if (!canEdit) {
-            alert("❌ Немате привилегију да мењате ово поглавље.");
+            alert("❌ Nemate privilegiju da menjate ovo poglavlje.");
             return;
         }
 
@@ -239,10 +239,10 @@ const PanelPage = () => {
         if (willReset.length > 0) {
             const labels = willReset.map(l => LEVEL_LABEL_SR[l] || l).join(', ');
             const newStatusLabel = userLevel === 'editor'
-                ? '„у изради” (draft) — поглавље ћете морати поново да пошаљете на преглед'
-                : `„чека ${LEVEL_LABEL_SR[userLevel] || userLevel}” — мораћете поново да одобрите`;
+                ? '„u izradi” (draft) — poglavlje ćete morati ponovo da pošaljete na pregled'
+                : `„čeka ${LEVEL_LABEL_SR[userLevel] || userLevel}” — moraćete ponovo da odobrite`;
             const ok = confirm(
-                `Чување ће поништити одобрења: ${labels}.\n\nПоглавље ће бити враћено у статус ${newStatusLabel}.\n\nНастављамо?`
+                `Čuvanje će poništiti odobrenja: ${labels}.\n\nPoglavlje će biti vraćeno u status ${newStatusLabel}.\n\nNastavljamo?`
             );
             if (!ok) return;
         }
@@ -262,13 +262,13 @@ const PanelPage = () => {
             }
             if (data?.auto_reset && Array.isArray(data?.reset_levels) && data.reset_levels.length > 0) {
                 const labels = data.reset_levels.map((l: string) => LEVEL_LABEL_SR[l] || l).join(', ');
-                alert(`✅ Сачувано. Поништена одобрења: ${labels}. Нови статус: „${getApprovalInfo(data.approval_status).label}”.`);
+                alert(`✅ Sačuvano. Poništena odobrenja: ${labels}. Novi status: „${getApprovalInfo(data.approval_status).label}”.`);
             } else {
                 alert("✅ Poglavlje je uspešno sačuvano!");
             }
         } catch (error: any) {
             if (error?.response?.status === 403) {
-                alert("❌ Немате привилегију да мењате ово поглавље.");
+                alert("❌ Nemate privilegiju da menjate ovo poglavlje.");
             } else {
                 alert("❌ Greška pri čuvanju poglavlja!");
             }
@@ -541,7 +541,7 @@ const PanelPage = () => {
         return (
             <div className="w-full h-screen flex flex-col items-center justify-center gap-4 text-slate-400 bg-background-grey">
                 <Loader2 className="animate-spin text-blue-500" size={40} />
-                <span className="font-semibold tracking-wider uppercase text-sm">Учитавање извештаја...</span>
+                <span className="font-semibold tracking-wider uppercase text-sm">Učitavanje izveštaja...</span>
             </div>
         );
     }
@@ -590,7 +590,7 @@ const PanelPage = () => {
                         ref={searchInputRef}
                         autoFocus
                         type="text"
-                        placeholder="Претражи у документу..."
+                        placeholder="Pretraži u dokumentu..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => {
@@ -608,13 +608,13 @@ const PanelPage = () => {
                         {searchQuery.trim() === ''
                             ? ''
                             : searchMatches.length === 0
-                                ? 'Нема резултата'
+                                ? 'Nema rezultata'
                                 : `${currentMatchIdx + 1} / ${searchMatches.length}`}
                     </span>
                     <button
                         onClick={prevMatch}
                         disabled={!searchMatches.length}
-                        title="Претходни (Shift+Enter)"
+                        title="Prethodni (Shift+Enter)"
                         style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', color: searchMatches.length ? '#475569' : '#cbd5e1', cursor: searchMatches.length ? 'pointer' : 'not-allowed' }}
                     >
                         <ChevronUp size={16} />
@@ -622,14 +622,14 @@ const PanelPage = () => {
                     <button
                         onClick={nextMatch}
                         disabled={!searchMatches.length}
-                        title="Следећи (Enter)"
+                        title="Sledeći (Enter)"
                         style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', color: searchMatches.length ? '#475569' : '#cbd5e1', cursor: searchMatches.length ? 'pointer' : 'not-allowed' }}
                     >
                         <ChevronDown size={16} />
                     </button>
                     <button
                         onClick={closeSearch}
-                        title="Затвори (Esc)"
+                        title="Zatvori (Esc)"
                         style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', color: '#475569', cursor: 'pointer' }}
                     >
                         <X size={16} />
@@ -678,7 +678,7 @@ const PanelPage = () => {
 
                     {activeSection ? (
                         <div>
-                            {/* Approval status banner — info only. Action dugmad i sve detalje su sada u RightSidebar "Одобр." tab-u. */}
+                            {/* Approval status banner — info only. Action dugmad i sve detalje su sada u RightSidebar "Odobr." tab-u. */}
                             {(() => {
                                 const status = activeSection.approval_status || 'draft';
                                 const info = getApprovalInfo(status);
@@ -700,12 +700,12 @@ const PanelPage = () => {
                                          <Send size={16} />}
                                         <span style={{ flex: 1 }}>
                                             <strong>{info.label}.</strong>
-                                            {status === 'draft'    && ' Уредник може да пошаље на преглед (десно, „Одобр." таб).'}
-                                            {isPending             && ' Сви додељени могу да едитују; акције за одобравање су десно, „Одобр." таб.'}
-                                            {status === 'approved' && ' Поглавље је јавно — измене утичу на јавни приказ.'}
+                                            {status === 'draft'    && ' Urednik može da pošalje na pregled (desno, „Odobr." tab).'}
+                                            {isPending             && ' Svi dodeljeni mogu da edituju; akcije za odobravanje su desno, „Odobr." tab.'}
+                                            {status === 'approved' && ' Poglavlje je javno — izmene utiču na javni prikaz.'}
                                             {status === 'rejected' && activeSection.rejected_reason && (
                                                 <span style={{ display: 'block', marginTop: 4, fontWeight: 500, fontSize: 12 }}>
-                                                    Разлог: „{activeSection.rejected_reason}"
+                                                    Razlog: „{activeSection.rejected_reason}"
                                                 </span>
                                             )}
                                         </span>
@@ -729,7 +729,7 @@ const PanelPage = () => {
                                 }}>
                                     <Lock size={16} />
                                     <span>
-                                        Нисте додељени овом поглављу — само га прегледате.
+                                        Niste dodeljeni ovom poglavlju — samo ga pregledate.
                                     </span>
                                 </div>
                             )}
@@ -750,7 +750,7 @@ const PanelPage = () => {
                                 }}>
                                     <span style={{ fontSize: '18px' }}>🔒</span>
                                     <span>
-                                        <strong>{sectionLockedBy}</strong> тренутно уређује ово поглавље. Уређивање је онемогућено.
+                                        <strong>{sectionLockedBy}</strong> trenutno uređuje ovo poglavlje. Uređivanje je onemogućeno.
                                     </span>
                                 </div>
                             )}
@@ -767,7 +767,7 @@ const PanelPage = () => {
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full text-slate-400 w-full">
-                            Изаберите поглавље.
+                            Izaberite poglavlje.
                         </div>
                     )}
                 </div>
@@ -797,9 +797,9 @@ const PanelPage = () => {
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-[340px] text-center">
                         <Loader2 className="animate-spin text-blue-600" size={44} />
-                        <span className="text-base font-bold text-slate-700">Генерисање PDF-а…</span>
+                        <span className="text-base font-bold text-slate-700">Generisanje PDF-a…</span>
                         <span className="text-sm text-slate-400 font-medium leading-snug">
-                            Молимо сачекајте, ово може потрајати неколико тренутака.
+                            Molimo sačekajte, ovo može potrajati nekoliko trenutaka.
                         </span>
                     </div>
                 </div>

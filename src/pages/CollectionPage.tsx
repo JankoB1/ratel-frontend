@@ -69,7 +69,7 @@ const ThumbDrawer = ({
                 <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
                     <div className="w-10 h-1 bg-slate-200 rounded-full absolute left-1/2 -translate-x-1/2 top-2" />
                     <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Странице ({pages.length})
+                        Stranice ({pages.length})
                     </span>
                     <button
                         onClick={onClose}
@@ -175,7 +175,7 @@ export default function CollectionPage() {
                 setCollection(data.collection);
                 setSections(data.sections || []);
             } catch (e: any) {
-                setError(e?.message || "Грешка при учитавању колекције.");
+                setError(e?.message || "Greška pri učitavanju kolekcije.");
             } finally {
                 setLoading(false);
             }
@@ -285,14 +285,14 @@ export default function CollectionPage() {
     const effectiveZoom = isMobile ? mobileZoom : zoom;
 
     const counterLabel = totalGlobalPages > 0 && currentMeta
-        ? `Поглавље ${currentMeta.sectionIndex + 1}/${sections.length} · Стр. ${currentMeta.pageIndexInSection + 1}/${currentMeta.pagesInSection}`
+        ? `Poglavlje ${currentMeta.sectionIndex + 1}/${sections.length} · Str. ${currentMeta.pageIndexInSection + 1}/${currentMeta.pagesInSection}`
         : "— / —";
 
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-screen gap-4 text-slate-400 bg-background-grey">
                 <Loader2 className="animate-spin text-blue-500" size={40} />
-                <span className="font-semibold tracking-wider uppercase text-sm">Учитавање колекције...</span>
+                <span className="font-semibold tracking-wider uppercase text-sm">Učitavanje kolekcije...</span>
             </div>
         );
     }
@@ -301,7 +301,7 @@ export default function CollectionPage() {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background-grey">
                 <AlertCircle size={32} className="text-red-400" />
-                <p className="text-sm font-bold text-slate-600">{error || "Колекција није пронађена."}</p>
+                <p className="text-sm font-bold text-slate-600">{error || "Kolekcija nije pronađena."}</p>
             </div>
         );
     }
@@ -324,7 +324,7 @@ export default function CollectionPage() {
 
                 <div className="flex items-center gap-2 bg-white rounded-[50px] py-[10px] px-[20px] border border-slate-100 shadow-sm">
                     <button onClick={() => goToGlobalPage(currentGlobalPage - 1)} disabled={currentGlobalPage === 0}
-                        title="Претходна страна"
+                        title="Prethodna strana"
                         className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
                         <ChevronUp size={16} className="text-slate-600" />
                     </button>
@@ -332,7 +332,7 @@ export default function CollectionPage() {
                         {counterLabel}
                     </span>
                     <button onClick={() => goToGlobalPage(currentGlobalPage + 1)} disabled={currentGlobalPage >= totalGlobalPages - 1}
-                        title="Следећа страна"
+                        title="Sledeća strana"
                         className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
                         <ChevronDown size={16} className="text-slate-600" />
                     </button>
@@ -369,7 +369,7 @@ export default function CollectionPage() {
                     <button
                         onClick={() => setShowThumbDrawer(true)}
                         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors relative"
-                        title="Странице"
+                        title="Stranice"
                     >
                         <Layers size={15} className="text-slate-500" />
                         {currentSectionPages.length > 0 && (

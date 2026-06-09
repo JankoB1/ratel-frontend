@@ -27,26 +27,26 @@ const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { v
     return (
         <div className="flex flex-col gap-1">
             <div className="bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 grid grid-cols-5 gap-1">
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Подебљано"><Bold size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Курзив"><Italic size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Подвучено"><Underline size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Листа"><List size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Нумерисана листа"><ListOrdered size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Лево"><AlignLeft size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Центар"><AlignCenter size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Десно"><AlignRight size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Podebljano"><Bold size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Kurziv"><Italic size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Podvučeno"><Underline size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Lista"><List size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Numerisana lista"><ListOrdered size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Levo"><AlignLeft size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Centar"><AlignCenter size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Desno"><AlignRight size={14} /></button>
                 <button type="button" onMouseDown={(e) => {
                     e.preventDefault();
-                    const url = window.prompt('Унесите URL:');
+                    const url = window.prompt('Unesite URL:');
                     if (url) { document.execCommand('createLink', false, url); fireInput(); }
-                }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Линк"><Link2 size={14} /></button>
-                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center text-[10px] font-bold" title="Уклони форматирање">⌫</button>
+                }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center" title="Link"><Link2 size={14} /></button>
+                <button type="button" onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat'); fireInput(); }} className="p-1.5 rounded text-slate-500 hover:bg-white flex items-center justify-center text-[10px] font-bold" title="Ukloni formatiranje">⌫</button>
             </div>
             <div
                 ref={ref}
                 contentEditable
                 suppressContentEditableWarning
-                data-placeholder={placeholder || 'Унесите опис...'}
+                data-placeholder={placeholder || 'Unesite opis...'}
                 onInput={e => onChange((e.target as HTMLDivElement).innerHTML)}
                 className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all min-h-[60px] rich-description-editor"
             />
@@ -56,75 +56,75 @@ const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { v
 
 const CHART_TYPES_CONFIG: Record<string, { label: string; icon: React.ReactNode; subtypes: { id: string; name: string; icon: React.ReactNode }[] }> = {
     bar: {
-        label: "Стубичасти",
+        label: "Stubičasti",
         icon: <BarChart3 size={16} />,
         subtypes: [
-            { id: "grouped_v", name: "Груписани верт.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="10" width="6" height="20" fill="#34d399"/><rect x="13" y="15" width="6" height="15" fill="#8b98ff"/><rect x="23" y="5" width="6" height="25" fill="#34d399"/><rect x="31" y="12" width="6" height="18" fill="#8b98ff"/></svg> },
-            { id: "stacked_v", name: "Сложени верт.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="10" y="15" width="8" height="15" fill="#34d399"/><rect x="10" y="5" width="8" height="10" fill="#8b98ff"/><rect x="22" y="10" width="8" height="20" fill="#34d399"/><rect x="22" y="0" width="8" height="10" fill="#8b98ff"/></svg> },
-            { id: "grouped_h", name: "Груписани хориз.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="0" y="5" width="20" height="6" fill="#34d399"/><rect x="0" y="13" width="15" height="6" fill="#8b98ff"/><rect x="0" y="21" width="25" height="6" fill="#34d399"/></svg> },
-            { id: "stacked_h", name: "Сложени хориз.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="0" y="10" width="15" height="8" fill="#34d399"/><rect x="15" y="10" width="10" height="8" fill="#8b98ff"/><rect x="0" y="22" width="20" height="8" fill="#34d399"/><rect x="20" y="22" width="10" height="8" fill="#8b98ff"/></svg> },
+            { id: "grouped_v", name: "Grupisani vert.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="10" width="6" height="20" fill="#34d399"/><rect x="13" y="15" width="6" height="15" fill="#8b98ff"/><rect x="23" y="5" width="6" height="25" fill="#34d399"/><rect x="31" y="12" width="6" height="18" fill="#8b98ff"/></svg> },
+            { id: "stacked_v", name: "Složeni vert.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="10" y="15" width="8" height="15" fill="#34d399"/><rect x="10" y="5" width="8" height="10" fill="#8b98ff"/><rect x="22" y="10" width="8" height="20" fill="#34d399"/><rect x="22" y="0" width="8" height="10" fill="#8b98ff"/></svg> },
+            { id: "grouped_h", name: "Grupisani horiz.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="0" y="5" width="20" height="6" fill="#34d399"/><rect x="0" y="13" width="15" height="6" fill="#8b98ff"/><rect x="0" y="21" width="25" height="6" fill="#34d399"/></svg> },
+            { id: "stacked_h", name: "Složeni horiz.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="0" y="10" width="15" height="8" fill="#34d399"/><rect x="15" y="10" width="10" height="8" fill="#8b98ff"/><rect x="0" y="22" width="20" height="8" fill="#34d399"/><rect x="20" y="22" width="10" height="8" fill="#8b98ff"/></svg> },
         ]
     },
     line: {
-        label: "Линијски",
+        label: "Linijski",
         icon: <LineChart size={16} />,
         subtypes: [
-            { id: "line_basic", name: "Основна линија", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M5,25 L15,10 L25,18 L35,5" stroke="#34d399" strokeWidth="3" fill="none"/></svg> },
-            { id: "line_dots", name: "Линија са тачкама", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M5,25 L15,10 L25,18 L35,5" stroke="#34d399" strokeWidth="2" fill="none"/><circle cx="5" cy="25" r="3" fill="#8b98ff"/><circle cx="15" cy="10" r="3" fill="#8b98ff"/><circle cx="25" cy="18" r="3" fill="#8b98ff"/><circle cx="35" cy="5" r="3" fill="#8b98ff"/></svg> },
-            { id: "area_basic", name: "Површински", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,10 L20,20 L30,5 L40,15 L40,30 Z" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="2"/></svg> },
-            { id: "area_stacked", name: "Сложени површ.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,20 L20,25 L30,15 L40,20 L40,30 Z" fill="#34d399"/><path d="M0,20 L10,5 L20,15 L30,5 L40,10 L40,20 L30,15 L20,25 L10,20 Z" fill="#8b98ff"/></svg> },
+            { id: "line_basic", name: "Osnovna linija", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M5,25 L15,10 L25,18 L35,5" stroke="#34d399" strokeWidth="3" fill="none"/></svg> },
+            { id: "line_dots", name: "Linija sa tačkama", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M5,25 L15,10 L25,18 L35,5" stroke="#34d399" strokeWidth="2" fill="none"/><circle cx="5" cy="25" r="3" fill="#8b98ff"/><circle cx="15" cy="10" r="3" fill="#8b98ff"/><circle cx="25" cy="18" r="3" fill="#8b98ff"/><circle cx="35" cy="5" r="3" fill="#8b98ff"/></svg> },
+            { id: "area_basic", name: "Površinski", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,10 L20,20 L30,5 L40,15 L40,30 Z" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="2"/></svg> },
+            { id: "area_stacked", name: "Složeni površ.", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,20 L20,25 L30,15 L40,20 L40,30 Z" fill="#34d399"/><path d="M0,20 L10,5 L20,15 L30,5 L40,10 L40,20 L30,15 L20,25 L10,20 Z" fill="#8b98ff"/></svg> },
         ]
     },
     circular: {
-        label: "Кружни",
+        label: "Kružni",
         icon: <PieChart size={16} />,
         subtypes: [
-            { id: "pie_basic", name: "Пита", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="14" fill="#8b98ff"/><path d="M15,15 L15,1 A14,14 0 0,1 29,15 Z" fill="#34d399"/></svg> },
-            { id: "doughnut_basic", name: "Прстен", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><path d="M15,1 A14,14 0 1,1 15,29 A14,14 0 1,1 15,1 M15,7 A8,8 0 1,0 15,23 A8,8 0 1,0 15,7" fill="#8b98ff" fillRule="evenodd"/><path d="M15,1 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 15,7 Z" fill="#34d399"/></svg> },
-            { id: "radial_progress", name: "Радијални прогрес", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="14" fill="#f1f5f9" stroke="#e2e8f0" strokeWidth="1"/><path d="M15,1 A14,14 0 0,1 27,22" stroke="#34d399" strokeWidth="4" fill="none" strokeLinecap="round"/><circle cx="15" cy="15" r="10" fill="#f1f5f9" stroke="#e2e8f0" strokeWidth="1"/><path d="M15,5 A10,10 0 0,1 23,19" stroke="#8b98ff" strokeWidth="4" fill="none" strokeLinecap="round"/></svg> },
-            { id: "semicircle_doughnut", name: "Полупрстен", icon: <svg viewBox="0 0 30 15" className="w-full h-full"><path d="M1,15 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 7,15 Z" fill="#e2e8f0"/><path d="M1,15 A14,14 0 0,1 15,1 L15,7 A8,8 0 0,0 7,15 Z" fill="#34d399"/><path d="M15,1 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 15,7 Z" fill="#8b98ff"/></svg> },
+            { id: "pie_basic", name: "Pita", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="14" fill="#8b98ff"/><path d="M15,15 L15,1 A14,14 0 0,1 29,15 Z" fill="#34d399"/></svg> },
+            { id: "doughnut_basic", name: "Prsten", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><path d="M15,1 A14,14 0 1,1 15,29 A14,14 0 1,1 15,1 M15,7 A8,8 0 1,0 15,23 A8,8 0 1,0 15,7" fill="#8b98ff" fillRule="evenodd"/><path d="M15,1 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 15,7 Z" fill="#34d399"/></svg> },
+            { id: "radial_progress", name: "Radijalni progres", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="14" fill="#f1f5f9" stroke="#e2e8f0" strokeWidth="1"/><path d="M15,1 A14,14 0 0,1 27,22" stroke="#34d399" strokeWidth="4" fill="none" strokeLinecap="round"/><circle cx="15" cy="15" r="10" fill="#f1f5f9" stroke="#e2e8f0" strokeWidth="1"/><path d="M15,5 A10,10 0 0,1 23,19" stroke="#8b98ff" strokeWidth="4" fill="none" strokeLinecap="round"/></svg> },
+            { id: "semicircle_doughnut", name: "Poluprsten", icon: <svg viewBox="0 0 30 15" className="w-full h-full"><path d="M1,15 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 7,15 Z" fill="#e2e8f0"/><path d="M1,15 A14,14 0 0,1 15,1 L15,7 A8,8 0 0,0 7,15 Z" fill="#34d399"/><path d="M15,1 A14,14 0 0,1 29,15 L23,15 A8,8 0 0,0 15,7 Z" fill="#8b98ff"/></svg> },
         ]
     },
     composed: {
-        label: "Комбиновани",
+        label: "Kombinovani",
         icon: <Layers size={16} />,
         subtypes: [
-            { id: "composed_line_bar", name: "Линија + Стубићи", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/><path d="M0,20 L10,5 L30,15 L40,5" stroke="#8b98ff" strokeWidth="2" fill="none"/><circle cx="10" cy="5" r="2" fill="#8b98ff"/><circle cx="30" cy="15" r="2" fill="#8b98ff"/></svg> },
-            { id: "composed_area_bar", name: "Површина + Стуб", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L30,20 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/></svg> },
-            { id: "composed_area_line", name: "Површина + Линија", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L25,25 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><path d="M0,25 L15,5 L25,15 L40,5" stroke="#34d399" strokeWidth="2" fill="none"/><circle cx="15" cy="5" r="2" fill="#34d399"/><circle cx="25" cy="15" r="2" fill="#34d399"/></svg> },
-            { id: "composed_stacked_line", name: "Сложени + Линија", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="20" width="8" height="10" fill="#34d399"/><rect x="5" y="10" width="8" height="10" fill="#8b98ff"/><rect x="25" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="5" width="8" height="10" fill="#8b98ff"/><path d="M0,15 L10,5 L30,10 L40,0" stroke="#f59e0b" strokeWidth="2" fill="none"/></svg> }
+            { id: "composed_line_bar", name: "Linija + Stubići", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/><path d="M0,20 L10,5 L30,15 L40,5" stroke="#8b98ff" strokeWidth="2" fill="none"/><circle cx="10" cy="5" r="2" fill="#8b98ff"/><circle cx="30" cy="15" r="2" fill="#8b98ff"/></svg> },
+            { id: "composed_area_bar", name: "Površina + Stub", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L30,20 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><rect x="5" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="10" width="8" height="20" fill="#34d399"/></svg> },
+            { id: "composed_area_line", name: "Površina + Linija", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M0,30 L10,15 L25,25 L40,10 L40,30 Z" fill="#8b98ff" fillOpacity="0.3"/><path d="M0,25 L15,5 L25,15 L40,5" stroke="#34d399" strokeWidth="2" fill="none"/><circle cx="15" cy="5" r="2" fill="#34d399"/><circle cx="25" cy="15" r="2" fill="#34d399"/></svg> },
+            { id: "composed_stacked_line", name: "Složeni + Linija", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><rect x="5" y="20" width="8" height="10" fill="#34d399"/><rect x="5" y="10" width="8" height="10" fill="#8b98ff"/><rect x="25" y="15" width="8" height="15" fill="#34d399"/><rect x="25" y="5" width="8" height="10" fill="#8b98ff"/><path d="M0,15 L10,5 L30,10 L40,0" stroke="#f59e0b" strokeWidth="2" fill="none"/></svg> }
         ]
     },
     scatter: {
-        label: "Мехурасти",
+        label: "Mehurasti",
         icon: <ScatterChart size={16} />,
         subtypes: [
-            { id: "scatter_basic", name: "Тачкасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="3" fill="#34d399"/><circle cx="20" cy="10" r="3" fill="#8b98ff"/><circle cx="30" cy="25" r="3" fill="#f59e0b"/><circle cx="35" cy="15" r="3" fill="#e11d48"/></svg> },
-            { id: "bubble_basic", name: "Мехурасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="4" fill="#34d399" fillOpacity="0.7"/><circle cx="20" cy="10" r="8" fill="#8b98ff" fillOpacity="0.7"/><circle cx="30" cy="22" r="6" fill="#f59e0b" fillOpacity="0.7"/><circle cx="35" cy="15" r="3" fill="#e11d48" fillOpacity="0.7"/></svg> },
-            { id: "scatter_star", name: "Звездасти", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M10,17 L12,22 L8,19 L13,19 L9,22 Z" fill="#34d399"/><path d="M20,7 L23,14 L17,10 L24,10 L18,14 Z" fill="#8b98ff"/><path d="M30,22 L33,28 L27,25 L34,25 L28,28 Z" fill="#f59e0b"/></svg> },
-            { id: "scatter_diamond", name: "Дијамантски", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><polygon points="10,16 14,20 10,24 6,20" fill="#34d399"/><polygon points="20,6 25,11 20,16 15,11" fill="#8b98ff"/><polygon points="30,21 33,24 30,27 27,24" fill="#f59e0b"/></svg> }
+            { id: "scatter_basic", name: "Tačkasti", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="3" fill="#34d399"/><circle cx="20" cy="10" r="3" fill="#8b98ff"/><circle cx="30" cy="25" r="3" fill="#f59e0b"/><circle cx="35" cy="15" r="3" fill="#e11d48"/></svg> },
+            { id: "bubble_basic", name: "Mehurasti", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><circle cx="10" cy="20" r="4" fill="#34d399" fillOpacity="0.7"/><circle cx="20" cy="10" r="8" fill="#8b98ff" fillOpacity="0.7"/><circle cx="30" cy="22" r="6" fill="#f59e0b" fillOpacity="0.7"/><circle cx="35" cy="15" r="3" fill="#e11d48" fillOpacity="0.7"/></svg> },
+            { id: "scatter_star", name: "Zvezdasti", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><path d="M10,17 L12,22 L8,19 L13,19 L9,22 Z" fill="#34d399"/><path d="M20,7 L23,14 L17,10 L24,10 L18,14 Z" fill="#8b98ff"/><path d="M30,22 L33,28 L27,25 L34,25 L28,28 Z" fill="#f59e0b"/></svg> },
+            { id: "scatter_diamond", name: "Dijamantski", icon: <svg viewBox="0 0 40 30" className="w-full h-full"><polygon points="10,16 14,20 10,24 6,20" fill="#34d399"/><polygon points="20,6 25,11 20,16 15,11" fill="#8b98ff"/><polygon points="30,21 33,24 30,27 27,24" fill="#f59e0b"/></svg> }
         ]
     },
     radar: {
-        label: "Радарски",
+        label: "Radarski",
         icon: <Target size={16} />,
         subtypes: [
-            { id: "radar_basic", name: "Мрежни испуњен", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
-            { id: "radar_outline", name: "Мрежни обрис", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> },
-            { id: "radar_circular", name: "Кружни испуњен", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><circle cx="15" cy="15" r="7" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
-            { id: "radar_circular_outline", name: "Кружни обрис", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> }
+            { id: "radar_basic", name: "Mrežni ispunjen", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
+            { id: "radar_outline", name: "Mrežni obris", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><polygon points="15,2 28,10 23,26 7,26 2,10" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,8 22,14 19,22 11,22 8,14" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> },
+            { id: "radar_circular", name: "Kružni ispunjen", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><circle cx="15" cy="15" r="7" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="#34d399" fillOpacity="0.5" stroke="#34d399" strokeWidth="1"/></svg> },
+            { id: "radar_circular_outline", name: "Kružni obris", icon: <svg viewBox="0 0 30 30" className="w-full h-full"><circle cx="15" cy="15" r="13" fill="none" stroke="#e2e8f0" strokeWidth="1"/><polygon points="15,6 23,12 18,23 9,19 10,12" fill="none" stroke="#8b98ff" strokeWidth="2"/></svg> }
         ]
     }
 };
 
 const SERBIAN_DISTRICTS = [
-    "Град Београд", "Северобачки", "Средњобачки", "Севернобанатски",
-    "Средњобанатски", "Јужнобанатски", "Западнобачки", "Јужнобачки",
-    "Сремски", "Мачвански", "Колубарски", "Подунавски", "Браничевски",
-    "Шумадијски", "Поморавски", "Борски", "Зајечарски", "Златиборски",
-    "Маравички", "Рашки", "Расински", "Нишавски", "Топлички", "Пиротски",
-    "Јабланички", "Пчињски", "Косовско-Митровачки", "Косовски", "Пећки",
-    "Призренски", "Косовско-Поморавски"
+    "Grad Beograd", "Severobački", "Srednjobački", "Severnobanatski",
+    "Srednjobanatski", "Južnobanatski", "Zapadnobački", "Južnobački",
+    "Sremski", "Mačvanski", "Kolubarski", "Podunavski", "Braničevski",
+    "Šumadijski", "Pomoravski", "Borski", "Zaječarski", "Zlatiborski",
+    "Maravički", "Raški", "Rasinski", "Nišavski", "Toplički", "Pirotski",
+    "Jablanički", "Pčinjski", "Kosovsko-Mitrovački", "Kosovski", "Pećki",
+    "Prizrenski", "Kosovsko-Pomoravski"
 ];
 
 const StyledDropdown = ({ options, selectedValue, onSelect }: any) => {
@@ -212,7 +212,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
     };
 
     const deleteGroup = async (id: number) => {
-        if (!window.confirm('Да ли сте сигурни да желите да обришете ову групу?')) return;
+        if (!window.confirm('Da li ste sigurni da želite da obrišete ovu grupu?')) return;
         try {
             await axiosClient.delete(`/api/saved-groups/${id}`);
             setSavedGroups(prev => prev.filter(g => g.id !== id));
@@ -238,20 +238,20 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
         return (
             <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-screen sticky top-0 custom-scrollbar z-40">
                 <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-                    <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Елемент</button>
-                    <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Групе</button>
+                    <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Element</button>
+                    <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Grupe</button>
                     {activeSectionId && (
-                        <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Одобр.</button>
+                        <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Odobr.</button>
                     )}
                 </div>
                 {activeTab === 'element' && (
-                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент</div>
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Izaberite element</div>
                 )}
                 {activeTab === 'approval' && activeSectionId && (
                     <ApprovalPanel sectionId={activeSectionId} pageCount={activeSectionPageCount} onChanged={onApprovalChanged} />
                 )}
                 {activeTab === 'groups' && (
-                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент за групе</div>
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Izaberite element za grupe</div>
                 )}
             </aside>
         );
@@ -349,7 +349,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
     };
 
     const handleAddLink = () => {
-        const url = prompt("Унесите URL линка (нпр. https://google.com):", "https://");
+        const url = prompt("Unesite URL linka (npr. https://google.com):", "https://");
         if (url) formatText("createLink", url);
     };
 
@@ -372,9 +372,9 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
         let newData = [...mapData];
         const idx = newData.findIndex((d: any) => d.name === district);
         if (idx >= 0) {
-            newData[idx] = { ...newData[idx], 'Вредност': val };
+            newData[idx] = { ...newData[idx], 'Vrednost': val };
         } else {
-            newData.push({ name: district, 'Вредност': val });
+            newData.push({ name: district, 'Vrednost': val });
         }
         updateElementSettings({}, { data: newData });
     };
@@ -463,12 +463,12 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
     return (
         <aside className="w-[320px] bg-[#F8FAFC] p-5 flex flex-col gap-5 overflow-y-auto border-l border-slate-200 h-[92vh] sticky top-10 custom-scrollbar z-40 pb-20">
 
-            {/* 1. НОВИ ДЕО: ТАБОВИ (Увек видљиви) */}
+            {/* 1. NOVI DEO: TABOVI (Uvek vidljivi) */}
             <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-                <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Елемент</button>
-                <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Групе</button>
+                <button onClick={() => setActiveTab('element')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'element' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Element</button>
+                <button onClick={() => setActiveTab('groups')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'groups' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Grupe</button>
                 {activeSectionId && (
-                    <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Одобр.</button>
+                    <button onClick={() => setActiveTab('approval')} className={`flex-1 p-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'approval' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Odobr.</button>
                 )}
             </div>
 
@@ -477,7 +477,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                 <ApprovalPanel sectionId={activeSectionId} pageCount={activeSectionPageCount} onChanged={onApprovalChanged} />
             )}
 
-            {/* 2. НОВИ ДЕО: ТАБ "ГРУПЕ" */}
+            {/* 2. NOVI DEO: TAB "GRUPE" */}
             {activeTab === 'groups' && (
                 <div className="flex flex-col gap-4 animate-in fade-in">
                     {!isGroupingMode ? (
@@ -486,41 +486,41 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                 onClick={() => { setIsGroupingMode(true); setGroupSelection([]); setNewGroupName(''); }}
                                 className="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors flex justify-center items-center gap-2"
                             >
-                                <PlusCircle size={16} /> Направи нову групу
+                                <PlusCircle size={16} /> Napravi novu grupu
                             </button>
 
                             {/* --- NOVO: Lista sačuvanih grupa --- */}
                             <div className="mt-2 flex flex-col gap-2">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">Сачуване групе</h4>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">Sačuvane grupe</h4>
                                 {isLoadingGroups ? (
-                                    <div className="text-xs text-slate-500 text-center py-4">Учитавање...</div>
+                                    <div className="text-xs text-slate-500 text-center py-4">Učitavanje...</div>
                                 ) : savedGroups.length === 0 ? (
-                                    <div className="text-xs text-slate-400 text-center italic py-4">Немате сачуваних група.</div>
+                                    <div className="text-xs text-slate-400 text-center italic py-4">Nemate sačuvanih grupa.</div>
                                 ) : (
                                     savedGroups.map((group: any) => (
                                         <div key={group.id} className="bg-white p-3 border border-slate-200 rounded-xl shadow-sm flex items-center justify-between group-item transition-all hover:border-blue-300 hover:shadow-md">
                                             <div className="flex flex-col overflow-hidden">
                                                 <span className="text-sm font-bold text-slate-700 truncate" title={group.name}>{group.name}</span>
                                                 {/* Ako backend bude vraćao JSON dekodiran, ovo će pokazati broj elemenata u grupi */}
-                                                <span className="text-[10px] text-slate-400 mt-0.5">{group.elements?.length || 0} елемената унутра</span>
+                                                <span className="text-[10px] text-slate-400 mt-0.5">{group.elements?.length || 0} elemenata unutra</span>
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => {
-                                                        // Окидамо евент и шаљемо елементе Canvas-у
+                                                        // Okidamo event i šaljemo elemente Canvas-u
                                                         window.dispatchEvent(new CustomEvent('insert-saved-group', {
                                                             detail: { elements: group.elements }
                                                         }));
                                                     }}
                                                     className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="Уметни на дно странице"
+                                                    title="Umetni na dno stranice"
                                                 >
                                                     <ArrowDownToLine size={14} />
                                                 </button>
                                                 <button
                                                     onClick={() => deleteGroup(group.id)}
                                                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Обриши групу"
+                                                    title="Obriši grupu"
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>
@@ -532,11 +532,11 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                         </>
                     ) : (
                         <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-200 flex flex-col gap-3 ring-4 ring-blue-50">
-                            <h3 className="text-xs font-bold text-slate-700 uppercase">Нова група</h3>
-                            <p className="text-[11px] text-slate-500 leading-tight">Кликните на елементе на страници које желите да групишете. ({groupSelection?.length || 0} изабрано)</p>
+                            <h3 className="text-xs font-bold text-slate-700 uppercase">Nova grupa</h3>
+                            <p className="text-[11px] text-slate-500 leading-tight">Kliknite na elemente na stranici koje želite da grupišete. ({groupSelection?.length || 0} izabrano)</p>
                             <input
                                 type="text"
-                                placeholder="Назив групе..."
+                                placeholder="Naziv grupe..."
                                 value={newGroupName}
                                 onChange={(e) => setNewGroupName(e.target.value)}
                                 className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-2.5 text-sm text-slate-700 outline-none focus:border-blue-400 mt-2"
@@ -546,18 +546,18 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     onClick={() => { setIsGroupingMode(false); setGroupSelection([]); }}
                                     className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200"
                                 >
-                                    Одустани
+                                    Odustani
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (!newGroupName) return alert("Унесите назив групе!");
-                                        if (groupSelection.length === 0) return alert("Изаберите бар један елемент!");
-                                        // Окидамо евент који ће Canvas да ухвати
+                                        if (!newGroupName) return alert("Unesite naziv grupe!");
+                                        if (groupSelection.length === 0) return alert("Izaberite bar jedan element!");
+                                        // Okidamo event koji će Canvas da uhvati
                                         window.dispatchEvent(new CustomEvent('create-group', { detail: { groupName: newGroupName, selectedIds: groupSelection } }));
                                     }}
                                     className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 shadow-sm"
                                 >
-                                    Сачувај
+                                    Sačuvaj
                                 </button>
                             </div>
                         </div>
@@ -565,19 +565,19 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                 </div>
             )}
 
-            {/* 3. ОСТАТАК ПОСТОЈЕЋЕГ КОДА УМОТАН У "ELEMENT" ТАБ */}
+            {/* 3. OSTATAK POSTOJEĆEG KODA UMOTAN U "ELEMENT" TAB */}
             <div style={{ display: activeTab === 'element' ? 'flex' : 'none', flexDirection: 'column', gap: '1.25rem' }}>
                 {!selectedElement ? (
-                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Изаберите елемент</div>
+                    <div className="text-sm text-slate-400 text-center mt-10 uppercase tracking-widest">Izaberite element</div>
                 ) : (
                     <>
                         <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-2 mb-[-10px]">
-                            <Star size={14} /> Опште опције
+                            <Star size={14} /> Opšte opcije
                         </h3>
 
                         <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
                             <label className="flex items-center justify-between cursor-pointer group">
-                                <span className="text-sm text-slate-600 font-medium">Истакни модул</span>
+                                <span className="text-sm text-slate-600 font-medium">Istakni modul</span>
                                 <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.featured ? 'bg-amber-400' : 'bg-slate-200'}`}>
                                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.featured ? 'translate-x-4' : ''}`} />
                                 </div>
@@ -591,11 +591,11 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                             {/* OPCIJE ZA RAZMAK (SPACING) - Dostupno za sve elemente */}
                             <div className="pt-3 border-t border-slate-50 flex flex-col gap-3">
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Размак (Spacing)</span>
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Razmak (Spacing)</span>
                                 <div className="flex gap-4">
                                     <div className="flex-1 flex flex-col gap-2">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[10px] text-slate-500 font-medium">Горе</span>
+                                            <span className="text-[10px] text-slate-500 font-medium">Gore</span>
                                             <span className="text-[10px] font-bold text-blue-500">{settings.marginTop || 0}px</span>
                                         </div>
                                         <input
@@ -607,7 +607,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </div>
                                     <div className="flex-1 flex flex-col gap-2">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[10px] text-slate-500 font-medium">Доле</span>
+                                            <span className="text-[10px] text-slate-500 font-medium">Dole</span>
                                             <span className="text-[10px] font-bold text-blue-500">{settings.marginBottom || 0}px</span>
                                         </div>
                                         <input
@@ -624,43 +624,43 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                         {selectedElement.type === 'chart' && (
                             <>
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20 mt-3">
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив графикона (наслов)</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Naziv grafikona (naslov)</label>
                                     <input
                                         type="text"
                                         className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                        placeholder="Унесите назив..."
+                                        placeholder="Unesite naziv..."
                                         value={settings.title || ''}
                                         onChange={(e) => updateElementSettings({ title: e.target.value })}
                                     />
 
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Поднаслов графикона</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Podnaslov grafikona</label>
                                     <input
                                         type="text"
                                         className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                        placeholder="Унесите поднаслов..."
+                                        placeholder="Unesite podnaslov..."
                                         value={settings.subtitle || ''}
                                         onChange={(e) => updateElementSettings({ subtitle: e.target.value })}
                                     />
                                     {settings.subtitle && (
                                         <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-fit">
-                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'left' })} className={`p-1.5 rounded ${(settings.subtitleAlign || 'left') === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање лево"><AlignLeft size={14} /></button>
-                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'center' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'center' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање центар"><AlignCenter size={14} /></button>
-                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'right' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Поравнање десно"><AlignRight size={14} /></button>
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'left' })} className={`p-1.5 rounded ${(settings.subtitleAlign || 'left') === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Poravnanje levo"><AlignLeft size={14} /></button>
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'center' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'center' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Poravnanje centar"><AlignCenter size={14} /></button>
+                                            <button onClick={() => updateElementSettings({ subtitleAlign: 'right' })} className={`p-1.5 rounded ${settings.subtitleAlign === 'right' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`} title="Poravnanje desno"><AlignRight size={14} /></button>
                                         </div>
                                     )}
 
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Опис графикона (испод)</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Opis grafikona (ispod)</label>
                                     <RichDescriptionEditor
                                         value={settings.description || ''}
                                         onChange={(html) => updateElementSettings({ description: html })}
                                         elementKey={selectedElement.elementId}
                                     />
 
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Извор графикона</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide mt-1">Izvor grafikona</label>
                                     <textarea
                                         className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
                                         rows={2}
-                                        placeholder="нпр. РАТЕЛ, 2024."
+                                        placeholder="npr. RATEL, 2024."
                                         value={settings.source || ''}
                                         onChange={(e) => updateElementSettings({ source: e.target.value })}
                                     />
@@ -680,7 +680,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>
                                                 <div className="flex gap-2">
                                                     <div className="flex-1">
-                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Минимум</label>
+                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Minimum</label>
                                                         <input
                                                             type="number"
                                                             placeholder="Auto"
@@ -690,7 +690,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                         />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Максимум</label>
+                                                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">Maksimum</label>
                                                         <input
                                                             type="number"
                                                             placeholder="Auto"
@@ -707,23 +707,23 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             <>
                                                 {showAxisTitles && (
                                                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Називи оса</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Nazivi osa</span>
                                                         <div className="flex flex-col gap-2">
                                                             <div>
-                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Назив X осе</label>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Naziv X ose</label>
                                                                 <input
                                                                     type="text"
-                                                                    placeholder="нпр. Број претплатника (у 000)"
+                                                                    placeholder="npr. Broj pretplatnika (u 000)"
                                                                     value={(settings as any).xAxisTitle ?? ''}
                                                                     onChange={e => updateElementSettings({ xAxisTitle: e.target.value })}
                                                                     className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Назив Y осе</label>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Naziv Y ose</label>
                                                                 <input
                                                                     type="text"
-                                                                    placeholder="нпр. Број пакета са 3 и 4 услуге"
+                                                                    placeholder="npr. Broj paketa sa 3 i 4 usluge"
                                                                     value={(settings as any).yAxisTitle ?? ''}
                                                                     onChange={e => updateElementSettings({ yAxisTitle: e.target.value })}
                                                                     className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white"
@@ -732,8 +732,8 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                         </div>
                                                     </div>
                                                 )}
-                                                {showY && axisInput('Опсег Y осе (вертикална)', 'yAxisMin', 'yAxisMax')}
-                                                {showX && axisInput('Опсег X осе (хоризонтална)', 'xAxisMin', 'xAxisMax')}
+                                                {showY && axisInput('Opseg Y ose (vertikalna)', 'yAxisMin', 'yAxisMax')}
+                                                {showX && axisInput('Opseg X ose (horizontalna)', 'xAxisMin', 'xAxisMax')}
                                                 {!isHorizontalBar && !isScatter && ['bar', 'line', 'composed'].includes(settings.chartType) && (() => {
                                                     const seriesKeys: string[] = selectedElement?.extraPayload?.keys || settings.keys || [];
                                                     const seriesColors = selectedElement?.extraPayload?.colors || settings.colors || {};
@@ -741,7 +741,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                     return (
                                                         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
                                                             <label className="flex items-center justify-between cursor-pointer group">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Дупла Y оса</span>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Dupla Y osa</span>
                                                                 <div className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors ${settings.dualYAxis ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                                                     <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${settings.dualYAxis ? 'translate-x-4' : ''}`} />
                                                                 </div>
@@ -749,7 +749,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                             </label>
                                                             {settings.dualYAxis && (
                                                                 <>
-                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Серије по оси</span>
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Serije po osi</span>
                                                                     <div className="flex flex-col gap-1.5">
                                                                         {seriesKeys.map((k, i) => {
                                                                             const side = settings.yAxisSide?.[k] || 'left';
@@ -763,23 +763,23 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                                                             <button key={s}
                                                                                                 onClick={() => updateElementSettings({ yAxisSide: { ...(settings.yAxisSide || {}), [k]: s } })}
                                                                                                 className={`px-2 py-0.5 text-[10px] font-bold rounded ${side === s ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                                                                                            >{s === 'left' ? 'Лева' : 'Десна'}</button>
+                                                                                            >{s === 'left' ? 'Leva' : 'Desna'}</button>
                                                                                         ))}
                                                                                     </div>
                                                                                 </div>
                                                                             );
                                                                         })}
                                                                     </div>
-                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Опсег десне Y осе</span>
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Opseg desne Y ose</span>
                                                                     <div className="flex gap-2">
                                                                         <div className="flex-1">
-                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Минимум</label>
+                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Minimum</label>
                                                                             <input type="number" placeholder="Auto" value={(settings as any).yAxisMinRight ?? ''}
                                                                                 onChange={e => updateElementSettings({ yAxisMinRight: e.target.value === '' ? undefined : Number(e.target.value) })}
                                                                                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white" />
                                                                         </div>
                                                                         <div className="flex-1">
-                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Максимум</label>
+                                                                            <label className="text-[10px] text-slate-400 font-semibold block mb-1">Maksimum</label>
                                                                             <input type="number" placeholder="Auto" value={(settings as any).yAxisMaxRight ?? ''}
                                                                                 onChange={e => updateElementSettings({ yAxisMaxRight: e.target.value === '' ? undefined : Number(e.target.value) })}
                                                                                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-blue-400 bg-white" />
@@ -792,10 +792,10 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                 })()}
                                                 {!isHorizontalBar && (
                                                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Одмак X осе</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Odmak X ose</span>
                                                         <div className="flex gap-2">
                                                             <div className="flex-1">
-                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Лево (px)</label>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Levo (px)</label>
                                                                 <input
                                                                     type="number"
                                                                     placeholder="0"
@@ -806,7 +806,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                                 />
                                                             </div>
                                                             <div className="flex-1">
-                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Десно (px)</label>
+                                                                <label className="text-[10px] text-slate-400 font-semibold block mb-1">Desno (px)</label>
                                                                 <input
                                                                     type="number"
                                                                     placeholder="0"
@@ -824,21 +824,21 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     })()}
 
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-sm text-slate-600 font-medium">Прикажи вредности</span>
+                                        <span className="text-sm text-slate-600 font-medium">Prikaži vrednosti</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLabels ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                             <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLabels ? 'translate-x-4' : ''}`} />
                                         </div>
                                         <input type="checkbox" className="hidden" checked={settings.showLabels} onChange={() => updateElementSettings({ showLabels: !settings.showLabels })} />
                                     </label>
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-sm text-slate-600 font-medium">Вредности у %</span>
+                                        <span className="text-sm text-slate-600 font-medium">Vrednosti u %</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.isPercentage ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                             <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.isPercentage ? 'translate-x-4' : ''}`} />
                                         </div>
                                         <input type="checkbox" className="hidden" checked={!!settings.isPercentage} onChange={() => updateElementSettings({ isPercentage: !settings.isPercentage })} />
                                     </label>
                                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Број децимала</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Broj decimala</span>
                                         <div className="flex gap-1">
                                             {([undefined, 0, 1, 2, 3, 4] as const).map((d) => {
                                                 const isActive = settings.decimals === d || (d === undefined && (settings.decimals === undefined || settings.decimals === null));
@@ -847,7 +847,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                         key={d === undefined ? 'auto' : d}
                                                         onClick={() => updateElementSettings({ decimals: d })}
                                                         className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${isActive ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}
-                                                        title={d === undefined ? 'Аутоматски' : `${d} децимала`}
+                                                        title={d === undefined ? 'Automatski' : `${d} decimala`}
                                                     >
                                                         {d === undefined ? 'Auto' : d}
                                                     </button>
@@ -856,7 +856,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         </div>
                                     </div>
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
+                                        <span className="text-sm text-slate-600 font-medium">Prikaži legendu</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                             <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
                                         </div>
@@ -864,7 +864,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </label>
 
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-sm text-slate-600 font-medium">Прикажи табелу са подацима</span>
+                                        <span className="text-sm text-slate-600 font-medium">Prikaži tabelu sa podacima</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showDataTable ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                             <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showDataTable ? 'translate-x-4' : ''}`} />
                                         </div>
@@ -873,7 +873,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                                     {settings.showLegend && (
                                         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-3">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Легенда — позиција</span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Legenda — pozicija</span>
                                             <div className="flex gap-1">
                                                 {(['top', 'bottom', 'right'] as const).map(v => (
                                                     <button key={v}
@@ -883,18 +883,18 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                                 ? 'bg-blue-500 text-white border-blue-500'
                                                                 : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
                                                         }`}>
-                                                        {v === 'top' ? 'Горе' : v === 'bottom' ? 'Доле' : 'Десно'}
+                                                        {v === 'top' ? 'Gore' : v === 'bottom' ? 'Dole' : 'Desno'}
                                                     </button>
                                                 ))}
                                             </div>
                                             {(settings.legendPosition || 'bottom') !== 'right' && (
                                                 <>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Поравнање</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Poravnanje</span>
                                                     <div className="flex gap-1">
                                                         {(['left', 'center', 'right'] as const).map(a => (
                                                             <button key={a} onClick={() => updateElementSettings({ legendAlign: a })}
                                                                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${(settings.legendAlign || 'center') === a ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}>
-                                                                {a === 'left' ? 'Лево' : a === 'center' ? 'Центар' : 'Десно'}
+                                                                {a === 'left' ? 'Levo' : a === 'center' ? 'Centar' : 'Desno'}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -904,7 +904,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     )}
                                 </div>
 
-                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Графикон</h3>
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Grafikon</h3>
 
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-20">
                                     <StyledDropdown
@@ -933,7 +933,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         onClick={() => updateElementSettings({ showDataEditor: !settings.showDataEditor })}
                                         className={`w-full py-2.5 font-bold text-sm rounded-xl border-2 transition-all flex justify-center items-center gap-2 mt-2 ${settings.showDataEditor ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-blue-500 border-blue-200 hover:bg-blue-50'}`}
                                     >
-                                        <Table2 size={16} /> {settings.showDataEditor ? 'Затвори уређивач' : 'Уреди податке'}
+                                        <Table2 size={16} /> {settings.showDataEditor ? 'Zatvori uređivač' : 'Uredi podatke'}
                                     </button>
                                 </div>
                             </>
@@ -941,11 +941,11 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                         {selectedElement.type === 'map' && (
                             <>
-                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-2">Опције мапе</h3>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-2">Opcije mape</h3>
 
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0 mb-3">
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-sm text-slate-600 font-medium">Прикажи легенду</span>
+                                        <span className="text-sm text-slate-600 font-medium">Prikaži legendu</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
                                             <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.showLegend ? 'translate-x-4' : ''}`} />
                                         </div>
@@ -954,7 +954,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                                     <div className="flex flex-col gap-2 mt-2">
                                         <div className="flex justify-between items-center ml-1">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина мапе</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Širina mape</label>
                                             <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
                                         </div>
                                         <input
@@ -966,7 +966,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </div>
 
                                     <div className="flex flex-col gap-2 mt-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Основна боја</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Osnovna boja</label>
                                         <div className="flex justify-between gap-1">
                                             {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'].map(color => (
                                                 <button
@@ -980,12 +980,12 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </div>
                                 </div>
 
-                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Подаци по окрузима</h3>
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1">Podaci po okruzima</h3>
 
                                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden relative z-0">
                                     <div className="flex text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-2 border-b border-slate-100">
-                                        <div className="flex-1">Округ</div>
-                                        <div className="w-20 text-right">Вредност</div>
+                                        <div className="flex-1">Okrug</div>
+                                        <div className="w-20 text-right">Vrednost</div>
                                     </div>
 
                                     <div className="flex flex-col max-h-[350px] overflow-y-auto custom-scrollbar">
@@ -994,8 +994,8 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                                             let valToDisplay = '';
                                             if (rowData) {
-                                                if (rowData['Вредност'] !== undefined) {
-                                                    valToDisplay = rowData['Вредност'];
+                                                if (rowData['Vrednost'] !== undefined) {
+                                                    valToDisplay = rowData['Vrednost'];
                                                 } else {
                                                     const valueKey = Object.keys(rowData).find(k => k !== 'name');
                                                     if (valueKey) {
@@ -1027,9 +1027,9 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                         {/* PALETE SAMO ZA CHART */}
                         {(selectedElement.type === 'chart') && (
                             <div className="flex flex-col gap-4 mt-1 relative z-0">
-                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><Palette size={14}/> Палете боја</h3>
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><Palette size={14}/> Palete boja</h3>
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Примарне боје</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Primarne boje</label>
                                     <div className="flex justify-between gap-1">
                                         {PRIMARY_COLORS.map(color => (
                                             <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
@@ -1038,7 +1038,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                 </div>
 
                                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3">
-                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Секундар боје</label>
+                                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Sekundar boje</label>
                                     <div className="flex justify-between gap-1">
                                         {SECONDARY_COLORS.map(color => (
                                             <button key={color} onClick={() => handleColorPick(color)} className="w-8 h-8 rounded-lg border border-slate-100 hover:scale-110 hover:shadow-md transition-all" style={{ backgroundColor: color }} />
@@ -1050,12 +1050,12 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                         {selectedElement.type === 'image' && (
                             <>
-                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Опције слике</h3>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Opcije slike</h3>
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-5">
 
                                     <div className="flex flex-col gap-2">
                                         <div className="flex justify-between items-center ml-1">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Ширина слике</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Širina slike</label>
                                             <span className="text-[11px] font-bold text-blue-500">{settings.width || 100}%</span>
                                         </div>
                                         <input
@@ -1067,18 +1067,18 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </div>
 
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив слике (потпис)</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Naziv slike (potpis)</label>
                                         <input
                                             type="text"
                                             className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                            placeholder="Опишите слику..."
+                                            placeholder="Opišite sliku..."
                                             value={settings.altText || ''}
                                             onChange={(e) => updateElementSettings({ altText: e.target.value })}
                                         />
                                     </div>
 
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Поравнање</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Poravnanje</label>
                                         <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-fit">
                                             <button onClick={() => updateElementSettings({ alignment: 'left' })} className={`p-2 rounded ${settings.alignment === 'left' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignLeft size={18} /></button>
                                             <button onClick={() => updateElementSettings({ alignment: 'center' })} className={`p-2 rounded ${(!settings.alignment || settings.alignment === 'center') ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}><AlignCenter size={18} /></button>
@@ -1090,7 +1090,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             onClick={() => updateElementSettings({ url: '' })}
                                             className="w-full flex items-center justify-center gap-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition-colors font-medium"
                                         >
-                                            <Trash2 size={16} /> Уклони извор слике
+                                            <Trash2 size={16} /> Ukloni izvor slike
                                         </button>
                                     </div>
                                 </div>
@@ -1099,40 +1099,48 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                         {selectedElement.type === 'table' && (
                             <>
-                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Подешавања табеле</h3>
+                                <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-1">Podešavanja tabele</h3>
 
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4">
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Назив табеле (наслов)</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Naziv tabele (naslov)</label>
                                         <input
                                             type="text"
                                             className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all"
-                                            placeholder="Унесите назив табеле..."
+                                            placeholder="Unesite naziv tabele..."
                                             value={settings.title || ''}
                                             onChange={(e) => updateElementSettings({ title: e.target.value })}
                                         />
                                     </div>
 
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-sm text-slate-600 font-medium">Sakrij naziv tabele</span>
+                                        <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.hideLabel ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                            <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.hideLabel ? 'translate-x-4' : ''}`} />
+                                        </div>
+                                        <input type="checkbox" className="hidden" checked={!!settings.hideLabel} onChange={() => updateElementSettings({ hideLabel: !settings.hideLabel })} />
+                                    </label>
+
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Опис табеле (испод)</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1 tracking-wide">Opis tabele (ispod)</label>
                                         <textarea
                                             className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all resize-none"
                                             rows={2}
-                                            placeholder="Унесите опис табеле..."
+                                            placeholder="Unesite opis tabele..."
                                             value={settings.description || ''}
                                             onChange={(e) => updateElementSettings({ description: e.target.value })}
                                         />
                                     </div>
 
                                     <div className="flex flex-col gap-3 mt-2">
-                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Димензије табеле</label>
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Dimenzije tabele</label>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">
-                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Редови</span>
+                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Redovi</span>
                                                 <input type="number" min="1" value={settings.rows || 1} onChange={(e) => updateElementSettings({ rows: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Колоне</span>
+                                                <span className="text-[10px] text-slate-400 ml-2 font-medium">Kolone</span>
                                                 <input type="number" min="1" value={settings.columns || 1} onChange={(e) => updateElementSettings({ columns: parseInt(e.target.value) || 1 })} className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-2.5 text-sm text-center font-semibold text-slate-700 outline-none focus:border-blue-400" />
                                             </div>
                                         </div>
@@ -1142,7 +1150,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-100 flex flex-col gap-4 animate-in slide-in-from-top-2">
                                         <div className="flex items-center gap-2.5 mb-1 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
                                             <Grid3X3 size={16} className="text-blue-500" />
-                                            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-widest">Ћелија {selectedElement.activeCell}</span>
+                                            <span className="text-[11px] font-bold text-blue-700 uppercase tracking-widest">Ćelija {selectedElement.activeCell}</span>
                                         </div>
 
                                         {(() => {
@@ -1155,12 +1163,12 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             const canUnmerge    = acColSpan > 1 || acRowSpan > 1;
                                             return (
                                                 <div className="flex flex-col gap-2">
-                                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Спајање ћелија (Merge)</label>
+                                                    <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Spajanje ćelija (Merge)</label>
                                                     <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
                                                         <button
                                                             onClick={handleMergeRight}
                                                             disabled={!canMergeRight}
-                                                            title={canMergeRight ? "Споји са десном ћелијом" : "Нема ћелије десно"}
+                                                            title={canMergeRight ? "Spoji sa desnom ćelijom" : "Nema ćelije desno"}
                                                             className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canMergeRight ? 'text-slate-600 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
                                                         >
                                                             <ArrowRightToLine size={16} />
@@ -1168,7 +1176,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                         <button
                                                             onClick={handleMergeDown}
                                                             disabled={!canMergeDown}
-                                                            title={canMergeDown ? "Споји са доњом ћелијом" : "Нема ћелије испод"}
+                                                            title={canMergeDown ? "Spoji sa donjom ćelijom" : "Nema ćelije ispod"}
                                                             className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canMergeDown ? 'text-slate-600 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
                                                         >
                                                             <ArrowDownMerge size={16} />
@@ -1176,7 +1184,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                         <button
                                                             onClick={handleUnmerge}
                                                             disabled={!canUnmerge}
-                                                            title={canUnmerge ? "Раздвој спојене ћелије" : "Ћелија није спојена"}
+                                                            title={canUnmerge ? "Razdvoj spojene ćelije" : "Ćelija nije spojena"}
                                                             className={`p-2 rounded-lg flex items-center justify-center flex-1 gap-1 transition-colors ${canUnmerge ? 'text-red-400 hover:bg-white' : 'text-slate-300 cursor-not-allowed'}`}
                                                         >
                                                             <SplitSquareHorizontal size={16} />
@@ -1187,7 +1195,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         })()}
 
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Форматирање</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Formatiranje</label>
                                             <div className="flex gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 justify-between">
                                                 <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
                                                 <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
@@ -1197,15 +1205,15 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Стил текста</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Stil teksta</label>
                                             <div className="flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 w-full">
-                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'headline' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type === 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Наслов</button>
-                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'paragraph' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type !== 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Текст</button>
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'headline' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type === 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Naslov</button>
+                                                <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], type: 'paragraph' } } }); }} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded ${settings.cells?.[selectedElement.activeCell!]?.type !== 'headline' ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}>Tekst</button>
                                             </div>
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Величина фонта</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Veličina fonta</label>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => { const cellKey = selectedElement.activeCell!; const cur = settings.cells?.[cellKey]?.fontSize || (settings.cells?.[cellKey]?.type === 'headline' ? 15 : 14); updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], fontSize: Math.max(6, cur - 1) } } }); }}
@@ -1228,7 +1236,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Поравнање</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Poravnanje</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 flex bg-[#F8FAFC] p-1 rounded-lg border border-slate-100 gap-1">
                                                     {(['left', 'center', 'right'] as const).map(a => {
@@ -1239,7 +1247,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                                 key={a}
                                                                 onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], alignment: a } } }); }}
                                                                 className={`flex-1 p-1.5 rounded flex items-center justify-center ${cellAlign === a ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}
-                                                                title={a === 'left' ? 'Лево' : a === 'center' ? 'Центар' : 'Десно'}
+                                                                title={a === 'left' ? 'Levo' : a === 'center' ? 'Centar' : 'Desno'}
                                                             ><Icon size={14} /></button>
                                                         );
                                                     })}
@@ -1253,7 +1261,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                                 key={v}
                                                                 onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], verticalAlignment: v } } }); }}
                                                                 className={`flex-1 p-1.5 rounded flex items-center justify-center ${cellVAlign === v ? 'bg-white shadow-sm text-blue-500' : 'text-slate-400'}`}
-                                                                title={v === 'top' ? 'Горе' : v === 'middle' ? 'Средина' : 'Доле'}
+                                                                title={v === 'top' ? 'Gore' : v === 'middle' ? 'Sredina' : 'Dole'}
                                                             ><Icon size={14} /></button>
                                                         );
                                                     })}
@@ -1271,11 +1279,11 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm mt-1"
                                         >
                                             <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
-                                            ДОДАЈ НОВУ ФУСНОТУ
+                                            DODAJ NOVU FUSNOTU
                                         </button>
 
                                         <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-slate-100">
-                                            <span className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
+                                            <span className="text-[11px] font-bold text-slate-400 uppercase ml-1">Boja teksta:</span>
                                             <div className="flex gap-1.5 px-1 ml-auto">
                                                 <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#1E293B' } } }); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${(settings.cells?.[selectedElement.activeCell!]?.textColor === '#1E293B' || !settings.cells?.[selectedElement.activeCell!]?.textColor) ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
                                                 <button onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], textColor: '#FFFFFF' } } }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.cells?.[selectedElement.activeCell!]?.textColor === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
@@ -1284,7 +1292,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         </div>
 
                                         <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Боја позадине</label>
+                                            <label className="text-[11px] font-bold text-slate-400 uppercase ml-1">Boja pozadine</label>
                                             <div className="flex flex-wrap gap-2">
                                                 {['#FFFFFF', '#E2E8F0', '#FEF3C7', '#FECACA', '#BBF7D0', '#8b98ff', '#34d399'].map(color => (
                                                     <button key={color} onClick={() => { const cellKey = selectedElement.activeCell!; updateElementSettings({ cells: { ...settings.cells, [cellKey]: { ...settings.cells?.[cellKey], backgroundColor: color } } }); }} className={`w-7 h-7 rounded-lg border border-slate-200 transition-transform ${settings.cells?.[selectedElement.activeCell!]?.backgroundColor === color ? 'scale-125 ring-2 ring-blue-300 ring-offset-1 shadow-md' : 'hover:scale-110'}`} style={{ backgroundColor: color }} />
@@ -1298,35 +1306,35 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
                         {selectedElement.type === 'text' && (
                             <>
-                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><CaseUpper size={15}/> Типографија</h3>
+                                <h3 className="text-[12px] text-slate-400 font-bold tracking-wider uppercase mt-1 flex items-center gap-2"><CaseUpper size={15}/> Tipografija</h3>
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0">
 
                                     <div className="flex bg-[#F8FAFC] p-1 rounded-xl border border-slate-100 w-full gap-1">
                                         <button
                                             onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H1'); }}
                                             className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                            title="Велики наслов"
+                                            title="Veliki naslov"
                                         >
                                             <Heading1 size={14} /> H1
                                         </button>
                                         <button
                                             onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('H2'); }}
                                             className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                            title="Мали наслов"
+                                            title="Mali naslov"
                                         >
                                             <Heading2 size={14} /> H2
                                         </button>
                                         <button
                                             onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P'); }}
                                             className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                            title="Обичан текст"
+                                            title="Običan tekst"
                                         >
-                                            <Type size={12} /> Текст
+                                            <Type size={12} /> Tekst
                                         </button>
                                         <button
                                             onMouseDown={(e) => { e.preventDefault(); handleFormatBlock('P', true); }}
                                             className="flex-1 py-1.5 text-[11px] font-bold rounded text-slate-600 hover:bg-white hover:text-blue-600 shadow-sm transition-colors flex items-center justify-center gap-1"
-                                            title="Ситан текст"
+                                            title="Sitan tekst"
                                         >
                                             <span className="text-[10px] font-black">Aa</span> 12px
                                         </button>
@@ -1342,7 +1350,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 group shadow-sm"
                                     >
                                         <PlusCircle size={16} className="group-hover:scale-110 transition-transform" />
-                                        ДОДАЈ НОВУ ФУСНОТУ
+                                        DODAJ NOVU FUSNOTU
                                     </button>
 
                                     <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100">
@@ -1350,13 +1358,13 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             <button onMouseDown={(e) => { e.preventDefault(); formatText('bold'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Bold size={16} /></button>
                                             <button onMouseDown={(e) => { e.preventDefault(); formatText('italic'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Italic size={16} /></button>
                                             <button onMouseDown={(e) => { e.preventDefault(); formatText('underline'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white"><Underline size={16} /></button>
-                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sup'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Степен"><Superscript size={16} /></button>
-                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sub'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Индекс"><Subscript size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sup'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Stepen"><Superscript size={16} /></button>
+                                            <button onMouseDown={(e) => { e.preventDefault(); toggleInlineTag('sub'); }} className="p-2 rounded-lg text-slate-600 hover:bg-white" title="Indeks"><Subscript size={16} /></button>
                                         </div>
                                     </div>
 
                                     <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја текста:</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Boja teksta:</span>
                                         <div className="flex gap-1.5 px-1 ml-auto">
                                             <button onMouseDown={(e) => { e.preventDefault(); applyTextColor('#1E293B'); }} className={`w-6 h-6 rounded-lg bg-[#1E293B] ${settings.color === '#1E293B' || !settings.color ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
                                             <button onMouseDown={(e) => { e.preventDefault(); applyTextColor('#FFFFFF'); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${settings.color === '#FFFFFF' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
@@ -1365,9 +1373,9 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     </div>
 
                                     <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Боја позадине:</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Boja pozadine:</span>
                                         <div className="flex gap-1.5 px-1 ml-auto">
-                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '' }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${!settings.backgroundColor ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`} title="Без позадине">
+                                            <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '' }); }} className={`w-6 h-6 rounded-lg bg-white border border-slate-200 ${!settings.backgroundColor ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`} title="Bez pozadine">
                                                 <div className="w-full h-full rounded-md bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,#e2e8f0_2px,#e2e8f0_4px)]"></div>
                                             </button>
                                             <button onMouseDown={(e) => { e.preventDefault(); updateElementSettings({ backgroundColor: '#F8FAFC' }); }} className={`w-6 h-6 rounded-lg bg-[#F8FAFC] border border-slate-200 ${settings.backgroundColor === '#F8FAFC' ? 'ring-2 ring-offset-1 ring-blue-500 shadow-md' : ''}`}></button>
@@ -1405,18 +1413,18 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                             </>
                         )}
 
-                        {/* ЗАЈЕДНИЧКА СЕКЦИЈА ЗА УРЕЂИВАЊЕ ТЕКСТА ФУСНОТА */}
+                        {/* ZAJEDNIČKA SEKCIJA ZA UREĐIVANjE TEKSTA FUSNOTA */}
                         {activeFootnoteIds.length > 0 && (
                             <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-3 relative z-0 mt-2 animate-in fade-in slide-in-from-top-2">
-                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Текст фуснота</h3>
+                                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1"><MessageSquareQuote size={14}/> Tekst fusnota</h3>
 
                                 {activeFootnoteIds.map((id: string) => (
                                     <div key={id} className="flex flex-col gap-1.5 border border-slate-100 p-2.5 rounded-xl bg-[#F8FAFC]">
-                                        <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Фуснота: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
+                                        <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">Fusnota: <span className="bg-white px-1.5 py-0.5 rounded shadow-sm text-slate-600 border border-slate-100">[*]</span></label>
                                         <textarea
                                             className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-600 outline-none focus:border-blue-400 resize-none shadow-inner"
                                             rows={2}
-                                            placeholder="Унесите текст фусноте овде..."
+                                            placeholder="Unesite tekst fusnote ovde..."
                                             value={footnotesDict[id] || ''}
                                             onChange={(e) => {
                                                 updateElementSettings({

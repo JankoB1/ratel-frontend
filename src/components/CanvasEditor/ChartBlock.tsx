@@ -172,7 +172,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
     };
 
     const addColumn = () => {
-        const newKey = `Ново ${keys.length + 1}`;
+        const newKey = `Novo ${keys.length + 1}`;
         const newKeys = [...keys, newKey];
         const newData = data.map((r: any) => ({ ...r, [newKey]: 0 }));
 
@@ -185,7 +185,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
     };
 
     const addRow = () => {
-        const newRow: any = { name: `Регион ${data.length + 1}` };
+        const newRow: any = { name: `Region ${data.length + 1}` };
         keys.forEach((k: string) => newRow[k] = 0);
         updateSettings({}, { data: [...data, newRow] });
     };
@@ -228,7 +228,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                                     onClick={() => removeColumn(k)}
                                     className={keys.length <= 1 ? 'hidden' : ''}
                                     style={{position: 'absolute', top: '-8px', right: '-8px', background: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e2e8f0', color: '#ef4444', zIndex: 50, cursor: 'pointer'}}
-                                    title="Обриши колону"
+                                    title="Obriši kolonu"
                                 >
                                     <Trash2 size={12}/>
                                 </button>
@@ -244,7 +244,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                         <td className="bg-light" style={{ width: '120px', fontWeight: 500, verticalAlign: 'top', paddingTop: '8px' }}>
                             <CursorPreservingInput
                                 value={settings.xAxisLabel ?? ''}
-                                placeholder="Ознака"
+                                placeholder="Oznaka"
                                 onChange={(e: any) => updateSettings({ xAxisLabel: e.target.value })}
                                 className="data-input"
                             />
@@ -310,7 +310,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                     </tbody>
                 </table>
                 <button onClick={addRow} className="add-row-btn-small">
-                    <Plus size={14} /> Додај ред
+                    <Plus size={14} /> Dodaj red
                 </button>
             </div>
         </div>

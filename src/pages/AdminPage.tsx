@@ -67,28 +67,28 @@ interface UserItem {
 }
 
 const ROLE_OPTIONS: { value: Exclude<UserRole, null>; label: string }[] = [
-    { value: 'editor',      label: 'Уредник' },
-    { value: 'rukovodilac', label: 'Руководилац' },
-    { value: 'direktor',    label: 'Директор' },
-    { value: 'kabinet',     label: 'Кабинет' },
+    { value: 'editor',      label: 'Urednik' },
+    { value: 'rukovodilac', label: 'Rukovodilac' },
+    { value: 'direktor',    label: 'Direktor' },
+    { value: 'kabinet',     label: 'Kabinet' },
 ];
 
 const ROLE_LABEL_MAP: Record<string, string> = {
-    editor: 'Уредник',
-    rukovodilac: 'Руководилац',
-    direktor: 'Директор',
-    kabinet: 'Кабинет',
+    editor: 'Urednik',
+    rukovodilac: 'Rukovodilac',
+    direktor: 'Direktor',
+    kabinet: 'Kabinet',
 };
 
-const roleLabel = (role: UserRole) => role ? (ROLE_LABEL_MAP[role] ?? role) : 'Без улоге';
+const roleLabel = (role: UserRole) => role ? (ROLE_LABEL_MAP[role] ?? role) : 'Bez uloge';
 
 const permissionLabelForRole = (role: UserRole, isAdmin: boolean): string => {
-    if (isAdmin) return 'Администратор — приступ свим поглављима';
-    if (role === 'editor') return 'Уредник — поглавља које сме да едитује';
-    if (role === 'rukovodilac') return 'Руководилац — поглавља које сме да одобри';
-    if (role === 'direktor')    return 'Директор — поглавља које сме да одобри';
-    if (role === 'kabinet')     return 'Кабинет — поглавља које сме да одобри';
-    return 'Корисник нема улогу — додели улогу да би могао нешто да ради са поглављима';
+    if (isAdmin) return 'Administrator — pristup svim poglavljima';
+    if (role === 'editor') return 'Urednik — poglavlja koje sme da edituje';
+    if (role === 'rukovodilac') return 'Rukovodilac — poglavlja koje sme da odobri';
+    if (role === 'direktor')    return 'Direktor — poglavlja koje sme da odobri';
+    if (role === 'kabinet')     return 'Kabinet — poglavlja koje sme da odobri';
+    return 'Korisnik nema ulogu — dodeli ulogu da bi mogao nešto da radi sa poglavljima';
 };
 
 interface ApprovalStage {
@@ -110,13 +110,13 @@ interface SectionApprovalRow {
 }
 
 const APPROVAL_STATUS_BADGE: Record<string, { label: string; color: string }> = {
-    draft:                { label: 'У изради',              color: 'bg-slate-100 text-slate-600' },
-    pending_rukovodilac:  { label: 'Чека руководиоца',      color: 'bg-purple-100 text-purple-700' },
-    pending_direktor:     { label: 'Чека директора',        color: 'bg-amber-100 text-amber-700' },
-    pending_kabinet:      { label: 'Чека кабинет',          color: 'bg-emerald-100 text-emerald-700' },
-    pending_admin:        { label: 'Чека админа',           color: 'bg-blue-100 text-blue-700' },
-    approved:             { label: 'Одобрено',              color: 'bg-green-100 text-green-700' },
-    rejected:             { label: 'Одбијено',              color: 'bg-red-100 text-red-700' },
+    draft:                { label: 'U izradi',              color: 'bg-slate-100 text-slate-600' },
+    pending_rukovodilac:  { label: 'Čeka rukovodioca',      color: 'bg-purple-100 text-purple-700' },
+    pending_direktor:     { label: 'Čeka direktora',        color: 'bg-amber-100 text-amber-700' },
+    pending_kabinet:      { label: 'Čeka kabinet',          color: 'bg-emerald-100 text-emerald-700' },
+    pending_admin:        { label: 'Čeka admina',           color: 'bg-blue-100 text-blue-700' },
+    approved:             { label: 'Odobreno',              color: 'bg-green-100 text-green-700' },
+    rejected:             { label: 'Odbijeno',              color: 'bg-red-100 text-red-700' },
 };
 
 const fmtStageDate = (iso: string) => new Date(iso).toLocaleString('sr-RS', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -141,9 +141,9 @@ interface UserPermissionDoc {
 type TabKey = "dashboard" | "documents" | "approvals" | "landing" | "users";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    draft: { label: "У изради", color: "text-orange-500 bg-orange-50" },
-    published: { label: "Објављено", color: "text-green-600 bg-green-50" },
-    archived: { label: "Архивирано", color: "text-slate-400 bg-slate-100" },
+    draft: { label: "U izradi", color: "text-orange-500 bg-orange-50" },
+    published: { label: "Objavljeno", color: "text-green-600 bg-green-50" },
+    archived: { label: "Arhivirano", color: "text-slate-400 bg-slate-100" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -182,9 +182,9 @@ interface CreateModalProps {
 }
 
 const Q_SUBTYPES_EC = [
-    { value: 'overview', label: 'Преглед тржишта електронских комуникација у Републици Србији' },
-    { value: 'mobile',   label: 'Приказ мобилних мрежа оператора' },
-    { value: 'porting',  label: 'Преглед преноса бројева по операторима фиксне и мобилне телефоније' },
+    { value: 'overview', label: 'Pregled tržišta elektronskih komunikacija u Republici Srbiji' },
+    { value: 'mobile',   label: 'Prikaz mobilnih mreža operatora' },
+    { value: 'porting',  label: 'Pregled prenosa brojeva po operatorima fiksne i mobilne telefonije' },
 ] as const;
 
 const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
@@ -227,14 +227,14 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-extrabold text-lg text-dark-blue">Нови документ</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue">Novi dokument</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naziv</label>
                         <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
-                            placeholder="нпр. Преглед тржишта Q1 2026"
+                            placeholder="npr. Pregled tržišta Q1 2026"
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
 
@@ -242,16 +242,16 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
                     <label className="flex items-center gap-3 cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
                         <input type="checkbox" checked={isQuarterly} onChange={e => setIsQuarterly(e.target.checked)} className="w-4 h-4 accent-[#0056B3]" />
                         <Activity size={16} className={isQuarterly ? "text-[#0056B3]" : "text-slate-300"} />
-                        <span className="text-sm font-bold text-slate-700">Квартални извештај</span>
+                        <span className="text-sm font-bold text-slate-700">Kvartalni izveštaj</span>
                     </label>
 
                     {/* Conditional fields */}
                     {!isQuarterly ? (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Категорија</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Kategorija</label>
                             {categories.length === 0 ? (
                                 <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                                    Нема категорија. Прво направите категорију.
+                                    Nema kategorija. Prvo napravite kategoriju.
                                 </div>
                             ) : (
                                 <select value={categoryId ?? ''} onChange={e => setCategoryId(Number(e.target.value))}
@@ -263,11 +263,11 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
                     ) : (
                         <>
                             <div>
-                                <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Категорија квартала</label>
+                                <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Kategorija kvartala</label>
                                 <div className="flex gap-2">
                                     {([
-                                        { value: 'electronic_communications', label: 'Електронске комуникације' },
-                                        { value: 'postal_services',           label: 'Поштанске услуге' },
+                                        { value: 'electronic_communications', label: 'Elektronske komunikacije' },
+                                        { value: 'postal_services',           label: 'Poštanske usluge' },
                                     ] as const).map(opt => (
                                         <button key={opt.value} type="button" onClick={() => setQCategory(opt.value)}
                                             className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold border transition ${qCategory===opt.value ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
@@ -279,7 +279,7 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
 
                             {qCategory === 'electronic_communications' && (
                                 <div>
-                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Подкатегорија</label>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Podkategorija</label>
                                     <select value={qSubtype} onChange={e => setQSubtype(e.target.value as any)}
                                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
                                         {Q_SUBTYPES_EC.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -289,7 +289,7 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Година</label>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Godina</label>
                                     <select value={qYear} onChange={e => setQYear(Number(e.target.value))}
                                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
                                         {Array.from({ length: 6 }, (_, i) => currentYear + 1 - i).map(y => (
@@ -298,7 +298,7 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Квартал</label>
+                                    <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Kvartal</label>
                                     <div className="flex gap-1">
                                         {[1,2,3,4].map(q => (
                                             <button key={q} type="button" onClick={() => setQQuarter(q as any)}
@@ -315,12 +315,12 @@ const CreateModal = ({ categories, onClose, onCreate }: CreateModalProps) => {
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
                             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">
-                            Откажи
+                            Otkaži
                         </button>
                         <button type="submit" disabled={!canSubmit || saving}
                             className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
                             {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                            Креирај
+                            Kreiraj
                         </button>
                     </div>
                 </form>
@@ -362,21 +362,21 @@ const RenameDocModal = ({ doc, onClose, onSave }: RenameDocModalProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={18} className="text-[#0056B3]" /> Преименуј документ</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={18} className="text-[#0056B3]" /> Preimenuj dokument</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив документа</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naziv dokumenta</label>
                         <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Откажи</button>
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Otkaži</button>
                         <button type="submit" disabled={!title.trim() || saving}
                             className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Sačuvaj
                         </button>
                     </div>
                 </form>
@@ -440,10 +440,10 @@ const CreateUserModal = ({ onClose, onCreate }: CreateUserModalProps) => {
                     </div>
                     {!isAdmin && (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Улога</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Uloga</label>
                             <select value={role ?? ''} onChange={e => setRole(e.target.value as UserRole)}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition bg-white">
-                                <option value="">— без улоге —</option>
+                                <option value="">— bez uloge —</option>
                                 {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                         </div>
@@ -451,8 +451,8 @@ const CreateUserModal = ({ onClose, onCreate }: CreateUserModalProps) => {
                     <label className="flex items-center gap-3 cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
                         <input type="checkbox" checked={isAdmin} onChange={e => setIsAdmin(e.target.checked)} className="w-4 h-4 accent-[#0056B3]" />
                         <ShieldCheck size={16} className={isAdmin ? "text-[#0056B3]" : "text-slate-300"} />
-                        <span className="text-sm font-bold text-slate-700">Администратор</span>
-                        <span className="text-xs text-slate-400 ml-auto">{isAdmin ? "пун приступ" : "стандардни"}</span>
+                        <span className="text-sm font-bold text-slate-700">Administrator</span>
+                        <span className="text-xs text-slate-400 ml-auto">{isAdmin ? "pun pristup" : "standardni"}</span>
                     </label>
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
@@ -511,7 +511,7 @@ const EditUserModal = ({ user, onClose, onSave }: EditUserModalProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-extrabold text-lg text-dark-blue">Уреди корисника</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue">Uredi korisnika</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -521,33 +521,33 @@ const EditUserModal = ({ user, onClose, onSave }: EditUserModalProps) => {
                         </div>
                     )}
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Име и презиме</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Ime i prezime</label>
                         <input value={name} onChange={e => setName(e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Е-пошта</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">E-pošta</label>
                         <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Нова лозинка (опционо)</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Оставите празно за исту лозинку"
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Nova lozinka (opciono)</label>
+                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Ostavite prazno za istu lozinku"
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     </div>
                     {password && (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Потврди лозинку</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Potvrdi lozinku</label>
                             <input type="password" value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                         </div>
                     )}
                     {!isAdmin && (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Улога</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Uloga</label>
                             <select value={role ?? ''} onChange={e => setRole(e.target.value === '' ? null : (e.target.value as UserRole))}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition bg-white">
-                                <option value="">— без улоге —</option>
+                                <option value="">— bez uloge —</option>
                                 {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                         </div>
@@ -555,14 +555,14 @@ const EditUserModal = ({ user, onClose, onSave }: EditUserModalProps) => {
                     <label className="flex items-center gap-3 cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
                         <input type="checkbox" checked={isAdmin} onChange={e => setIsAdmin(e.target.checked)} className="w-4 h-4 accent-[#0056B3]" />
                         <ShieldCheck size={16} className={isAdmin ? "text-[#0056B3]" : "text-slate-300"} />
-                        <span className="text-sm font-bold text-slate-700">Администратор</span>
+                        <span className="text-sm font-bold text-slate-700">Administrator</span>
                     </label>
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
-                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Отказ</button>
+                            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Otkaz</button>
                         <button type="submit" disabled={saving}
                             className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Sačuvaj
                         </button>
                     </div>
                 </form>
@@ -640,18 +640,18 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
             <div className="bg-white rounded-2xl p-8 w-full max-w-6xl max-h-[90vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-2">
                     <div>
-                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><FileStack size={20} className="text-[#0056B3]" /> Поглавља документа</h2>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><FileStack size={20} className="text-[#0056B3]" /> Poglavlja dokumenta</h2>
                         <p className="text-sm text-slate-400 mt-0.5">{doc.title}</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
 
                 <form onSubmit={handleAdd} className="flex gap-2 mt-5">
-                    <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Назив новог поглавља..."
+                    <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Naziv novog poglavlja..."
                         className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     <button type="submit" disabled={!newTitle.trim() || adding}
                         className="px-5 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center gap-2">
-                        {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Додај
+                        {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Dodaj
                     </button>
                 </form>
 
@@ -659,19 +659,19 @@ const SectionsModal = ({ doc, onClose }: SectionsModalProps) => {
                     {loading ? (
                         <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
                     ) : sections.length === 0 ? (
-                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Нема поглавља</div>
+                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Nema poglavlja</div>
                     ) : (
                         <table className="w-full text-sm border-separate border-spacing-0">
                             <thead>
                                 <tr className="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
                                     <th className="px-2 py-2 w-8"></th>
-                                    <th className="px-2 py-2">Поглавље</th>
-                                    <th className="px-2 py-2">Статус</th>
-                                    <th className="px-2 py-2">Уредник</th>
-                                    <th className="px-2 py-2">Руководилац</th>
-                                    <th className="px-2 py-2">Директор</th>
-                                    <th className="px-2 py-2">Кабинет</th>
-                                    <th className="px-2 py-2">Админ</th>
+                                    <th className="px-2 py-2">Poglavlje</th>
+                                    <th className="px-2 py-2">Status</th>
+                                    <th className="px-2 py-2">Urednik</th>
+                                    <th className="px-2 py-2">Rukovodilac</th>
+                                    <th className="px-2 py-2">Direktor</th>
+                                    <th className="px-2 py-2">Kabinet</th>
+                                    <th className="px-2 py-2">Admin</th>
                                     <th className="px-2 py-2 w-20"></th>
                                 </tr>
                             </thead>
@@ -726,7 +726,7 @@ const ApprovalSectionRow = ({ section, idx, total, badge, onRename, onDelete, on
             </td>
             <td className="px-2 py-3 align-top">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${badge.color}`}
-                    title={section.rejected ? `Одбио: ${section.rejected.name}\nРазлог: ${section.rejected.reason}` : ''}>
+                    title={section.rejected ? `Odbio: ${section.rejected.name}\nRazlog: ${section.rejected.reason}` : ''}>
                     {badge.label}
                 </span>
             </td>
@@ -802,7 +802,7 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
             <div className="bg-white rounded-2xl p-8 w-full max-w-3xl max-h-[85vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><KeyRound size={20} className="text-[#0056B3]" /> {user.is_admin ? 'Привилегије' : `Додели поглавља — ${roleLabel(user.role)}`}</h2>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><KeyRound size={20} className="text-[#0056B3]" /> {user.is_admin ? 'Privilegije' : `Dodeli poglavlja — ${roleLabel(user.role)}`}</h2>
                         <p className="text-sm text-slate-400 mt-0.5">{user.name} — {user.email}</p>
                         {!user.is_admin && (
                             <p className="text-xs text-slate-500 mt-1.5 italic">{permissionLabelForRole(user.role, false)}</p>
@@ -813,13 +813,13 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
 
                 {user.is_admin && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 font-semibold mb-4 flex items-center gap-2">
-                        <ShieldCheck size={14} /> Овај корисник је администратор — има пуни приступ свим поглављима и одобрава последњи у току прегледа.
+                        <ShieldCheck size={14} /> Ovaj korisnik je administrator — ima puni pristup svim poglavljima i odobrava poslednji u toku pregleda.
                     </div>
                 )}
 
                 {!user.is_admin && !user.role && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-semibold mb-4 flex items-center gap-2">
-                        <AlertCircle size={14} /> Овом кориснику још увек није додељена улога. Додели улогу у „Уреди корисника" пре него што му додаш поглавља.
+                        <AlertCircle size={14} /> Ovom korisniku još uvek nije dodeljena uloga. Dodeli ulogu u „Uredi korisnika" pre nego što mu dodaš poglavlja.
                     </div>
                 )}
 
@@ -844,13 +844,13 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
                                                     ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
                                                     onChange={() => toggleDocAll(d.id, !allChecked)}
                                                     className="w-4 h-4 accent-[#0056B3]" />
-                                                <span className="text-xs font-bold text-slate-600">Све</span>
+                                                <span className="text-xs font-bold text-slate-600">Sve</span>
                                             </label>
                                         </div>
                                         {expanded[d.id] && (
                                             <div className="divide-y divide-slate-50">
                                                 {d.sections.length === 0 ? (
-                                                    <div className="text-xs text-slate-300 text-center py-3">Нема поглавља</div>
+                                                    <div className="text-xs text-slate-300 text-center py-3">Nema poglavlja</div>
                                                 ) : d.sections.map(s => (
                                                     <label key={s.id} className="flex items-center gap-3 px-6 py-2.5 hover:bg-slate-50 cursor-pointer">
                                                         <input type="checkbox" checked={s.can_edit} onChange={() => toggleSection(d.id, s.id)} className="w-4 h-4 accent-[#0056B3]" />
@@ -869,10 +869,10 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
 
                 <div className="flex gap-3 mt-5 pt-5 border-t border-slate-100">
                     <button onClick={onClose}
-                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Откажи</button>
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Otkaži</button>
                     <button onClick={handleSave} disabled={saving || user.is_admin}
                         className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center justify-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај привилегије
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Sačuvaj privilegije
                     </button>
                 </div>
             </div>
@@ -882,7 +882,7 @@ const PermissionsModal = ({ user, onClose }: PermissionsModalProps) => {
 
 // ── Dashboard View ───────────────────────────────────────────────────────────
 
-const MONTH_LABELS_SR = ['Јан', 'Феб', 'Мар', 'Апр', 'Мај', 'Јун', 'Јул', 'Авг', 'Сеп', 'Окт', 'Нов', 'Дец'];
+const MONTH_LABELS_SR = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
 
 const DashboardView = ({ activity, categories }: { activity: ActivityData | null; categories: Category[] }) => {
     const chartData = (activity?.by_month ?? []).map(m => {
@@ -896,7 +896,7 @@ const DashboardView = ({ activity, categories }: { activity: ActivityData | null
             <div className="col-span-2 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Activity size={18} className="text-[#0056B3]" />
-                    <h3 className="font-bold text-sm text-dark-blue">Активност — креирани документи по месецима</h3>
+                    <h3 className="font-bold text-sm text-dark-blue">Aktivnost — kreirani dokumenti po mesecima</h3>
                 </div>
                 <div style={{ width: '100%', height: 280 }}>
                     {activity ? (
@@ -919,11 +919,11 @@ const DashboardView = ({ activity, categories }: { activity: ActivityData | null
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Tag size={18} className="text-[#0056B3]" />
-                    <h3 className="font-bold text-sm text-dark-blue">Категорије</h3>
+                    <h3 className="font-bold text-sm text-dark-blue">Kategorije</h3>
                 </div>
                 <div className="flex flex-col gap-2">
                     {categories.length === 0 ? (
-                        <div className="text-xs text-slate-300 text-center py-6">Нема категорија</div>
+                        <div className="text-xs text-slate-300 text-center py-6">Nema kategorija</div>
                     ) : categories.map(c => (
                         <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50">
                             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: c.color }} />
@@ -938,12 +938,12 @@ const DashboardView = ({ activity, categories }: { activity: ActivityData | null
             <div className="col-span-3 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Clock size={18} className="text-[#0056B3]" />
-                    <h3 className="font-bold text-sm text-dark-blue">Последње измене (поглавља)</h3>
+                    <h3 className="font-bold text-sm text-dark-blue">Poslednje izmene (poglavlja)</h3>
                 </div>
                 {!activity ? (
                     <div className="flex justify-center py-8 text-slate-300"><Loader2 className="animate-spin" /></div>
                 ) : activity.recent.length === 0 ? (
-                    <div className="text-center py-8 text-slate-300 text-sm">Нема скоријих измена</div>
+                    <div className="text-center py-8 text-slate-300 text-sm">Nema skorijih izmena</div>
                 ) : (
                     <div className="flex flex-col">
                         {activity.recent.map((r, i) => (
@@ -952,8 +952,8 @@ const DashboardView = ({ activity, categories }: { activity: ActivityData | null
                                     <FileStack size={14} className="text-[#0056B3]" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-dark-blue truncate">{r.section_title || 'Без наслова'}</p>
-                                    <p className="text-xs text-slate-400 truncate">у {r.document_title}</p>
+                                    <p className="text-sm font-semibold text-dark-blue truncate">{r.section_title || 'Bez naslova'}</p>
+                                    <p className="text-xs text-slate-400 truncate">u {r.document_title}</p>
                                 </div>
                                 <span className="text-xs text-slate-400 whitespace-nowrap">{timeAgo(r.updated_at)}</span>
                             </div>
@@ -1018,7 +1018,7 @@ const CategoriesManager = ({ onClose, onChange }: CategoriesManagerProps) => {
             await load();
             onChange();
         } catch (err: any) {
-            alert(err?.response?.data?.message ?? "Грешка при брисању.");
+            alert(err?.response?.data?.message ?? "Greška pri brisanju.");
         }
     };
 
@@ -1026,18 +1026,18 @@ const CategoriesManager = ({ onClose, onChange }: CategoriesManagerProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
             <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={20} className="text-[#0056B3]" /> Категорије пројеката</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={20} className="text-[#0056B3]" /> Kategorije projekata</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
 
                 <form onSubmit={handleAdd} className="flex gap-2 mt-5">
-                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Назив нове категорије..."
+                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Naziv nove kategorije..."
                         className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
                     <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)}
-                        className="w-12 h-10 border border-slate-200 rounded-xl cursor-pointer" title="Боја" />
+                        className="w-12 h-10 border border-slate-200 rounded-xl cursor-pointer" title="Boja" />
                     <button type="submit" disabled={!newName.trim() || adding}
                         className="px-5 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition flex items-center gap-2">
-                        {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Додај
+                        {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Dodaj
                     </button>
                 </form>
 
@@ -1045,7 +1045,7 @@ const CategoriesManager = ({ onClose, onChange }: CategoriesManagerProps) => {
                     {loading ? (
                         <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
                     ) : cats.length === 0 ? (
-                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Нема категорија</div>
+                        <div className="text-center py-12 text-slate-300 text-sm font-semibold">Nema kategorija</div>
                     ) : (
                         <div className="flex flex-col gap-1">
                             {cats.map(c => (
@@ -1087,9 +1087,9 @@ const CategoryRow = ({ cat, onUpdate, onDelete }: { cat: Category; onUpdate: (p:
             ) : (
                 <>
                     <span className="flex-1 text-sm font-bold text-dark-blue">{cat.name}</span>
-                    <span className="text-xs text-slate-400">{cat.documents_count ?? 0} док.</span>
+                    <span className="text-xs text-slate-400">{cat.documents_count ?? 0} dok.</span>
                     <button onClick={() => setEditing(true)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50 transition-all"><PenLine size={14} /></button>
-                    <button onClick={onDelete} disabled={(cat.documents_count ?? 0) > 0} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed" title={(cat.documents_count ?? 0) > 0 ? 'Има везаних докумената' : 'Обриши'}><Trash2 size={14} /></button>
+                    <button onClick={onDelete} disabled={(cat.documents_count ?? 0) > 0} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed" title={(cat.documents_count ?? 0) > 0 ? 'Ima vezanih dokumenata' : 'Obriši'}><Trash2 size={14} /></button>
                 </>
             )}
         </div>
@@ -1161,23 +1161,23 @@ const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, sectionsC
             <PortalDropdown anchorRef={btnRef} open={open} onClose={close}>
                 <button onClick={() => { close(); onEdit(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
-                    <PenLine size={14} className="text-blue-500" /> Уреди
+                    <PenLine size={14} className="text-blue-500" /> Uredi
                 </button>
                 <button onClick={() => { close(); onRename(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
-                    <Tag size={14} className="text-blue-500" /> Преименуј
+                    <Tag size={14} className="text-blue-500" /> Preimenuj
                 </button>
                 <button onClick={() => { close(); onView(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
-                    <Eye size={14} className="text-slate-500" /> Преглед
+                    <Eye size={14} className="text-slate-500" /> Pregled
                 </button>
                 <button onClick={() => { close(); onSections(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
-                    <FileStack size={14} className="text-blue-500" /> Поглавља ({sectionsCount})
+                    <FileStack size={14} className="text-blue-500" /> Poglavlja ({sectionsCount})
                 </button>
                 <button onClick={() => { close(); onDelete(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
-                    <Trash2 size={14} /> Обриши
+                    <Trash2 size={14} /> Obriši
                 </button>
             </PortalDropdown>
         </div>
@@ -1214,7 +1214,7 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
     if (documents.length === 0) {
         return (
             <div className="bg-white rounded-2xl border border-slate-100 px-10 py-16 text-center text-sm text-slate-400">
-                Нема докумената. Креирај прво документ у „Пројекти".
+                Nema dokumenata. Kreiraj prvo dokument u „Projekti".
             </div>
         );
     }
@@ -1223,11 +1223,11 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
         <div className="flex flex-col gap-5">
             {/* Document selector */}
             <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 flex items-center gap-4">
-                <label className="text-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">Документ:</label>
+                <label className="text-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">Dokument:</label>
                 <select value={selectedDocId ?? ''} onChange={e => setSelectedDocId(e.target.value ? Number(e.target.value) : null)}
                     className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
                     {documents.map(d => (
-                        <option key={d.id} value={d.id}>{d.title} ({d.sections_count} поглавља)</option>
+                        <option key={d.id} value={d.id}>{d.title} ({d.sections_count} poglavlja)</option>
                     ))}
                 </select>
             </div>
@@ -1237,19 +1237,19 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
                 {loading ? (
                     <div className="flex justify-center py-16 text-slate-300"><Loader2 className="animate-spin" size={28} /></div>
                 ) : sections.length === 0 ? (
-                    <div className="text-center py-16 text-sm text-slate-400">Овај документ нема поглавља.</div>
+                    <div className="text-center py-16 text-sm text-slate-400">Ovaj dokument nema poglavlja.</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-slate-100 text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                                    <th className="px-5 py-4">Поглавље</th>
-                                    <th className="px-3 py-4">Статус</th>
-                                    <th className="px-3 py-4">Уредник</th>
-                                    <th className="px-3 py-4">Руководилац</th>
-                                    <th className="px-3 py-4">Директор</th>
-                                    <th className="px-3 py-4">Кабинет</th>
-                                    <th className="px-3 py-4">Админ</th>
+                                    <th className="px-5 py-4">Poglavlje</th>
+                                    <th className="px-3 py-4">Status</th>
+                                    <th className="px-3 py-4">Urednik</th>
+                                    <th className="px-3 py-4">Rukovodilac</th>
+                                    <th className="px-3 py-4">Direktor</th>
+                                    <th className="px-3 py-4">Kabinet</th>
+                                    <th className="px-3 py-4">Admin</th>
                                     <th className="px-3 py-4 w-24"></th>
                                 </tr>
                             </thead>
@@ -1265,7 +1265,7 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
                                                 </div>
                                                 {s.rejected && (
                                                     <div className="text-[11px] text-red-600 mt-1 italic max-w-[300px] truncate" title={s.rejected.reason ?? ''}>
-                                                        Одбио {s.rejected.name}: „{s.rejected.reason}"
+                                                        Odbio {s.rejected.name}: „{s.rejected.reason}"
                                                     </div>
                                                 )}
                                             </td>
@@ -1282,7 +1282,7 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
                                             <td className="px-3 py-4 text-right">
                                                 <a href={`/panel/${selectedDocId}?section=${s.id}`}
                                                     className="text-xs font-bold text-[#0056B3] hover:underline whitespace-nowrap">
-                                                    Отвори →
+                                                    Otvori →
                                                 </a>
                                             </td>
                                         </tr>
@@ -1297,7 +1297,7 @@ const ApprovalsOverview = ({ documents }: ApprovalsOverviewProps) => {
     );
 };
 
-// ── Landing Boxes + Collections (Почетна tab) ──────────────────────────────────
+// ── Landing Boxes + Collections (Početna tab) ──────────────────────────────────
 
 interface LandingBox {
     id: number;
@@ -1320,12 +1320,12 @@ interface CollectionItem {
 }
 
 const BOX_DEFAULTS: Record<number, { title: string; style: string }> = {
-    0: { title: 'Погледајте комплетан\nпреглед тржишта 2025', style: 'tall light' },
-    1: { title: 'Преглед тржишта електронских комуникација 2025', style: 'dark' },
-    2: { title: 'Квартални подаци', style: 'tall dark' },
-    3: { title: 'Преглед тржишта\nинформациона\nбезбедност 2025', style: 'light' },
-    4: { title: 'Преглед тржишта\nпоштанских\nуслуга 2025', style: 'light' },
-    5: { title: 'Погледајте претходне\nпрегледе тржишта', style: 'light' },
+    0: { title: 'Pogledajte kompletan\npregled tržišta 2025', style: 'tall light' },
+    1: { title: 'Pregled tržišta elektronskih komunikacija 2025', style: 'dark' },
+    2: { title: 'Kvartalni podaci', style: 'tall dark' },
+    3: { title: 'Pregled tržišta\ninformaciona\nbezbednost 2025', style: 'light' },
+    4: { title: 'Pregled tržišta\npoštanskih\nusluga 2025', style: 'light' },
+    5: { title: 'Pogledajte prethodne\npreglede tržišta', style: 'light' },
 };
 
 const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
@@ -1355,12 +1355,12 @@ const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
             <div className="bg-white border border-slate-100 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="font-extrabold text-sm text-dark-blue">Hero боксови (6 позиција)</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">Кликни на бокс да измениш наслов, слику и линк</p>
+                        <h3 className="font-extrabold text-sm text-dark-blue">Hero boksovi (6 pozicija)</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Klikni na boks da izmeniš naslov, sliku i link</p>
                     </div>
                     <button onClick={() => setShowCollectionsManager(true)}
                         className="text-xs font-bold text-[#0056B3] border border-[#0056B3] px-3 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-1.5">
-                        <ListChecks size={13} /> Колекције ({collections.length})
+                        <ListChecks size={13} /> Kolekcije ({collections.length})
                     </button>
                 </div>
 
@@ -1387,7 +1387,7 @@ const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
                                         <img src={b.image_path} alt="" className="w-full h-20 object-cover rounded-lg border border-slate-100" />
                                     )}
                                     {!b?.image_path && (
-                                        <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] text-slate-400">подразумевана слика</div>
+                                        <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] text-slate-400">podrazumevana slika</div>
                                     )}
                                     <div className="text-xs font-bold text-dark-blue whitespace-pre-line line-clamp-3">
                                         {b?.title || def.title}
@@ -1397,7 +1397,7 @@ const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
                                             <Link2 size={11} /> {linkInfo}
                                         </div>
                                     ) : (
-                                        <div className="text-[11px] text-slate-400">Без линка</div>
+                                        <div className="text-[11px] text-slate-400">Bez linka</div>
                                     )}
                                 </button>
                             );
@@ -1467,7 +1467,7 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
             });
             onSaved();
         } catch (e: any) {
-            alert('Грешка: ' + (e?.response?.data?.message || e.message));
+            alert('Greška: ' + (e?.response?.data?.message || e.message));
         } finally { setSaving(false); }
     };
 
@@ -1476,7 +1476,7 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2">
-                        <LayoutTemplate size={18} className="text-[#0056B3]" /> Уреди бокс — позиција {box.position}
+                        <LayoutTemplate size={18} className="text-[#0056B3]" /> Uredi boks — pozicija {box.position}
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
@@ -1484,7 +1484,7 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                 <div className="flex flex-col gap-4">
                     {/* Title */}
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Наслов (празно = подразумевано)</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naslov (prazno = podrazumevano)</label>
                         <textarea value={title} onChange={e => setTitle(e.target.value)}
                             placeholder={BOX_DEFAULTS[box.position].title}
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] resize-none"
@@ -1493,25 +1493,25 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
 
                     {/* Image */}
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Слика позадине</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Slika pozadine</label>
                         {imagePreview && (
                             <img src={imagePreview} alt="" className="w-full h-32 object-cover rounded-lg border border-slate-200 mb-2" />
                         )}
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                         <button type="button" onClick={() => fileInputRef.current?.click()}
                             className="w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 font-bold hover:border-[#0056B3] hover:bg-blue-50 transition flex items-center justify-center gap-2">
-                            <Upload size={13} /> {imagePreview ? 'Замени слику' : 'Изабери слику'}
+                            <Upload size={13} /> {imagePreview ? 'Zameni sliku' : 'Izaberi sliku'}
                         </button>
                     </div>
 
                     {/* Link type */}
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Линк</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Link</label>
                         <div className="flex gap-2">
                             {(['none','document','collection','quarterly'] as const).map(t => (
                                 <button key={t} type="button" onClick={() => setLinkType(t)}
                                     className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${linkType===t ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                                    {t==='none' ? 'Без' : t==='document' ? 'Документ' : t==='collection' ? 'Колекција' : 'Квартални'}
+                                    {t==='none' ? 'Bez' : t==='document' ? 'Dokument' : t==='collection' ? 'Kolekcija' : 'Kvartalni'}
                                 </button>
                             ))}
                         </div>
@@ -1520,10 +1520,10 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                     {/* Document picker */}
                     {linkType === 'document' && (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Изабери документ</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Izaberi dokument</label>
                             <select value={linkDocId ?? ''} onChange={e => setLinkDocId(e.target.value ? Number(e.target.value) : null)}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
-                                <option value="">— изабери —</option>
+                                <option value="">— izaberi —</option>
                                 {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                             </select>
                         </div>
@@ -1532,23 +1532,23 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                     {/* Collection picker */}
                     {linkType === 'collection' && (
                         <div>
-                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Изабери колекцију</label>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Izaberi kolekciju</label>
                             <select value={linkCollId ?? ''} onChange={e => setLinkCollId(e.target.value ? Number(e.target.value) : null)}
                                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
-                                <option value="">— изабери —</option>
+                                <option value="">— izaberi —</option>
                                 {collections.map(c => <option key={c.id} value={c.id}>{c.name} ({c.document?.title})</option>)}
                             </select>
                             {collections.length === 0 && (
-                                <p className="text-[11px] text-amber-600 mt-1">Прво направи колекцију у „Колекције" дугмету.</p>
+                                <p className="text-[11px] text-amber-600 mt-1">Prvo napravi kolekciju u „Kolekcije" dugmetu.</p>
                             )}
                         </div>
                     )}
 
                     <div className="flex gap-3 mt-2">
-                        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Откажи</button>
+                        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Otkaži</button>
                         <button onClick={handleSave} disabled={saving}
                             className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Sačuvaj
                         </button>
                     </div>
                 </div>
@@ -1577,7 +1577,7 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
     useEffect(() => { load(); }, [load]);
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Обриши ову колекцију?')) return;
+        if (!confirm('Obriši ovu kolekciju?')) return;
         await axiosClient.delete(`/api/admin/collections/${id}`);
         await load();
         onChange();
@@ -1588,29 +1588,29 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
             <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-5">
                     <div>
-                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><ListChecks size={20} className="text-[#0056B3]" /> Колекције</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">Именован подскуп поглавља једног документа</p>
+                        <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><ListChecks size={20} className="text-[#0056B3]" /> Kolekcije</h2>
+                        <p className="text-xs text-slate-400 mt-0.5">Imenovan podskup poglavlja jednog dokumenta</p>
                     </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
 
                 <button onClick={() => setEditing('new')}
                     className="self-start mb-4 px-4 py-2 rounded-xl bg-[#0056B3] text-white text-xs font-bold hover:bg-blue-700 flex items-center gap-2">
-                    <Plus size={13} /> Нова колекција
+                    <Plus size={13} /> Nova kolekcija
                 </button>
 
                 <div className="flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
                     ) : collections.length === 0 ? (
-                        <div className="text-center py-12 text-slate-300 text-sm">Још увек нема ниједне колекције</div>
+                        <div className="text-center py-12 text-slate-300 text-sm">Još uvek nema nijedne kolekcije</div>
                     ) : (
                         <div className="flex flex-col gap-2">
                             {collections.map(c => (
                                 <div key={c.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl hover:bg-slate-50 group">
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-sm text-dark-blue truncate">{c.name}</div>
-                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} поглавља</div>
+                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} poglavlja</div>
                                     </div>
                                     <button onClick={() => setEditing(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50"><PenLine size={13} /></button>
                                     <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
@@ -1658,7 +1658,7 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
 
     const handleSave = async () => {
         if (!name.trim() || !docId || sectionIds.length === 0) {
-            alert('Унеси име, изабери документ и бар једно поглавље.');
+            alert('Unesi ime, izaberi dokument i bar jedno poglavlje.');
             return;
         }
         setSaving(true);
@@ -1668,7 +1668,7 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
             else            await axiosClient.post('/api/admin/collections', payload);
             onSaved();
         } catch (e: any) {
-            alert('Грешка: ' + (e?.response?.data?.message || e.message));
+            alert('Greška: ' + (e?.response?.data?.message || e.message));
         } finally { setSaving(false); }
     };
 
@@ -1676,22 +1676,22 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={onClose}>
             <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[85vh] flex flex-col shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-5">
-                    <h2 className="font-extrabold text-lg text-dark-blue">{collection ? 'Уреди колекцију' : 'Нова колекција'}</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue">{collection ? 'Uredi kolekciju' : 'Nova kolekcija'}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
 
                 <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Назив колекције</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naziv kolekcije</label>
                         <input value={name} onChange={e => setName(e.target.value)} autoFocus
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3]" />
                     </div>
 
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Документ</label>
+                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Dokument</label>
                         <select value={docId ?? ''} onChange={e => { const v = e.target.value ? Number(e.target.value) : null; setDocId(v); setSectionIds([]); }}
                             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] bg-white">
-                            <option value="">— изабери —</option>
+                            <option value="">— izaberi —</option>
                             {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
                         </select>
                     </div>
@@ -1699,10 +1699,10 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
                     {docId && (
                         <div>
                             <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">
-                                Поглавља ({sectionIds.length} изабрано)
+                                Poglavlja ({sectionIds.length} izabrano)
                             </label>
                             {docSections.length === 0 ? (
-                                <div className="text-xs text-slate-400 italic py-4 text-center">Учитавам...</div>
+                                <div className="text-xs text-slate-400 italic py-4 text-center">Učitavam...</div>
                             ) : (
                                 <div className="border border-slate-100 rounded-xl divide-y divide-slate-50 max-h-64 overflow-y-auto">
                                     {docSections.map(s => (
@@ -1720,10 +1720,10 @@ const CollectionEditModal = ({ collection, documents, onClose, onSaved }: {
                 </div>
 
                 <div className="flex gap-3 mt-5 pt-5 border-t border-slate-100">
-                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Откажи</button>
+                    <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50">Otkaži</button>
                     <button onClick={handleSave} disabled={saving || !name.trim() || !docId || sectionIds.length === 0}
                         className="flex-1 py-2.5 rounded-xl bg-[#0056B3] text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Сачувај
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Sačuvaj
                     </button>
                 </div>
             </div>
@@ -1848,7 +1848,7 @@ const AdminPage = () => {
         } catch (err: any) {
             const errs = (err?.response?.data?.errors ?? {}) as Record<string, string[]>;
             const firstFieldErrors = Object.values(errs)[0];
-            return (err?.response?.data?.message ?? firstFieldErrors?.[0] ?? "Грешка при чувању.") as string;
+            return (err?.response?.data?.message ?? firstFieldErrors?.[0] ?? "Greška pri čuvanju.") as string;
         }
     };
 
@@ -1902,11 +1902,11 @@ const AdminPage = () => {
                 {/* Nav */}
                 <nav className="flex flex-col gap-1 flex-1">
                     {[
-                        { key: "dashboard" as TabKey, label: "Преглед", icon: LayoutDashboard },
-                        { key: "documents" as TabKey, label: "Пројекти", icon: FolderOpen },
-                        { key: "approvals" as TabKey, label: "Одобравања", icon: ShieldCheck },
-                        { key: "landing" as TabKey,  label: "Почетна",     icon: LayoutTemplate },
-                        { key: "users" as TabKey, label: "Корисници", icon: Users },
+                        { key: "dashboard" as TabKey, label: "Pregled", icon: LayoutDashboard },
+                        { key: "documents" as TabKey, label: "Projekti", icon: FolderOpen },
+                        { key: "approvals" as TabKey, label: "Odobravanja", icon: ShieldCheck },
+                        { key: "landing" as TabKey,  label: "Početna",     icon: LayoutTemplate },
+                        { key: "users" as TabKey, label: "Korisnici", icon: Users },
                     ].map(({ key, label, icon: Icon }) => (
                         <button
                             key={key}
@@ -1927,7 +1927,7 @@ const AdminPage = () => {
                         className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-[#0056B3] hover:bg-slate-50 transition-all mt-1"
                     >
                         <Tag size={18} />
-                        Категорије
+                        Kategorije
                     </button>
                 </nav>
 
@@ -1937,7 +1937,7 @@ const AdminPage = () => {
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                 >
                     <X size={18} />
-                    Одјава
+                    Odjava
                 </button>
             </aside>
 
@@ -1952,7 +1952,7 @@ const AdminPage = () => {
                         <input
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Претрага..."
+                            placeholder="Pretraga..."
                             className="bg-transparent text-sm outline-none w-full placeholder:text-slate-300"
                         />
                     </div>
@@ -1970,13 +1970,13 @@ const AdminPage = () => {
                                 className="flex items-center gap-2 bg-white rounded-[50px] py-[10px] px-[20px] border border-slate-100 shadow-sm text-sm font-bold"
                             >
                                 <Bell size={16} className="text-slate-600" />
-                                <span className="text-slate-500">Данас</span>
+                                <span className="text-slate-500">Danas</span>
                                 <ChevronDown size={14} className="text-slate-400" />
                             </button>
                             {showNotifications && (
                                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
                                     <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                                        <span className="font-extrabold text-sm">Нотификације</span>
+                                        <span className="font-extrabold text-sm">Notifikacije</span>
                                         <button onClick={() => setShowNotifications(false)}>
                                             <X size={16} className="text-slate-400" />
                                         </button>
@@ -1994,7 +1994,7 @@ const AdminPage = () => {
                                             </div>
                                         ))}
                                         {documents.length === 0 && (
-                                            <div className="px-5 py-6 text-center text-sm text-slate-400">Нема нотификација</div>
+                                            <div className="px-5 py-6 text-center text-sm text-slate-400">Nema notifikacija</div>
                                         )}
                                     </div>
                                 </div>
@@ -2006,7 +2006,7 @@ const AdminPage = () => {
                             <div className="w-7 h-7 rounded-full bg-[#0056B3] flex items-center justify-center text-white text-xs font-extrabold">
                                 {user?.name?.[0]?.toUpperCase() ?? "A"}
                             </div>
-                            <span className="font-extrabold text-[13px] uppercase tracking-wide">{user?.name ?? "АДМИН"}</span>
+                            <span className="font-extrabold text-[13px] uppercase tracking-wide">{user?.name ?? "ADMIN"}</span>
                         </div>
                     </div>
                 </header>
@@ -2018,11 +2018,11 @@ const AdminPage = () => {
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h1 className="font-extrabold text-xl text-dark-blue">
-                                {activeTab === "dashboard" ? "Преглед" :
-                                 activeTab === "users"     ? "Корисници" :
-                                 activeTab === "approvals" ? "Одобравања по документу" :
-                                 activeTab === "landing"   ? "Почетна страна" :
-                                                             "Пројекти"}
+                                {activeTab === "dashboard" ? "Pregled" :
+                                 activeTab === "users"     ? "Korisnici" :
+                                 activeTab === "approvals" ? "Odobravanja po dokumentu" :
+                                 activeTab === "landing"   ? "Početna strana" :
+                                                             "Projekti"}
                             </h1>
                             <p className="text-sm text-slate-400 mt-0.5">
                                 {new Date().toLocaleDateString("sr-RS", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
@@ -2033,7 +2033,7 @@ const AdminPage = () => {
                                 onClick={() => setShowCreateUserModal(true)}
                                 className="flex items-center gap-2 bg-[#0056B3] text-white rounded-[50px] py-[10px] px-[20px] text-sm font-bold shadow-sm hover:bg-blue-700 transition"
                             >
-                                <Plus size={16} /> Нови корисник
+                                <Plus size={16} /> Novi korisnik
                             </button>
                         )}
                         {activeTab === "documents" && (
@@ -2041,7 +2041,7 @@ const AdminPage = () => {
                                 onClick={() => setShowCreateModal(true)}
                                 className="flex items-center gap-2 bg-[#0056B3] text-white rounded-[50px] py-[10px] px-[20px] text-sm font-bold shadow-sm hover:bg-blue-700 transition"
                             >
-                                <Plus size={16} /> Нови документ
+                                <Plus size={16} /> Novi dokument
                             </button>
                         )}
                     </div>
@@ -2050,28 +2050,28 @@ const AdminPage = () => {
                     <div className="grid grid-cols-4 gap-4 mb-8">
                         {[
                             {
-                                label: "Број пројеката",
+                                label: "Broj projekata",
                                 value: stats?.total_documents ?? 0,
                                 icon: FolderOpen,
                                 color: "text-blue-500",
                                 bg: "bg-blue-50",
                             },
                             {
-                                label: "Активни корисници",
+                                label: "Aktivni korisnici",
                                 value: stats?.total_users ?? 0,
                                 icon: Users,
                                 color: "text-green-500",
                                 bg: "bg-green-50",
                             },
                             {
-                                label: "Пројекти у изради",
+                                label: "Projekti u izradi",
                                 value: stats?.in_progress ?? 0,
                                 icon: TrendingUp,
                                 color: "text-orange-500",
                                 bg: "bg-orange-50",
                             },
                             {
-                                label: "Последња активност",
+                                label: "Poslednja aktivnost",
                                 value: timeAgo(stats?.last_activity ?? null),
                                 icon: Clock,
                                 color: "text-purple-500",
@@ -2107,7 +2107,7 @@ const AdminPage = () => {
                                         categoryFilter === "all" ? "bg-[#EBF2FB] text-[#0056B3]" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                                     }`}
                                 >
-                                    Све
+                                    Sve
                                 </button>
                                 {categories.map(c => (
                                     <button
@@ -2127,7 +2127,7 @@ const AdminPage = () => {
                             {filteredDocuments.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-3">
                                     <AlertCircle size={40} />
-                                    <span className="text-sm font-semibold">Нема пројеката</span>
+                                    <span className="text-sm font-semibold">Nema projekata</span>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-3 gap-4">
@@ -2146,7 +2146,7 @@ const AdminPage = () => {
                                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                                         <div className="bg-white rounded-full px-3 py-1.5 text-xs font-bold text-dark-blue shadow flex items-center gap-1.5">
                                                             <Eye size={12} />
-                                                            Преглед
+                                                            Pregled
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2159,7 +2159,7 @@ const AdminPage = () => {
                                                             {doc.is_quarterly ? (
                                                                 <p className="text-xs mt-0.5 inline-flex items-center gap-1.5 font-semibold text-amber-700">
                                                                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-[10px] font-bold">Q{doc.q_quarter} {doc.q_year}</span>
-                                                                    {doc.q_category === 'electronic_communications' ? 'Електронске комуникације' : 'Поштанске услуге'}
+                                                                    {doc.q_category === 'electronic_communications' ? 'Elektronske komunikacije' : 'Poštanske usluge'}
                                                                 </p>
                                                             ) : doc.category ? (
                                                                 <p className="text-xs mt-0.5 inline-flex items-center gap-1.5 font-semibold" style={{ color: doc.category.color }}>
@@ -2167,7 +2167,7 @@ const AdminPage = () => {
                                                                     {doc.category.name}
                                                                 </p>
                                                             ) : (
-                                                                <p className="text-xs text-slate-400 mt-0.5">Без категорије</p>
+                                                                <p className="text-xs text-slate-400 mt-0.5">Bez kategorije</p>
                                                             )}
                                                         </div>
                                                         <DocCardMenu
@@ -2200,7 +2200,7 @@ const AdminPage = () => {
                         <ApprovalsOverview documents={documents} />
                     )}
 
-                    {/* ── Landing (Почетна) tab ── */}
+                    {/* ── Landing (Početna) tab ── */}
                     {activeTab === "landing" && (
                         <LandingBoxesTab documents={documents} />
                     )}
@@ -2211,10 +2211,10 @@ const AdminPage = () => {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-100">
-                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Корисник</th>
-                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Е-пошта</th>
-                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Улога</th>
-                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Регистрован</th>
+                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Korisnik</th>
+                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">E-pošta</th>
+                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Uloga</th>
+                                        <th className="text-left px-6 py-4 font-bold text-xs uppercase tracking-wide text-slate-400">Registrovan</th>
                                         <th className="px-6 py-4" />
                                     </tr>
                                 </thead>
@@ -2222,7 +2222,7 @@ const AdminPage = () => {
                                     {filteredUsers.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="text-center py-12 text-slate-300 text-sm font-semibold">
-                                                Нема корисника
+                                                Nema korisnika
                                             </td>
                                         </tr>
                                     ) : filteredUsers.map(u => (
@@ -2239,7 +2239,7 @@ const AdminPage = () => {
                                             <td className="px-6 py-4">
                                                 {u.is_admin ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[#0056B3] text-[10px] font-bold uppercase tracking-wide">
-                                                        <ShieldCheck size={12} /> Админ
+                                                        <ShieldCheck size={12} /> Admin
                                                     </span>
                                                 ) : u.role ? (
                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
@@ -2252,22 +2252,22 @@ const AdminPage = () => {
                                                     </span>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wide">
-                                                        Без улоге
+                                                        Bez uloge
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-slate-400">{fmtDate(u.created_at)}</td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <button onClick={() => setPermissionsUser(u)} title="Привилегије"
+                                                    <button onClick={() => setPermissionsUser(u)} title="Privilegije"
                                                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-[#0056B3] hover:bg-blue-50 transition-all">
                                                         <KeyRound size={15} />
                                                     </button>
-                                                    <button onClick={() => setEditingUser(u)} title="Уреди"
+                                                    <button onClick={() => setEditingUser(u)} title="Uredi"
                                                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-[#0056B3] hover:bg-blue-50 transition-all">
                                                         <PenLine size={15} />
                                                     </button>
-                                                    <button onClick={() => handleDeleteUser(u.id)} title="Обриши"
+                                                    <button onClick={() => handleDeleteUser(u.id)} title="Obriši"
                                                         className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
                                                         <Trash2 size={15} />
                                                     </button>

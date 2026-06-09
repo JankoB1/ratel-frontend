@@ -10,7 +10,7 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
     const baseColor = currentSettings.baseColor || '#3b82f6';
     const width = currentSettings.width || 100;
 
-    const values = data.map((d: any) => parseFloat(d['Вредност'])).filter((v: number) => !isNaN(v));
+    const values = data.map((d: any) => parseFloat(d['Vrednost'])).filter((v: number) => !isNaN(v));
     const min = values.length > 0 ? Math.min(...values) : 0;
     const max = values.length > 0 ? Math.max(...values) : 0;
 
@@ -18,10 +18,10 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
     const calculatedValues: any = {};
 
     data.forEach((d: any) => {
-        const val = parseFloat(d['Вредност']);
-        calculatedValues[d.name] = d['Вредност'];
+        const val = parseFloat(d['Vrednost']);
+        calculatedValues[d.name] = d['Vrednost'];
 
-        if (isNaN(val) || d['Вредност'] === '' || d['Вредност'] === undefined) {
+        if (isNaN(val) || d['Vrednost'] === '' || d['Vrednost'] === undefined) {
             calculatedColors[d.name] = '#f1f5f9';
         } else {
             let opacity = 0.2;
@@ -61,7 +61,7 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
 
     legendItems.push({
         color: '#f1f5f9',
-        label: 'Нема података',
+        label: 'Nema podataka',
         isNoData: true
     });
 

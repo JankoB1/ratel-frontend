@@ -20,20 +20,20 @@ const LoginPage = () => {
 
         // Klijentska validacija
         if (!email.trim() || !password.trim()) {
-            setError("Попуните сва поља како бисте се пријавили.");
+            setError("Popunite sva polja kako biste se prijavili.");
             return;
         }
 
         if (!email.includes("@")) {
-            setError("Унесите исправну е-маил адресу.");
+            setError("Unesite ispravnu e-mail adresu.");
             return;
         }
 
         // Slanje zahteva na server
         try {
             await login({ email, password });
-            // Role-aware redirect: admin → /admin, svi ne-admin → /dashboard (моја поглавља).
-            // Reviewer-i imaju link na /inbox unutar dashboard-a kad žele да одобравaju.
+            // Role-aware redirect: admin → /admin, svi ne-admin → /dashboard (moja poglavlja).
+            // Reviewer-i imaju link na /inbox unutar dashboard-a kad žele da odobravaju.
             await getUser();
             try {
                 const { default: ax } = await import('../axios-client');
@@ -43,9 +43,9 @@ const LoginPage = () => {
             } catch { navigate('/dashboard'); }
         } catch (err: any) {
             if (err.response && err.response.status === 422) {
-                setError("Погрешан е-маил или лозинка. Проверите податке.");
+                setError("Pogrešan e-mail ili lozinka. Proverite podatke.");
             } else {
-                setError("Дошло је до грешке на серверу. Покушајте поново.");
+                setError("Došlo je do greške na serveru. Pokušajte ponovo.");
             }
         }
     };
@@ -59,7 +59,7 @@ const LoginPage = () => {
                     <div>
                         <input
                             type="email"
-                            placeholder="мејл"
+                            placeholder="mejl"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className={`w-full h-[60px] px-6 border-[1px] rounded-[50px] outline-none transition-all ${
@@ -70,7 +70,7 @@ const LoginPage = () => {
                     <div className="relative flex items-center">
                         <input
                             type={showPassword ? "text" : "password"}
-                            placeholder="лозинка"
+                            placeholder="lozinka"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className={`w-full h-[60px] pl-6 pr-14 border-[1px] rounded-[50px] outline-none transition-all ${
@@ -94,7 +94,7 @@ const LoginPage = () => {
                             type="button"
                             className="pr-4 text-sm text-gray-500 hover:text-primary-blue transition-colors cursor-pointer"
                         >
-                            Заборавили сте лозинку?
+                            Zaboravili ste lozinku?
                         </button>
                     </div>
 
@@ -109,7 +109,7 @@ const LoginPage = () => {
                         type="submit"
                         className="w-full h-[60px] bg-primary-blue text-white font-semibold rounded-[50px] hover:bg-opacity-90 transition-colors mt-4"
                     >
-                        Пријави се
+                        Prijavi se
                     </button>
                 </form>
             </div>

@@ -16,26 +16,26 @@ interface InboxItem {
 }
 
 const STATUS_LABEL_MAP: Record<string, string> = {
-    pending_rukovodilac: 'Чека вас као руководиоца',
-    pending_direktor:    'Чека вас као директора',
-    pending_kabinet:     'Чека вас као кабинет',
-    pending_admin:       'Чека вас као администратора (финално)',
+    pending_rukovodilac: 'Čeka vas kao rukovodioca',
+    pending_direktor:    'Čeka vas kao direktora',
+    pending_kabinet:     'Čeka vas kao kabinet',
+    pending_admin:       'Čeka vas kao administratora (finalno)',
 };
 
 const ROLE_LABEL_MAP: Record<string, string> = {
-    editor: 'Уредник',
-    rukovodilac: 'Руководилац',
-    direktor: 'Директор',
-    kabinet: 'Кабинет',
+    editor: 'Urednik',
+    rukovodilac: 'Rukovodilac',
+    direktor: 'Direktor',
+    kabinet: 'Kabinet',
 };
 
 const fmtWhen = (iso: string | null) => {
     if (!iso) return '—';
     const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-    if (diff < 60) return 'малопре';
-    if (diff < 3600) return `пре ${Math.floor(diff / 60)} мин`;
-    if (diff < 86400) return `пре ${Math.floor(diff / 3600)} ч`;
-    return `пре ${Math.floor(diff / 86400)} дана`;
+    if (diff < 60) return 'malopre';
+    if (diff < 3600) return `pre ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `pre ${Math.floor(diff / 3600)} č`;
+    return `pre ${Math.floor(diff / 86400)} dana`;
 };
 
 interface InboxDiagnostic {
@@ -83,7 +83,7 @@ export default function InboxPage() {
     );
     if (!user) return null;
 
-    const roleLabel = user.is_admin ? 'Администратор' : (user.role ? ROLE_LABEL_MAP[user.role] : 'Без улоге');
+    const roleLabel = user.is_admin ? 'Administrator' : (user.role ? ROLE_LABEL_MAP[user.role] : 'Bez uloge');
     const hasNoRole = !user.is_admin && !user.role;
 
     return (
@@ -94,7 +94,7 @@ export default function InboxPage() {
                     <img src={logo} alt="Ratel" className="h-8" />
                     <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
                         <Inbox size={18} className="text-[#0056B3]" />
-                        <span>Преглед поглавља</span>
+                        <span>Pregled poglavlja</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -106,10 +106,10 @@ export default function InboxPage() {
                     </div>
                     {user.is_admin && (
                         <Link to="/admin" className="text-xs font-bold text-[#0056B3] border border-[#0056B3] px-3 py-1.5 rounded-lg hover:bg-blue-50">
-                            Админ панел
+                            Admin panel
                         </Link>
                     )}
-                    <button onClick={handleLogout} title="Одјави се"
+                    <button onClick={handleLogout} title="Odjavi se"
                         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition">
                         <LogOut size={18} />
                     </button>
@@ -119,15 +119,15 @@ export default function InboxPage() {
             {/* Content */}
             <main className="max-w-4xl mx-auto px-8 py-10">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-extrabold text-dark-blue mb-1">Поглавља за преглед</h1>
+                    <h1 className="text-2xl font-extrabold text-dark-blue mb-1">Poglavlja za pregled</h1>
                     <p className="text-sm text-slate-500">
-                        Овде се појављују сва поглавља која чекају ваш ниво одобрења. Кликни на ставку да отвориш и одобриш или одбијеш.
+                        Ovde se pojavljuju sva poglavlja koja čekaju vaš nivo odobrenja. Klikni na stavku da otvoriš i odobriš ili odbiješ.
                     </p>
                 </div>
 
                 {hasNoRole && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 font-semibold flex items-center gap-2 mb-6">
-                        <Clock size={16} /> Још увек немате додељену улогу. Контактирајте администратора.
+                        <Clock size={16} /> Još uvek nemate dodeljenu ulogu. Kontaktirajte administratora.
                     </div>
                 )}
 
@@ -136,19 +136,19 @@ export default function InboxPage() {
                 ) : items.length === 0 ? (
                     <div className="bg-white border border-slate-200 rounded-2xl px-10 py-16 text-center">
                         <Inbox size={48} className="mx-auto text-slate-200 mb-4" />
-                        <p className="text-base font-bold text-slate-500 mb-1">Inbox је празан</p>
-                        <p className="text-sm text-slate-400 mb-6">Тренутно нема поглавља која чекају ваш преглед.</p>
+                        <p className="text-base font-bold text-slate-500 mb-1">Inbox je prazan</p>
+                        <p className="text-sm text-slate-400 mb-6">Trenutno nema poglavlja koja čekaju vaš pregled.</p>
                         {diag && (
                             <div className="inline-block text-left bg-slate-50 border border-slate-100 rounded-xl px-5 py-4 text-xs text-slate-500 space-y-1">
-                                <div className="font-bold text-slate-600 mb-2">Дијагностика:</div>
-                                <div>• Улога: <strong>{diag.is_admin ? 'Администратор' : (diag.role || '— без улоге —')}</strong></div>
-                                <div>• Чека се статус: <strong>{diag.waiting_status || '— ниједан (нема одговарајуће улоге) —'}</strong></div>
-                                <div>• Додељена поглавља: <strong>{diag.is_admin ? 'сва (админ)' : (diag.assigned_section_count ?? 0)}</strong></div>
+                                <div className="font-bold text-slate-600 mb-2">Dijagnostika:</div>
+                                <div>• Uloga: <strong>{diag.is_admin ? 'Administrator' : (diag.role || '— bez uloge —')}</strong></div>
+                                <div>• Čeka se status: <strong>{diag.waiting_status || '— nijedan (nema odgovarajuće uloge) —'}</strong></div>
+                                <div>• Dodeljena poglavlja: <strong>{diag.is_admin ? 'sva (admin)' : (diag.assigned_section_count ?? 0)}</strong></div>
                                 {!diag.is_admin && (diag.assigned_section_count ?? 0) === 0 && (
-                                    <div className="text-amber-700 mt-2">⚠ Немате ниједно додељено поглавље. Замоли админа да ти додели.</div>
+                                    <div className="text-amber-700 mt-2">⚠ Nemate nijedno dodeljeno poglavlje. Zamoli admina da ti dodeli.</div>
                                 )}
                                 {!diag.is_admin && !diag.role && (
-                                    <div className="text-amber-700 mt-2">⚠ Нема улоге — админ мора да ти је додели.</div>
+                                    <div className="text-amber-700 mt-2">⚠ Nema uloge — admin mora da ti je dodeli.</div>
                                 )}
                             </div>
                         )}
@@ -164,7 +164,7 @@ export default function InboxPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="font-bold text-dark-blue text-sm truncate">{it.section_title}</div>
                                     <div className="text-xs text-slate-400 mt-0.5 truncate">
-                                        {it.document_title} • {it.submitted_by ? `Послао ${it.submitted_by}` : 'Послато'} {fmtWhen(it.submitted_at)}
+                                        {it.document_title} • {it.submitted_by ? `Poslao ${it.submitted_by}` : 'Poslato'} {fmtWhen(it.submitted_at)}
                                     </div>
                                 </div>
                                 <span className="text-xs font-bold text-[#0056B3] bg-blue-50 px-3 py-1 rounded-full whitespace-nowrap hidden md:inline">

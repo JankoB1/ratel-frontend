@@ -17,11 +17,11 @@ export default function SectionListSidebar({ sections, activeSectionId, onPick, 
         <aside className="hidden md:flex w-[260px] shrink-0 bg-white border border-slate-100 rounded-2xl flex-col overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0">
                 <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                    {headline ?? 'Поглавља'}
+                    {headline ?? 'Poglavlja'}
                 </div>
                 {totalPages !== undefined && totalPages > 0 && (
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                        Стр. {(currentPageIndex ?? 0) + 1} / {totalPages}
+                        Str. {(currentPageIndex ?? 0) + 1} / {totalPages}
                     </div>
                 )}
             </div>
