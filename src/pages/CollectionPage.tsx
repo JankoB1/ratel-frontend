@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, AlertCircle, Layers, X } from "lucide-react";
+import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, AlertCircle, Layers, X, Download } from "lucide-react";
 import { DocumentPage, buildMaps } from "../components/DocumentPageView";
 import SectionListSidebar from "../components/SectionListSidebar";
+import { useDocumentSearch, DocumentSearchField } from "../components/DocumentSearch";
 import logo from "../assets/logo.svg";
 
 // Thumbnail dimensions: scale down A4 (794×1123px) to fit sidebar
@@ -135,6 +136,7 @@ export default function CollectionPage() {
     const { id } = useParams<{ id: string }>();
     const [collection, setCollection] = useState<CollectionData | null>(null);
     const [sections, setSections] = useState<SectionItem[]>([]);
+    const [pdfAvailable, setPdfAvailable] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(100);
@@ -148,6 +150,9 @@ export default function CollectionPage() {
     const thumbSidebarRef = useRef<HTMLDivElement>(null);
     const sectionTabsRef  = useRef<HTMLDivElement>(null);
     const isProgrammaticScrollRef = useRef(false);
+
+    // Pretraga celog dokumenta — identično kao u editoru (Ctrl/Cmd+F, Enter/Shift+Enter, Esc).
+    const search = useDocumentSearch(sections, mainAreaRef);
 
     useEffect(() => {
         const update = () => {
@@ -174,6 +179,7 @@ export default function CollectionPage() {
                 const data = await res.json();
                 setCollection(data.collection);
                 setSections(data.sections || []);
+                setPdfAvailable(!!data.pdf_available);
             } catch (e: any) {
                 setError(e?.message || "Greška pri učitavanju kolekcije.");
             } finally {
@@ -235,6 +241,9 @@ export default function CollectionPage() {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // Ne diraj zoom dok korisnik kuca u polje (npr. search box) — inače "+"/"-" zumira.
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
             if (e.ctrlKey && e.shiftKey && e.key === "0") { e.preventDefault(); resetZoom(); }
             else if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "+" || e.key === "=")) zoomIn();
             else if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key === "-") zoomOut();
@@ -311,6 +320,11 @@ export default function CollectionPage() {
     return (
         <div className="flex flex-col h-screen bg-background-grey overflow-hidden font-sans text-dark-blue">
 
+            {/* Mobilni: uvek vidljivo plutajuće polje za pretragu na dnu.
+                (Desktop verzija je inline u toolbaru, levo od zoom kontrola.)
+                Renderujemo samo jednu varijantu — dele isti searchInputRef. */}
+            {isMobile && <DocumentSearchField search={search} variant="floating-bottom" />}
+
             {/* ═══════════════════════════════════════════════
                 DESKTOP TOOLBAR
             ═══════════════════════════════════════════════ */}
@@ -338,19 +352,32 @@ export default function CollectionPage() {
                     </button>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-[50px] py-[10px] px-[25px] border border-slate-100 shadow-sm">
-                    <button onClick={zoomOut} disabled={zoom <= 50}
-                        className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
-                        <ZoomOut size={16} className="text-slate-600" />
-                    </button>
-                    <button onClick={resetZoom} title="Resetuj zoom na 100%"
-                        className="font-bold text-[13px] min-w-[40px] text-center hover:text-blue-600 transition-colors">
-                        {zoom}%
-                    </button>
-                    <button onClick={zoomIn} disabled={zoom >= 200}
-                        className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
-                        <ZoomIn size={16} className="text-slate-600" />
-                    </button>
+                {/* Preuzmi PDF (ako je admin generisao) + pretraga + zoom — desna strana toolbara. */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {pdfAvailable && (
+                        <a
+                            href={`${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"}/api/portal/collections/${id}/pdf`}
+                            target="_blank" rel="noopener"
+                            className="flex items-center gap-2 bg-[#0056B3] text-white rounded-[50px] py-[10px] px-[20px] text-[13px] font-bold shadow-sm hover:bg-[#004690] transition-colors shrink-0 whitespace-nowrap"
+                        >
+                            <Download size={15} /> Preuzmi PDF
+                        </a>
+                    )}
+                    {!isMobile && <DocumentSearchField search={search} variant="inline" />}
+                    <div className="flex items-center gap-3 bg-white rounded-[50px] py-[10px] px-[25px] border border-slate-100 shadow-sm shrink-0">
+                        <button onClick={zoomOut} disabled={zoom <= 50}
+                            className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                            <ZoomOut size={16} className="text-slate-600" />
+                        </button>
+                        <button onClick={resetZoom} title="Resetuj zoom na 100%"
+                            className="font-bold text-[13px] min-w-[40px] text-center hover:text-blue-600 transition-colors">
+                            {zoom}%
+                        </button>
+                        <button onClick={zoomIn} disabled={zoom >= 200}
+                            className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                            <ZoomIn size={16} className="text-slate-600" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -366,6 +393,16 @@ export default function CollectionPage() {
                     {title}
                 </p>
                 <div className="flex items-center gap-0.5 shrink-0">
+                    {pdfAvailable && (
+                        <a
+                            href={`${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"}/api/portal/collections/${id}/pdf`}
+                            target="_blank" rel="noopener"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-[#0056B3] text-white"
+                            title="Preuzmi PDF"
+                        >
+                            <Download size={14} />
+                        </a>
+                    )}
                     <button
                         onClick={() => setShowThumbDrawer(true)}
                         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors relative"

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
     Plus, Settings2, Trash2, X, LayoutTemplate, Type,
-    Image as ImageIcon, Table2, BarChart3, Map as MapIcon, Check
+    Image as ImageIcon, Table2, BarChart3, Map as MapIcon, Check, AlertTriangle
 } from "lucide-react";
 import addIcon from "../../assets/apps-add.svg";
 import type { ElementType, ColumnData } from "./types";
@@ -56,6 +56,24 @@ const ElementSelector = ({ onSelect }: any) => (
 export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, selectedElement, setSelectedElement, updateElementSettings, handleAutoSplit, onDragStart, onDragEnd, onDropAtZone, handleDeleteElement, handleDeleteRow, getGridCols, handleAddElement, activeRowMenu, setActiveRowMenu, activeColMenu, setActiveColMenu, globalFootnoteMap, elementLabelMap, isGroupingMode, groupSelection, setGroupSelection, documentTitle, sectionTitle }: any) => {
     const [showAddBtn, setShowAddBtn] = useState(true);
     const innerContentRef = useRef<HTMLDivElement>(null);
+    const canvasPageRef = useRef<HTMLDivElement>(null);
+    const pageFootnotesRef = useRef<HTMLDivElement>(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    // Sadržaj (redovi) mora da se završi pre footera/fusnota. U PDF-u canvas-page ima
+    // overflow:hidden → sve preko A4 visine se odseca, a editor nema clip pa se prelivanje
+    // ne vidi golim okom. Zato merimo stvarni donji rub sadržaja (getBoundingClientRect) i
+    // poredimo ga sa granicom = dno strane − footer(50px) − visina fusnota − mala rezerva.
+    const measureOverflow = useCallback(() => {
+        const pageEl = canvasPageRef.current;
+        const contentEl = innerContentRef.current;
+        if (!pageEl || !contentEl) return;
+        const pageBottom = pageEl.getBoundingClientRect().bottom;
+        const contentBottom = contentEl.getBoundingClientRect().bottom;
+        const footnotesH = pageFootnotesRef.current?.getBoundingClientRect().height || 0;
+        const limit = pageBottom - 50 - footnotesH - 8;
+        setIsOverflowing(contentBottom > limit);
+    }, []);
 
     const pageFootnotes = useMemo(() => {
         const fns: any[] = [];
@@ -90,23 +108,45 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
     }, [page, globalFootnoteMap]);
 
     useEffect(() => {
-        if (!innerContentRef.current) return;
-        const observer = new ResizeObserver((entries) => {
-            for (let entry of entries) {
-                if (entry.contentRect.height > 800) setShowAddBtn(false);
-                else setShowAddBtn(true);
-            }
-        });
-        observer.observe(innerContentRef.current);
+        const inner = innerContentRef.current;
+        if (!inner) return;
+        const handle = () => {
+            setShowAddBtn(inner.getBoundingClientRect().height <= 800);
+            measureOverflow();
+        };
+        const observer = new ResizeObserver(handle);
+        observer.observe(inner);
+        if (pageFootnotesRef.current) observer.observe(pageFootnotesRef.current);
         return () => observer.disconnect();
-    }, [page.rows]);
+    }, [page.rows, measureOverflow]);
+
+    // Ponovo izmeri kad se promene sadržaj ili fusnote (izmena teksta, dodavanje fusnote,
+    // promena rasporeda) — ResizeObserver hvata promene visine, ovo hvata i ostalo.
+    useEffect(() => {
+        measureOverflow();
+    }, [page, pageFootnotes, measureOverflow]);
 
     const lastRowEmpty = page.rows.length > 0 && page.rows[page.rows.length - 1].columns.length === 0;
 
+    // PRIVREMENO DEAKTIVIRANO (na zahtev): vizuelno upozorenje "Sadržaj prelazi stranu —
+    // biće odsečen u PDF eksportu" (crveni baner na vrhu strane + crveni okvir oko strane).
+    // Sva logika merenja prelivanja (measureOverflow / isOverflowing) i dalje radi u pozadini —
+    // samo se ništa ne prikazuje. Da se upozorenje ponovo uključi: SHOW_OVERFLOW_WARNING = true.
+    const SHOW_OVERFLOW_WARNING = false;
+
     return (
-        <div className="canvas-page">
+        <div ref={canvasPageRef} className="canvas-page" style={(SHOW_OVERFLOW_WARNING && isOverflowing) ? { outline: '3px solid #ef4444', outlineOffset: '3px' } : undefined}>
             {totalPages > 1 && (
                 <button onClick={() => onDeletePage(page.id)} className="page-delete-btn" title="Obriši stranicu"><X size={20} /></button>
+            )}
+            {SHOW_OVERFLOW_WARNING && isOverflowing && (
+                <div
+                    title="Sadržaj je viši od A4 strane. Deo na dnu neće stati u PDF — prebacite ga na novu stranu ili smanjite sadržaj/razmake."
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#ef4444', color: '#fff', fontSize: '12px', fontWeight: 700, padding: '6px 14px', borderRadius: '2px 2px 0 0', boxShadow: '0 2px 8px rgba(239,68,68,0.45)', textTransform: 'uppercase', letterSpacing: '0.03em' }}
+                >
+                    <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                    <span>Sadržaj prelazi stranu — biće odsečen u PDF eksportu</span>
+                </div>
             )}
             <div className="page-header">
                 <div className="page-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden', gap: '16px' }}>
@@ -114,7 +154,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                         {documentTitle || 'Annual Report'}
                     </span>
                     {sectionTitle && (
-                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textAlign: 'right', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'normal', lineHeight: 1.25, wordBreak: 'break-word' }}>
                             {sectionTitle}
                         </span>
                     )}
@@ -237,7 +277,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                                                                 {el.type === 'image' && <ImageElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} elementLabel={elementLabelMap[el.id]} />}
                                                                 {el.type === 'table' && <TableElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} onAutoSplit={handleAutoSplit} globalFootnoteMap={globalFootnoteMap} elementLabel={elementLabelMap[el.id]} />}
                                                                 {el.type === 'chart' && <ChartElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} elementLabel={elementLabelMap[el.id]} />}
-                                                                {el.type === 'map' && <MapElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} />}
+                                                                {el.type === 'map' && <MapElementBlock el={el} pageId={page.id} rowId={row.id} colId={col.id} isSelected={selectedElement?.elementId === el.id} selectedElement={selectedElement} setSelectedElement={setSelectedElement} updateElementSettings={updateElementSettings} onDelete={handleDeleteElement} onDragStart={onDragStart} onDragEnd={onDragEnd} elementLabel={elementLabelMap[el.id]} />}
                                                             </div>
                                                         );
                                                     })}
@@ -260,7 +300,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                     </div>
                 )}
             </div>
-            <div className="page-footnotes">
+            <div ref={pageFootnotesRef} className="page-footnotes">
                 {pageFootnotes.length > 0 && (
                     <div className="footnotes-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {pageFootnotes.map((fn) => (

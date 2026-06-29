@@ -162,8 +162,11 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             page.rows.forEach((row: any) => {
                 row.columns.forEach((col: any) => {
                     col.elements.forEach((el: any) => {
-                        if (el.type === 'table') { map[el.id] = `Tabela ${sectionNum}.${tableCount}`; tableCount++; }
-                        else if (el.type === 'image' || el.type === 'chart') { map[el.id] = `Slika ${sectionNum}.${mediaCount}`; mediaCount++; }
+                        if (el.type === 'table') {
+                            // Tabele sa sakrivenim nazivom se ne broje — nisu zasebne tabele.
+                            if (!el.payload?.settings?.hideLabel) { map[el.id] = `Tabela ${sectionNum}.${tableCount}`; tableCount++; }
+                        }
+                        else if (el.type === 'image' || el.type === 'chart' || el.type === 'map') { map[el.id] = `Slika ${sectionNum}.${mediaCount}`; mediaCount++; }
                     });
                 });
             });

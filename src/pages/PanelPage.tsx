@@ -10,6 +10,7 @@ import axiosClient from "../axios-client";
 import { Loader2, Search as SearchIcon, ChevronUp, ChevronDown, X, Lock, Send, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import { useAuth } from "../contexts/AuthContext";
+import { extractElementText } from "../components/CanvasEditor/utils";
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2;
@@ -27,51 +28,6 @@ const APPROVAL_STATUS_INFO: Record<string, { label: string; color: string; bg: s
 };
 const getApprovalInfo = (s: string | undefined) => APPROVAL_STATUS_INFO[s || 'draft'] || APPROVAL_STATUS_INFO.draft;
 
-// Hijerarhija nivoa za edit-after-approve pravilo (mora da matchuje SectionApproval::LEVEL_ORDER na backendu).
-const LEVEL_ORDER: Record<string, number> = { editor: 0, rukovodilac: 1, direktor: 2, kabinet: 3, admin: 4 };
-const LEVEL_LABEL_SR: Record<string, string> = {
-    editor: 'urednika', rukovodilac: 'rukovodioca', direktor: 'direktora', kabinet: 'kabineta', admin: 'administratora',
-};
-const resolveUserLevel = (u: { is_admin?: boolean; role?: string | null } | null | undefined): string => {
-    if (!u) return 'editor';
-    if (u.is_admin) return 'admin';
-    return u.role && LEVEL_ORDER[u.role] !== undefined ? u.role : 'editor';
-};
-
-const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ');
-
-const extractElementText = (el: any): string => {
-    const payload = el.payload || {};
-    const settings = payload.settings || {};
-    const parts: string[] = [];
-    switch (el.type) {
-        case 'text':
-            parts.push(stripHtml(settings.content || ''));
-            break;
-        case 'table':
-            Object.values(payload.sr?.content || {}).forEach((v: any) => {
-                if (typeof v === 'string') parts.push(stripHtml(v));
-            });
-            if (settings.title) parts.push(settings.title);
-            break;
-        case 'chart':
-            if (settings.title) parts.push(settings.title);
-            if (settings.subtitle) parts.push(settings.subtitle);
-            if (settings.description) parts.push(settings.description);
-            (payload.data || []).forEach((d: any) => { if (d?.name) parts.push(String(d.name)); });
-            (payload.keys || []).forEach((k: string) => parts.push(k));
-            break;
-        case 'image':
-            if (settings.altText) parts.push(settings.altText);
-            if (settings.caption) parts.push(settings.caption);
-            break;
-        case 'map':
-            if (settings.title) parts.push(settings.title);
-            break;
-    }
-    return parts.join(' ').toLowerCase();
-};
-
 const PanelPage = () => {
     const { setSelectedElement } = useEditor();
     const { user } = useAuth();
@@ -85,6 +41,11 @@ const PanelPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
+    // Modal pri čuvanju već odobrenog poglavlja — pita da li poništiti prethodna odobravanja.
+    // Drži resolve funkciju Promise-a koji handleSave čeka dok korisnik ne izabere.
+    const [approvedEditModal, setApprovedEditModal] = useState<{ resolve: (choice: 'revoke' | 'keep' | 'cancel') => void } | null>(null);
+    const askApprovedEditChoice = () =>
+        new Promise<'revoke' | 'keep' | 'cancel'>((resolve) => setApprovedEditModal({ resolve }));
 
     const historyRef = useRef<string[]>([]);
     const isUndoingRef = useRef(false);
@@ -228,41 +189,33 @@ const PanelPage = () => {
             return;
         }
 
-        // EDIT-AFTER-APPROVAL confirm: predikcija nivoa koji će biti poništeni.
-        // Admin edit nikad ne resetuje. Ostali resetuju sve approved_levels >= njihov nivo.
-        const userLevel = resolveUserLevel(user);
-        const approvedLevels: string[] = activeSection?.approved_levels || [];
-        const willReset = userLevel !== 'admin'
-            ? approvedLevels.filter(l => LEVEL_ORDER[l] !== undefined && LEVEL_ORDER[l] >= LEVEL_ORDER[userLevel])
-            : [];
-
-        if (willReset.length > 0) {
-            const labels = willReset.map(l => LEVEL_LABEL_SR[l] || l).join(', ');
-            const newStatusLabel = userLevel === 'editor'
-                ? '„u izradi” (draft) — poglavlje ćete morati ponovo da pošaljete na pregled'
-                : `„čeka ${LEVEL_LABEL_SR[userLevel] || userLevel}” — moraćete ponovo da odobrite`;
-            const ok = confirm(
-                `Čuvanje će poništiti odobrenja: ${labels}.\n\nPoglavlje će biti vraćeno u status ${newStatusLabel}.\n\nNastavljamo?`
-            );
-            if (!ok) return;
+        // IZMENA NAKON ODOBRENJA: ako je poglavlje već odobreno, pitaj korisnika da li da poništi
+        // prethodna odobravanja. „Otkaži” prekida čuvanje; bilo koji drugi izbor se beleži u
+        // istoriju na backendu. Za neodobrena poglavlja nema pitanja — direktno se čuva.
+        let revokeApprovals = false;
+        if (activeSection.approval_status === 'approved') {
+            const choice = await askApprovedEditChoice();
+            if (choice === 'cancel') return;
+            revokeApprovals = choice === 'revoke';
         }
 
         setIsSaving(true);
         try {
             const { data } = await axiosClient.put(`/api/sections/${activeSectionId}`, {
-                canvas_data: activeSection.canvas_data
+                canvas_data: activeSection.canvas_data,
+                revoke_approvals: revokeApprovals,
             });
             if (data?.approval_status) {
                 setSections(prev => prev.map(sec => sec.id === activeSectionId ? {
                     ...sec,
                     approval_status: data.approval_status,
-                    approved_levels: data.approved_levels || [],
                     rejected_reason: data.approval_status === 'rejected' ? sec.rejected_reason : null,
                 } : sec));
             }
-            if (data?.auto_reset && Array.isArray(data?.reset_levels) && data.reset_levels.length > 0) {
-                const labels = data.reset_levels.map((l: string) => LEVEL_LABEL_SR[l] || l).join(', ');
-                alert(`✅ Sačuvano. Poništena odobrenja: ${labels}. Novi status: „${getApprovalInfo(data.approval_status).label}”.`);
+            if (data?.auto_reset) {
+                alert(`✅ Sačuvano. Prethodna odobravanja su poništena — novi status: „${getApprovalInfo(data.approval_status).label}”. Poglavlje treba ponovo poslati na pregled.`);
+            } else if (data?.kept_approval) {
+                alert("✅ Sačuvano. Odobravanja su zadržana, a izmena je zabeležena u istoriji pregleda.");
             } else {
                 alert("✅ Poglavlje je uspešno sačuvano!");
             }
@@ -278,7 +231,9 @@ const PanelPage = () => {
     };
 
     const handleDownloadPdf = async (sectionId?: number) => {
-        await handleSave();
+        // NAMERNO ne pozivamo handleSave() ovde: preuzimanje PDF-a NE sme da snima sekciju, jer
+        // bi snimanje odobrenog poglavlja oborilo odobravanja i nateralo ponovni ciklus pregleda.
+        // PDF se generiše iz stanja u bazi; za najnovije izmene prvo ručno sačuvajte poglavlje.
 
         // Otvaramo prazan tab odmah (pre await), jer browseri blokiraju window.open posle async operacija
         const pdfWindow = window.open('', '_blank');
@@ -373,7 +328,11 @@ const PanelPage = () => {
     const canEditSection = !!user?.is_admin || activeSection?.can_edit !== false;
     const canvasData = activeSection?.canvas_data || [{ id: `page-${Date.now()}`, rows: [{ id: Math.random().toString(36).substr(2, 9), columns: [] }] }];
     const activeSectionIndex = sections.findIndex(s => s.id === activeSectionId);
-    const sectionNum = activeSectionIndex !== -1 ? activeSectionIndex + 1 : 1;
+    // Broj poglavlja u editoru: koristi section.order (autoritativan broj iz baze) da bi se
+    // poklapao sa numeracijom u eksportu; pozicija u nizu je samo rezerva.
+    const sectionNum = (typeof activeSection?.order === 'number' && activeSection.order > 0)
+        ? activeSection.order
+        : (activeSectionIndex !== -1 ? activeSectionIndex + 1 : 1);
 
     useEffect(() => {
         historyRef.current = [];
@@ -637,22 +596,7 @@ const PanelPage = () => {
                 </div>
             )}
 
-            {/* Search highlight styles */}
-            <style>{`
-                .search-match {
-                    outline: 2px solid #fbbf24 !important;
-                    outline-offset: 4px;
-                    border-radius: 6px;
-                    background-color: rgba(254, 243, 199, 0.35);
-                    transition: outline-color 0.2s, box-shadow 0.2s, background-color 0.2s;
-                }
-                .search-match-current {
-                    outline: 3px solid #f59e0b !important;
-                    outline-offset: 4px;
-                    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.3);
-                    background-color: rgba(254, 215, 170, 0.5);
-                }
-            `}</style>
+            {/* Search highlight styles su sada globalni (index.css: .search-match / .search-match-current) */}
 
             <section className="flex mx-8 flex-1 overflow-hidden">
 
@@ -801,6 +745,40 @@ const PanelPage = () => {
                         <span className="text-sm text-slate-400 font-medium leading-snug">
                             Molimo sačekajte, ovo može potrajati nekoliko trenutaka.
                         </span>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: čuvanje već ODOBRENOG poglavlja — izbor da li poništiti odobravanja. */}
+            {approvedEditModal && (
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/40 p-4 font-sans">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-extrabold text-dark-blue mb-2">Izmena odobrenog poglavlja</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed mb-5">
+                            Ovo poglavlje je već <strong>odobreno</strong>. Da li želite da poništite prethodna
+                            odobravanja? Ako ih zadržite, izmena se snima a poglavlje ostaje odobreno
+                            (svaka izmena se beleži u istoriji pregleda).
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => { const r = approvedEditModal.resolve; setApprovedEditModal(null); r('revoke'); }}
+                                className="w-full py-2.5 rounded-lg bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors"
+                            >
+                                Da, poništi odobravanja i sačuvaj
+                            </button>
+                            <button
+                                onClick={() => { const r = approvedEditModal.resolve; setApprovedEditModal(null); r('keep'); }}
+                                className="w-full py-2.5 rounded-lg bg-[#0056B3] text-white font-bold text-sm hover:bg-[#004690] transition-colors"
+                            >
+                                Ne, zadrži odobravanja
+                            </button>
+                            <button
+                                onClick={() => { const r = approvedEditModal.resolve; setApprovedEditModal(null); r('cancel'); }}
+                                className="w-full py-2 rounded-lg text-slate-500 font-semibold text-sm hover:bg-slate-100 transition-colors"
+                            >
+                                Otkaži
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

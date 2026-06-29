@@ -6,10 +6,11 @@ import {
     ChevronDown, Plus, MoreHorizontal, FileText, Loader2, Trash2,
     PenLine, Eye, TrendingUp, Clock, AlertCircle, X, Check,
     ShieldCheck, FileStack, ChevronUp, KeyRound, Tag, Activity, LayoutTemplate,
-    Upload, Link2, ListChecks
+    Upload, Link2, ListChecks, FileDown
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import axiosClient from "../axios-client";
+import { formatLastModified } from "../components/SectionListSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import logo from "../assets/logo.svg";
 import InboxBadge from "../components/InboxBadge";
@@ -26,6 +27,11 @@ interface Stats {
 interface DocItem {
     id: number;
     title: string;
+    cover_title?: string | null;
+    cover_big?: string | null;
+    cover_subtitle?: string | null;
+    intro_text?: string | null;
+    disclaimer_text?: string | null;
     status: string;
     type: string;
     category_id: number | null;
@@ -38,6 +44,7 @@ interface DocItem {
     sections_count: number;
     updated_at: string;
     created_at: string;
+    pdf_generated_at?: string | null;
 }
 
 interface Category {
@@ -338,39 +345,103 @@ interface CreateUserModalProps {
 
 // ── Rename Document Modal ─────────────────────────────────────────────────────
 
+interface DocEditFields {
+    title: string;
+    cover_title: string;
+    cover_big: string;
+    cover_subtitle: string;
+    intro_text: string;
+    disclaimer_text: string;
+}
+
 interface RenameDocModalProps {
     doc: DocItem;
     onClose: () => void;
-    onSave: (id: number, title: string) => Promise<void>;
+    onSave: (id: number, fields: DocEditFields) => Promise<void>;
 }
 
 const RenameDocModal = ({ doc, onClose, onSave }: RenameDocModalProps) => {
     const [title, setTitle] = useState(doc.title);
+    const [coverTitle, setCoverTitle] = useState(doc.cover_title ?? "");
+    const [coverBig, setCoverBig] = useState(doc.cover_big ?? "");
+    const [coverSubtitle, setCoverSubtitle] = useState(doc.cover_subtitle ?? "");
+    const [introText, setIntroText] = useState(doc.intro_text ?? "");
+    const [disclaimerText, setDisclaimerText] = useState(doc.disclaimer_text ?? "");
     const [saving, setSaving] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || title.trim() === doc.title) { onClose(); return; }
+        if (!title.trim()) return;
         setSaving(true);
         try {
-            await onSave(doc.id, title.trim());
+            await onSave(doc.id, {
+                title: title.trim(),
+                cover_title: coverTitle.trim(),
+                cover_big: coverBig.trim(),
+                cover_subtitle: coverSubtitle.trim(),
+                intro_text: introText.trim(),
+                disclaimer_text: disclaimerText.trim(),
+            });
             onClose();
         } finally { setSaving(false); }
     };
 
+    const labelCls = "text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block";
+    const inputCls = "w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition";
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={18} className="text-[#0056B3]" /> Preimenuj dokument</h2>
+                    <h2 className="font-extrabold text-lg text-dark-blue flex items-center gap-2"><Tag size={18} className="text-[#0056B3]" /> Izmeni dokument</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div>
-                        <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">Naziv dokumenta</label>
-                        <input autoFocus value={title} onChange={e => setTitle(e.target.value)}
-                            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3] transition" />
+                        <label className={labelCls}>Naziv dokumenta (interni)</label>
+                        <input autoFocus value={title} onChange={e => setTitle(e.target.value)} className={inputCls} />
                     </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                        <p className="text-[13px] font-bold text-dark-blue mb-1">Korica (1. strana PDF-a)</p>
+                        <p className="text-[11px] text-slate-400 mb-3">Ako je „Naslov korice" prazan, koristi se naziv dokumenta. Naslov može u više redova (Enter).</p>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Naslov korice</label>
+                        <textarea value={coverTitle} onChange={e => setCoverTitle(e.target.value)} rows={2}
+                            placeholder="npr. ГОДИШЊИ ИЗВЕШТАЈ ЗА" className={`${inputCls} resize-y`} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Veliki tekst (npr. godina)</label>
+                        <input value={coverBig} onChange={e => setCoverBig(e.target.value)}
+                            placeholder="npr. 2025" className={inputCls} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Podnaslov korice</label>
+                        <input value={coverSubtitle} onChange={e => setCoverSubtitle(e.target.value)}
+                            placeholder="npr. БЕОГРАД, ЈУН 2026. ГОДИНЕ" className={inputCls} />
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                        <p className="text-[13px] font-bold text-dark-blue mb-1">2. strana PDF-a</p>
+                        <p className="text-[11px] text-slate-400 mb-3">Tekst ispod RATEL logoa. Ako je prazno, prikazuje se samo logo (centriran).</p>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Uvodni tekst (2. strana)</label>
+                        <textarea value={introText} onChange={e => setIntroText(e.target.value)} rows={4}
+                            placeholder="Uvodni tekst koji se prikazuje ispod logoa na 2. strani…" className={`${inputCls} resize-y`} />
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                        <p className="text-[13px] font-bold text-dark-blue mb-1">3. strana PDF-a (napomena)</p>
+                        <p className="text-[11px] text-slate-400 mb-3">Svaki red je jedan pasus. Ako je prazno, koristi se podrazumevani tekst napomene.</p>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Tekst napomene (3. strana)</label>
+                        <textarea value={disclaimerText} onChange={e => setDisclaimerText(e.target.value)} rows={5}
+                            placeholder="Napomena o izvoru i odgovornosti za podatke…" className={`${inputCls} resize-y`} />
+                    </div>
+
                     <div className="flex gap-3 mt-2">
                         <button type="button" onClick={onClose}
                             className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 hover:bg-slate-50 transition">Otkaži</button>
@@ -1140,10 +1211,12 @@ interface DocCardMenuProps {
     onView: () => void;
     onSections: () => void;
     onDelete: () => void;
+    onGeneratePdf: () => void;
+    pdfGeneratedAt?: string | null;
     sectionsCount: number;
 }
 
-const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, sectionsCount }: DocCardMenuProps) => {
+const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, onGeneratePdf, pdfGeneratedAt, sectionsCount }: DocCardMenuProps) => {
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -1174,6 +1247,16 @@ const DocCardMenu = ({ onEdit, onRename, onView, onSections, onDelete, sectionsC
                 <button onClick={() => { close(); onSections(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition">
                     <FileStack size={14} className="text-blue-500" /> Poglavlja ({sectionsCount})
+                </button>
+                <button onClick={() => { close(); onGeneratePdf(); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 transition border-t border-slate-100">
+                    <FileDown size={14} className="text-emerald-600" />
+                    <span className="flex-1 text-left leading-tight">
+                        Generiši PDF
+                        <span className="block text-[10px] text-slate-400 font-normal">
+                            {pdfGeneratedAt ? `Generisan: ${formatLastModified(pdfGeneratedAt)}` : 'Nije još generisan'}
+                        </span>
+                    </span>
                 </button>
                 <button onClick={() => { close(); onDelete(); }}
                     className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition">
@@ -1317,6 +1400,7 @@ interface CollectionItem {
     document: { id: number; title: string } | null;
     section_ids: number[];
     updated_at: string;
+    pdf_generated_at?: string | null;
 }
 
 const BOX_DEFAULTS: Record<number, { title: string; style: string }> = {
@@ -1565,6 +1649,7 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
     const [collections, setCollections] = useState<CollectionItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<CollectionItem | 'new' | null>(null);
+    const [pdfGenLabel, setPdfGenLabel] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -1581,6 +1666,20 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
         await axiosClient.delete(`/api/admin/collections/${id}`);
         await load();
         onChange();
+    };
+
+    // Sinhrono generiše keširani PDF kolekcije (admin sačeka uz overlay). Prepisuje postojeći.
+    const handleGeneratePdf = async (c: CollectionItem) => {
+        setPdfGenLabel(c.name);
+        try {
+            await axiosClient.post(`/api/admin/collections/${c.id}/generate-pdf`);
+            await load();
+            alert(`✅ PDF za kolekciju „${c.name}" je generisan.`);
+        } catch {
+            alert("❌ Greška pri generisanju PDF-a. Pokušajte ponovo.");
+        } finally {
+            setPdfGenLabel(null);
+        }
     };
 
     return (
@@ -1610,10 +1709,17 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
                                 <div key={c.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl hover:bg-slate-50 group">
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-sm text-dark-blue truncate">{c.name}</div>
-                                        <div className="text-[11px] text-slate-400 truncate">{c.document?.title} • {c.section_ids?.length || 0} poglavlja</div>
+                                        <div className="text-[11px] text-slate-400 truncate">
+                                            {c.document?.title} • {c.section_ids?.length || 0} poglavlja
+                                            {c.pdf_generated_at ? ` • PDF: ${formatLastModified(c.pdf_generated_at)}` : ' • PDF: nije generisan'}
+                                        </div>
                                     </div>
-                                    <button onClick={() => setEditing(c)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50"><PenLine size={13} /></button>
-                                    <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+                                    <button onClick={() => handleGeneratePdf(c)} title="Generiši PDF za preuzimanje na javnom prikazu"
+                                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition">
+                                        <FileDown size={13} /> {c.pdf_generated_at ? 'Regeneriši PDF' : 'Generiši PDF'}
+                                    </button>
+                                    <button onClick={() => setEditing(c)} title="Izmeni" className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-[#0056B3] hover:bg-blue-50"><PenLine size={13} /></button>
+                                    <button onClick={() => handleDelete(c.id)} title="Obriši" className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
                                 </div>
                             ))}
                         </div>
@@ -1627,6 +1733,18 @@ const CollectionsManagerModal = ({ documents, onClose, onChange }: {
                         onClose={() => setEditing(null)}
                         onSaved={() => { setEditing(null); load(); onChange(); }}
                     />
+                )}
+
+                {pdfGenLabel !== null && (
+                    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-[360px] text-center">
+                            <Loader2 className="animate-spin text-blue-600" size={44} />
+                            <span className="text-base font-bold text-slate-700">Generisanje PDF-a…</span>
+                            <span className="text-sm text-slate-400 font-medium leading-snug">
+                                „{pdfGenLabel}" — može potrajati do minut. Molimo sačekajte.
+                            </span>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
@@ -1753,6 +1871,7 @@ const AdminPage = () => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [sectionsDoc, setSectionsDoc] = useState<DocItem | null>(null);
     const [renameDoc, setRenameDoc] = useState<DocItem | null>(null);
+    const [pdfGenLabel, setPdfGenLabel] = useState<string | null>(null); // naziv dok se PDF generiše (null = ne generiše se)
     const [editingUser, setEditingUser] = useState<UserItem | null>(null);
     const [permissionsUser, setPermissionsUser] = useState<UserItem | null>(null);
 
@@ -1818,9 +1937,23 @@ const AdminPage = () => {
         await Promise.all([loadStats(), loadDocuments(categoryFilter), loadCategories()]);
     };
 
-    const handleRenameDocument = async (id: number, title: string) => {
-        await axiosClient.put(`/api/admin/documents/${id}`, { title });
+    const handleRenameDocument = async (id: number, fields: DocEditFields) => {
+        await axiosClient.put(`/api/admin/documents/${id}`, fields);
         await loadDocuments(categoryFilter);
+    };
+
+    // Sinhrono generiše keširani PDF dokumenta (admin sačeka uz overlay). Prepisuje postojeći.
+    const handleGenerateDocumentPdf = async (doc: DocItem) => {
+        setPdfGenLabel(doc.title);
+        try {
+            await axiosClient.post(`/api/admin/documents/${doc.id}/generate-pdf`);
+            await loadDocuments(categoryFilter);
+            alert(`✅ PDF za „${doc.title}" je generisan. Korisnici ga sada mogu preuzeti odmah.`);
+        } catch {
+            alert("❌ Greška pri generisanju PDF-a. Pokušajte ponovo.");
+        } finally {
+            setPdfGenLabel(null);
+        }
     };
 
     const handleCreateUser = async (name: string, email: string, password: string, isAdmin: boolean, role: UserRole): Promise<string | null> => {
@@ -2172,10 +2305,12 @@ const AdminPage = () => {
                                                         </div>
                                                         <DocCardMenu
                                                             sectionsCount={doc.sections_count}
+                                                            pdfGeneratedAt={doc.pdf_generated_at}
                                                             onEdit={() => handleOpenEditor(doc.id)}
                                                             onRename={() => setRenameDoc(doc)}
                                                             onView={() => handleOpenView(doc.id)}
                                                             onSections={() => setSectionsDoc(doc)}
+                                                            onGeneratePdf={() => handleGenerateDocumentPdf(doc)}
                                                             onDelete={() => handleDeleteDocument(doc.id)}
                                                         />
                                                     </div>
@@ -2320,6 +2455,19 @@ const AdminPage = () => {
             {/* ── Close menus on outside click ── */}
             {showNotifications && (
                 <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
+            )}
+
+            {/* ── PDF generisanje (sinhrono) overlay ── */}
+            {pdfGenLabel !== null && (
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl px-10 py-8 flex flex-col items-center gap-4 max-w-[360px] text-center">
+                        <Loader2 className="animate-spin text-blue-600" size={44} />
+                        <span className="text-base font-bold text-slate-700">Generisanje PDF-a…</span>
+                        <span className="text-sm text-slate-400 font-medium leading-snug">
+                            „{pdfGenLabel}" — može potrajati do minut. Molimo sačekajte.
+                        </span>
+                    </div>
+                </div>
             )}
         </div>
     );

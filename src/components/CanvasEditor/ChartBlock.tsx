@@ -5,10 +5,76 @@ import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
     RadialBarChart, RadialBar, ScatterChart, Scatter, ZAxis,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label,
+    useYAxisScale, useXAxisScale, usePlotArea, ZIndexLayer, DefaultZIndexes
 } from "recharts";
 import { CHART_PALETTE } from "./constants";
-import { parseVal, formatChartValue } from "./utils";
+import { parseVal, formatChartValue, wrapLabelLines, buildPieRows } from "./utils";
+
+// White "halo" behind data-value labels so the digits stay legible even when
+// they sit on top of bars, lines, areas, the grid, or other labels.
+const LABEL_HALO: CSSProperties = { paintOrder: 'stroke', stroke: '#fff', strokeWidth: 3, strokeLinejoin: 'round' };
+
+// Oznake vrednosti za linijske/površinske grafikone, postavljene da se NIKAD ne preklapaju.
+// Mora biti identično readonly/PDF prikazu (DocumentPageView). Renderuje se kao dete
+// <LineChart>/<AreaChart>, pa preko Recharts hookova dobija TAČNU skalu vrednost→piksel
+// (umesto pretpostavke o visini grafikona, koja je varirala zbog legendi i dovodila do
+// preklapanja — npr. Slika 14.26: 11,8 i 16,8). Za svaku x-kategoriju uzima sve tačke serija,
+// sortira po y i pakuje oznake odozgo nadole sa minimalnim razmakom, pa ih po potrebi pomeri
+// naviše da ne izađu iz grafikona.
+const SmartLineLabels = ({ chartData, keys, formatVal, getYAxisId }: any) => {
+    const yScaleLeft = useYAxisScale('left');
+    const yScaleRight = useYAxisScale('right');
+    const xScale = useXAxisScale();
+    const plot = usePlotArea();
+    if (!yScaleLeft || !xScale) return null;
+    const top = plot ? plot.y : 0;
+    const bottom = plot ? plot.y + plot.height : Infinity;
+    const LH = 15;     // minimalni vertikalni razmak između naslaganih oznaka
+    const ABOVE = 13;  // podrazumevano oznaka stoji ovoliko px iznad svoje tačke
+    const els: any[] = [];
+    chartData.forEach((row: any, i: number) => {
+        const px = xScale(row.name, { position: 'middle' });
+        if (px === undefined || px === null || isNaN(px as number)) return;
+        const pts = keys
+            .map((k: string) => {
+                const v = Number(row[k]);
+                if (!isFinite(v)) return null;
+                const yScale = getYAxisId(k) === 'right' && yScaleRight ? yScaleRight : yScaleLeft;
+                const py = yScale(v);
+                if (py === undefined || py === null || isNaN(py as number)) return null;
+                return { k, v, py: py as number, ly: 0 };
+            })
+            .filter(Boolean)
+            .sort((a: any, b: any) => a.py - b.py);
+        let last = -Infinity;
+        pts.forEach((o: any) => {
+            let ly = Math.max(o.py - ABOVE, last + LH);
+            if (ly < top + 8) ly = top + 8;
+            o.ly = ly;
+            last = ly;
+        });
+        const overflow = (pts.length ? pts[pts.length - 1].ly : 0) - (bottom - 4);
+        if (overflow > 0) pts.forEach((o: any) => { o.ly -= overflow; });
+        pts.forEach((o: any) => {
+            els.push(
+                <text key={i + '-' + o.k} x={px} y={o.ly} textAnchor="middle"
+                      fill="#334155" fontSize={11} fontWeight={600}
+                      stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+                    {formatVal(o.v)}
+                </text>
+            );
+        });
+    });
+    // Recharts 3.x slaže decu u zIndex slojeve preko portala: tačke linije/površine su na
+    // sloju "scatter" (600), pa bi bez ovoga prekrile naše oznake (podrazumevani sloj 0) —
+    // npr. tačka je zaklanjala broj 3,2. Sloj "label" (2000) drži oznake UVEK preko tačaka.
+    return (
+        <ZIndexLayer zIndex={DefaultZIndexes.label}>
+            <g className="smart-line-labels">{els}</g>
+        </ZIndexLayer>
+    );
+};
 
 const CursorPreservingInput = ({ value, onChange, className, style, placeholder, type }: any) => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -70,13 +136,15 @@ const RenderBars = ({ keys, colors, chartData, isStacked, isHorizontal, isLabels
                         activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}
                     >
                         {isSingleSeries && chartData.map((entry: any, i: number) => (
-                            <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
+                            // Single-series stubići se boje po REDU (kao legenda i swatch-evi u editoru),
+                            // pa je fallback paleta po indeksu reda — ne seriesColor (uvek paleta[0]).
+                            <Cell key={`cell-${i}`} fill={colors[entry.name] || palette[i % palette.length]} />
                         ))}
                         {isLabelsShown && (
                             <LabelList
                                 dataKey={key}
                                 position={labelPosition}
-                                style={{ fill: labelFill, fontSize: 11 }}
+                                style={{ fill: labelFill, fontSize: 11, fontWeight: 600, ...(isStacked ? {} : LABEL_HALO) }}
                                 formatter={formatter}
                             />
                         )}
@@ -121,6 +189,13 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
     const isSingleSeriesBar = settings.chartType === 'bar' && keys.length === 1 && settings.subChartType !== 'stacked_v' && settings.subChartType !== 'stacked_h';
     const isPerRowColor = isPie || isSingleSeriesBar;
     const displayKeys = isPie && keys.length > 0 ? [keys[0]] : keys;
+
+    // Boja swatch-a po nazivu kategorije za PITU — mora da prati parčad (sortiranje opadajuće
+    // po vrednosti), a NE redni broj reda u tabeli. Ranije je swatch koristio CHART_PALETTE[rIdx]
+    // (neuređen indeks reda) dok parčad koriste sortirani indeks → boje u tabeli se nisu poklapale
+    // sa piticom (prijava klijenta). Sada je izvor istine isti (buildPieRows).
+    const pieColorByName: Record<string, string> = {};
+    if (isPie) buildPieRows(data, keys, colors, CHART_PALETTE).forEach((r) => { pieColorByName[r.name] = r.color; });
 
     const handleKeyChange = (kIdx: number, newName: string) => {
         const oldKey = keys[kIdx];
@@ -290,7 +365,7 @@ const DataEditorPopover = ({ settings, data, keys, colors, updateSettings }: any
                             <td style={{ padding: 0 }} onClick={() => isPerRowColor && updateSettings({ activeColorKey: row.name })}>
                                 {isPerRowColor && (
                                     <div
-                                        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '12px', cursor: 'pointer', backgroundColor: colors[row.name] || CHART_PALETTE[rIdx % CHART_PALETTE.length] }}
+                                        style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '12px', cursor: 'pointer', backgroundColor: isPie ? (pieColorByName[row.name] || CHART_PALETTE[rIdx % CHART_PALETTE.length]) : (colors[row.name] || CHART_PALETTE[rIdx % CHART_PALETTE.length]) }}
                                     >
                                         {settings.activeColorKey === row.name && <div style={{position:'absolute', inset:0, border:'2px solid #2563eb'}} />}
                                     </div>
@@ -325,6 +400,30 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const keys = el.payload.keys || currentSettings.keys || [];
     const colors = el.payload.colors || currentSettings.colors || {};
     const subType = el.payload.subChartType || selectedElement?.extraPayload?.subChartType || currentSettings.subChartType;
+
+    // HARDKOD — SAMO za Sliku 7.1 (grupisani stubičasti grafikon, poglavlje "Regionalni roming").
+    // Isti fix kao u preview/PDF komponenti (ChartBlockReadonly): Recharts 3.x IGNORIŠE `payload`
+    // na <Legend> koja je dete grafikona i auto-generiše legendu obrnuto (ljubičasta pa plava) —
+    // čak i kad mu se prosledi `payload` u redosledu keys-a (vidi legendProps niže). Zato SAMO za
+    // ovu sliku preuzimamo iscrtavanje preko `content` propa (koji Recharts poštuje) i ređamo
+    // stavke u originalnom redosledu serija (keys: plava pa ljubičasta). Ostali grafici netaknuti.
+    const forceSlika71LegendOrder = elementLabel === 'Slika 7.1';
+    const slika71LegendContent = () => (
+        <ul style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 16px',
+            justifyContent: currentSettings.legendAlign === 'left' ? 'flex-start' : currentSettings.legendAlign === 'right' ? 'flex-end' : 'center',
+            listStyle: 'none', margin: 0, padding: 0, fontSize: '12px',
+        }}>
+            {keys.map((key: string, idx: number) => (
+                <li key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0 }}>
+                        <circle cx="5" cy="5" r="5" fill={colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length]} />
+                    </svg>
+                    <span style={{ color: '#1E293B', fontWeight: 600 }}>{key}</span>
+                </li>
+            ))}
+        </ul>
+    );
 
     const updateLocalSettings = (newSettings: any, newPayload: any = {}) => {
         updateElementSettings(newSettings, newPayload);
@@ -366,6 +465,26 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
         return () => observer.disconnect();
     }, []);
 
+    // PERFORMANCE — odloženo (lazy) montiranje grafikona, isto kao na preview strani
+    // (DocumentPageView). Editor iscrtava SVE strane tekuće sekcije odjednom, pa montiranje
+    // svih Recharts grafikona istovremeno (SVG + ResponsiveContainer + ResizeObserver +
+    // layout) zaledi browser pri ulasku u sekciju. Grafikon montiramo tek kad se približi
+    // vidnom polju (IntersectionObserver, rootMargin 1200px). Mesto mu je rezervisano fiksnom
+    // visinom `chartAreaHeight` na wrapper-u → nema pomeranja sadržaja. Ako je element izabran
+    // (uređuje se u bočnom panelu), montiramo ga odmah bez obzira na poziciju.
+    const [chartInView, setChartInView] = useState(false);
+    useEffect(() => {
+        if (chartInView) return;
+        if (isSelected) { setChartInView(true); return; }
+        const node = wrapperRef.current;
+        if (!node || typeof IntersectionObserver === 'undefined') { setChartInView(true); return; }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some(e => e.isIntersecting)) { setChartInView(true); io.disconnect(); }
+        }, { rootMargin: '1200px 0px' });
+        io.observe(node);
+        return () => io.disconnect();
+    }, [chartInView, isSelected]);
+
     const isPie = currentSettings.chartType === 'circular';
     const isSemicircle = subType === 'semicircle_doughnut';
     const isDoughnut = subType === 'doughnut_basic' || isSemicircle;
@@ -379,7 +498,58 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const showRechartsLegend = !!(currentSettings.showLegend && !isRightLegend && !isTopLegend);
     const showTopLegend     = !!(currentSettings.showLegend && isTopLegend);
 
-    const baseChartHeight = isPie ? Math.max(180, Math.min(280, chartWidth)) : 280;
+    // Horizontal bar charts: wrap long row labels onto multiple lines and grow
+    // the chart vertically so rows never overlap and every label stays visible.
+    const isHorizontalBar = currentSettings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
+    // Levi žleb za nazive redova prati DUŽINU naziva (≈6.2px/karakter), a ne fiksni
+    // procenat širine — inače kratki nazivi ("2021") dobiju ogroman žleb i ceo grafikon
+    // se pomeri udesno. Ograničen je gornjom granicom (i % širine) pa se duži nazivi
+    // prelamaju u više redova (renderHBarTick) umesto da šire žleb.
+    // Gornja granica je 280px (isto kao u readonly/PDF prikazu — DocumentPageView): kod
+    // grafikona sa mnogo redova i vrlo dugačkim nazivima uži žleb je terao najduži naziv u
+    // previše redova, a Recharts svim redovima daje visinu najgoreg → grafikon ne stane na
+    // jednu A4 stranu. Sa 280px najduži naziv staje u ≤3 reda. Cap "ugrize" tek za nazive
+    // >~43 znaka (kraći su ograničeni članom `naziv*6.2+10`) — moramo držati isto u oba
+    // prikaza da editor i PDF izgledaju identično.
+    const hbarMaxNameLen = isHorizontalBar ? Math.max(0, ...chartData.map((d: any) => String(d.name ?? '').length)) : 0;
+    const hbarLabelWidth = isHorizontalBar ? Math.round(Math.max(60, Math.min(280, chartWidth * 0.42, hbarMaxNameLen * 6.2 + 10))) : 0;
+    const hbarCharsPerLine = Math.max(6, Math.floor((hbarLabelWidth - 10) / 6.2));
+    const hbarMaxLines = isHorizontalBar
+        ? Math.max(1, ...chartData.map((d: any) => wrapLabelLines(d.name, hbarCharsPerLine).length))
+        : 1;
+    const hbarRowHeight = Math.max(34, hbarMaxLines * 13 + 14);
+    const hbarHeight = isHorizontalBar ? data.length * hbarRowHeight + 44 : 0;
+
+    const baseChartHeight = isPie
+        ? Math.max(180, Math.min(280, chartWidth))
+        : isHorizontalBar
+            ? Math.max(280, hbarHeight)
+            : 280;
+
+    // Category X-axis (vertical bar / line / composed / category scatter): uvek prikaži SVE
+    // oznake (bez auto-preskakanja). Kad naziv ne staje u jedan red, biramo strategiju:
+    //  • VODORAVNO prelomljeno u više redova — kada IMA MESTA (najduža reč staje u red pa se
+    //    ne seče, red je dovoljno širok i staje u ≤3 reda), ili
+    //  • ISKOŠENO (−35/−55°) — kada su slotovi preuski (mnogo kategorija), pa bi vodoravno
+    //    lomljenje seklo reči / pravilo previše redova. Tako uvek ostaje čitljivo bez preklapanja.
+    const xCatChart = !isPie && !isHorizontalBar && currentSettings.chartType !== 'radar';
+    // Imena kategorija na X-osi sakrivamo SAMO ako ih korisnik eksplicitno ugasi
+    // (toggle "Prikaži imena kategorija"). Default = prikaz, pa se vide i kada je uključena
+    // tabela sa podacima ispod (ranije su se tu automatski gasila, što je klijent tražio da promenimo).
+    const xLabelsHidden = currentSettings.showXAxisLabels === false;
+    const xMaxNameLen = xCatChart ? Math.max(0, ...chartData.map((d: any) => String(d.name ?? '').length)) : 0;
+    const xLongestWord = xCatChart ? Math.max(0, ...chartData.flatMap((d: any) => String(d.name ?? '').trim().split(/\s+/).map((w: string) => w.length))) : 0;
+    const xPerCatPx = chartWidth / Math.max(1, chartData.length);
+    const xCrowded = xCatChart && !xLabelsHidden && (xMaxNameLen * 6.6 + 6) > xPerCatPx;
+    const xCharsPerLine = Math.max(1, Math.floor((xPerCatPx - 6) / 6.6));
+    const xWrapLines = xCrowded ? Math.max(1, ...chartData.map((d: any) => wrapLabelLines(d.name, xCharsPerLine).length)) : 1;
+    // "Ima mesta" za vodoravno lomljenje: red ≥6 znakova, najduža reč staje (bez sečenja), ≤3 reda.
+    const xNeedsWrap = xCrowded && xCharsPerLine >= 6 && xCharsPerLine >= xLongestWord && xWrapLines <= 3;
+    const xNeedsAngle = xCrowded && !xNeedsWrap;
+    const xAngle = !xNeedsAngle ? 0 : ((xMaxNameLen * 6.6) > xPerCatPx * 2 ? -55 : -35);
+    const xAngleHeight = xNeedsAngle ? Math.min(120, Math.round(xMaxNameLen * 6.6 * Math.sin(Math.abs(xAngle) * Math.PI / 180)) + 16) : 0;
+    const xWrapHeight = xNeedsWrap ? Math.min(100, xWrapLines * 12 + 16) : 0;
+    const xLabelHeight = Math.max(xAngleHeight, xWrapHeight);
 
     const legendItemCount = isPie ? data.length : keys.length;
     const itemsPerRow = Math.max(1, Math.min(6, Math.floor(chartWidth / 85)));
@@ -387,7 +557,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
     // Total container height accounts for legend rows regardless of position
     const showAnyInternalLegend = showRechartsLegend || showTopLegend;
-    const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0);
+    const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0) + xLabelHeight;
 
     // Custom vertical legend for right-side layout.
     // Za pie: koristi `pieData` (već sortirana po vrednosti desc) — tako boje iz palette
@@ -469,6 +639,31 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
     const renderDataTable = () => {
         if (!dataTableEnabled) return null;
+        // Pita: kategorije kao REDOVI sa swatch-em u boji svog parčeta (isti izvor istine kao
+        // parčad i legenda — buildPieRows). Mora biti identično readonly/PDF prikazu
+        // (DocumentPageView) da editor i export izgledaju isto.
+        if (isPie) {
+            const pieRows = buildPieRows(data, keys, colors, CHART_PALETTE);
+            return (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', tableLayout: 'fixed' }}>
+                    <tbody>
+                        {pieRows.map((r) => (
+                            <tr key={r.name} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '4px 8px', fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ width: '10px', height: '10px', backgroundColor: r.color, flexShrink: 0, display: 'inline-block', borderRadius: '2px' }} />
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                    </span>
+                                </td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#334155' }}>
+                                    {formatVal(r.value)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            );
+        }
         return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', tableLayout: 'fixed' }}>
                 <thead>
@@ -625,10 +820,49 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             const { x, y, value, index } = p;
             if (value === null || value === undefined) return null;
 
-            const isAbove = (() => {
-                // Multi-series: alternate above/below by key index to separate overlapping labels
-                if (keys.length > 1) return keyIdx % 2 === 0;
-
+            // Mora biti identično readonly/PDF prikazu (DocumentPageView.makeSmartLineLabel).
+            let isAbove: boolean;
+            if (keys.length > 1) {
+                // Više serija: podrazumevano naizmenično gore/dole po indeksu serije.
+                // ALI kada se na ISTOJ x-tački vrednosti dve+ serije jako približe, oznake bi se
+                // preklopile (npr. Slika 14.26: 3,9 i 3,2 u Q4). Tada ih tretiramo kao klaster i
+                // SLAŽEMO jednu iznad druge na FIKSNOM razmaku (16px), nezavisno od geometrije
+                // grafikona — tako se NIKAD ne preklapaju. Grafikoni bez bliskih vrednosti ostaju
+                // identični (klaster ima 1 člana → keyIdx%2 kao ranije).
+                const allVals = chartData.flatMap((d: any) => keys.map((k: string) => Number(d[k])).filter((v: number) => !isNaN(v)));
+                const effMin = yMin !== 'auto' ? (yMin as number) : Math.min(...allVals);
+                const effMax = yMax !== 'auto' ? (yMax as number) : Math.max(...allVals);
+                const pxPerUnit = 240 / Math.max(effMax - effMin, 1);
+                const cluster = keys
+                    .map((k: string, ki: number) => ({ ki, v: Number(chartData[index]?.[k]) }))
+                    .filter((o: any) => !isNaN(o.v) && Math.abs(o.v - value) * pxPerUnit < 15)
+                    .sort((a: any, b: any) => b.v - a.v);
+                if (cluster.length > 1) {
+                    // Rang u klasteru: 0 = najviša vrednost (gore na grafikonu).
+                    const rank = cluster.findIndex((o: any) => o.ki === keyIdx);
+                    const GAP = 16;
+                    // Ista referentna y za sve članove → razmak među oznakama je tačno GAP px
+                    // (bez obzira na to što je pxPerUnit približan) → preklapanje nemoguće.
+                    const clusterTopY = y + (value - cluster[0].v) * pxPerUnit;
+                    const clusterBottomY = y + (value - cluster[cluster.length - 1].v) * pxPerUnit;
+                    // Podrazumevano: sve oznake IZNAD najviše tačke, naslagane na GAP px.
+                    let labelY = clusterTopY - 13 - rank * GAP;
+                    // Ako bi najgornja oznaka izašla iz grafikona, ceo klaster slažemo ISPOD
+                    // najniže tačke (ista odluka u svakom pozivu → konzistentno).
+                    const topMostLabelY = clusterTopY - 13 - (cluster.length - 1) * GAP;
+                    if (topMostLabelY < 14) {
+                        labelY = clusterBottomY + 16 + ((cluster.length - 1) - rank) * GAP;
+                    }
+                    return (
+                        <text x={x} y={labelY} textAnchor="middle"
+                              fill="#334155" fontSize={11} fontWeight={600}
+                              stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+                            {formatVal(value)}
+                        </text>
+                    );
+                }
+                isAbove = keyIdx % 2 === 0;
+            } else {
                 // Single series: use pixel-proximity check
                 const allVals = chartData.map((d: any) => { const v = Number(d[key]); return isNaN(v) ? 0 : v; });
                 const effectiveMin = yMin !== 'auto' ? (yMin as number) : Math.min(...allVals);
@@ -639,24 +873,68 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                 const nextVal = index < allVals.length - 1 ? allVals[index + 1] : null;
                 const prevClose = prevVal !== null && Math.abs(value - prevVal) * pixelsPerUnit < 16;
                 const nextClose = nextVal !== null && Math.abs(value - nextVal) * pixelsPerUnit < 16;
-                if (prevClose || nextClose) return index % 2 === 0;
-                return true;
-            })();
+                isAbove = (prevClose || nextClose) ? index % 2 === 0 : true;
+            }
+
+            // Never drop a label BELOW into the x-axis category-name band — that is
+            // exactly where digits would overlap the names. Low points label above.
+            // (Klasteri se obrađuju iznad i izlaze ranije, pa ih ovaj guard ne dotiče.)
+            if (!isAbove && y > 200) isAbove = true;
 
             return (
-                <text x={x} y={y + (isAbove ? -14 : 14)} textAnchor="middle" fill="#64748b" fontSize={11}>
+                <text x={x} y={y + (isAbove ? -13 : 16)} textAnchor="middle"
+                      fill="#334155" fontSize={11} fontWeight={600}
+                      stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
                     {formatVal(value)}
                 </text>
             );
+        };
+
+        // (1) Vodoravna oznaka prelomljena u više redova (kada ima mesta) — centrirana ispod
+        // svoje tačke; svaki naziv normalno orijentisan i vidljiv.
+        const renderWrappedXTick = ({ x, y, payload }: any) => {
+            const lines = wrapLabelLines(payload?.value, xCharsPerLine);
+            const lineH = 12;
+            return (
+                <text x={x} y={y + 12} textAnchor="middle" fill="#64748b" fontSize={11}>
+                    {lines.map((ln: string, i: number) => (
+                        <tspan key={i} x={x} dy={i === 0 ? 0 : lineH}>{ln}</tspan>
+                    ))}
+                </text>
+            );
+        };
+        // (2) Iskošena oznaka (kada su slotovi preuski) — svaki naziv ostaje vidljiv bez preklapanja.
+        const renderAngledXTick = ({ x, y, payload }: any) => (
+            <text x={x} y={y + 4} textAnchor="end" fill="#64748b" fontSize={11}
+                  transform={`rotate(${xAngle}, ${x}, ${y + 4})`}>
+                {String(payload?.value ?? '')}
+            </text>
+        );
+        // Shared props for every category X-axis: interval=0 → show ALL labels (no auto-skipping);
+        // reserve height + pick wrapped/angled tick only when crowded (izbor napravljen gore).
+        const categoryXAxisProps: any = {
+            interval: 0,
+            tick: xLabelsHidden ? false : (xNeedsWrap ? renderWrappedXTick : (xNeedsAngle ? renderAngledXTick : axisTickStyle)),
+            ...((xNeedsWrap || xNeedsAngle) ? { height: xLabelHeight } : {}),
         };
 
         switch (currentSettings.chartType) {
             case 'bar': {
                 const isStacked = subType === 'stacked_v' || subType === 'stacked_h';
                 const isHorizontal = subType === 'grouped_h' || subType === 'stacked_h';
-                const yAxisWidth = isHorizontal
-                    ? Math.min(200, Math.max(60, Math.max(...chartData.map((d: any) => String(d.name || '').length), 0) * 6.5))
-                    : undefined;
+                // Multi-line wrapped category labels for horizontal bars (no truncation/overlap).
+                const renderHBarTick = ({ x, y, payload }: any) => {
+                    const lines = wrapLabelLines(payload?.value, hbarCharsPerLine);
+                    const lineH = 13;
+                    const firstDy = -((lines.length - 1) * lineH) / 2 + 4;
+                    return (
+                        <text x={x} y={y} textAnchor="end" fill="#64748b" fontSize={11} fontWeight={500}>
+                            {lines.map((ln: string, i: number) => (
+                                <tspan key={i} x={x} dy={i === 0 ? firstDy : lineH}>{ln}</tspan>
+                            ))}
+                        </text>
+                    );
+                };
                 return (
                     <ResponsiveContainer width="99%" height="100%">
                         <BarChart data={chartData} layout={isHorizontal ? "vertical" : "horizontal"} margin={chartMargin}>
@@ -664,11 +942,11 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                             {isHorizontal ? (
                                 <>
                                     <XAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={xDomain} allowDataOverflow={hasCustomXDomain} />
-                                    <YAxis type="category" dataKey="name" width={yAxisWidth} tick={{ ...axisTickStyle, width: yAxisWidth }} axisLine={axisLineStyle} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={hbarLabelWidth} interval={0} tick={renderHBarTick} axisLine={axisLineStyle} tickLine={false} />
                                 </>
                             ) : (
                                 <>
-                                    <XAxis type="category" dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                                    <XAxis type="category" dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                                     <YAxis yAxisId="left" type="number" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                                     {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
@@ -683,6 +961,9 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     formatter: renderLegendText,
                                     payload: keys.map((key: string, idx: number) => ({ value: key, type: 'circle' as const, color: colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length] })),
                                 };
+                                // SAMO Slika 7.1: `payload` se ignoriše, pa preuzimamo iscrtavanje preko `content`
+                                // da legenda ide plava→ljubičasta (redosled keys-a), umesto sortirano po vrednosti.
+                                if (forceSlika71LegendOrder) legendProps.content = slika71LegendContent;
                                 return <Legend {...legendProps} />;
                             })()}
                             <RenderBars keys={keys} colors={colors} chartData={chartData} isStacked={isStacked} isHorizontal={isHorizontal} isLabelsShown={currentSettings.showLabels} palette={CHART_PALETTE} formatter={formatVal} getYAxisId={!isHorizontal ? getYAxisId : undefined} />
@@ -699,7 +980,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     <ResponsiveContainer width="99%" height="100%">
                         <ChartComponent data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                            <XAxis dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                             <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
@@ -715,7 +996,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                         dot={hasDots ? { r: 4 } : false}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
                                         isAnimationActive={false}
-                                        label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false}
+                                        label={false}
                                     />
                                 );
                                 return (
@@ -725,10 +1006,11 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                         dot={hasDots ? { r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' } : { r: 0 }}
                                         activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }}
                                         isAnimationActive={false}
-                                        label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false}
+                                        label={false}
                                     />
                                 );
                             })}
+                            {currentSettings.showLabels && <SmartLineLabels chartData={chartData} keys={keys} formatVal={formatVal} getYAxisId={getYAxisId} />}
                         </ChartComponent>
                     </ResponsiveContainer>
                 );
@@ -747,7 +1029,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     background={{ fill: '#f1f5f9' }}
                                     dataKey="value"
                                     cornerRadius={10}
-                                    label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
+                                    label={currentSettings.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#334155" fontSize={11} fontWeight={600} stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">{formatVal(p.value)}</text> : false}
                                 />
                                 <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />
                                 {showRechartsLegend && <Legend verticalAlign="bottom" align={currentSettings.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
@@ -818,7 +1100,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     <ResponsiveContainer width="99%" height="100%">
                         <ComposedChart data={chartData} margin={chartMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                            <XAxis dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                             <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />
@@ -839,7 +1121,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                     return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={baseColor} stroke={baseColor} fillOpacity={0.3} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false} />;
                                 }
                                 if (typeToRender === 'bar') {
-                                    return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}>{currentSettings.showLabels && <LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} />}</Bar>;
+                                    return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? "a" : undefined} barSize={isAreaBar ? 15 : 20} fill={baseColor} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={{ stroke: '#1e293b', strokeWidth: 2 }}>{currentSettings.showLabels && <LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11, fontWeight: 600, ...(isStackedLine ? {} : LABEL_HALO) }} formatter={formatVal} />}</Bar>;
                                 }
                                 return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={baseColor} strokeWidth={3} dot={{ r: 4, fill: baseColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={{ r: 7, stroke: '#1e293b', strokeWidth: 2, fill: baseColor }} label={currentSettings.showLabels ? makeSmartLineLabel(key, idx) : false} />;
                             })}
@@ -894,7 +1176,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                     <ResponsiveContainer width="99%" height="100%">
                         <ScatterChart margin={scatterMargin}>
                             {currentSettings.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding}>
+                            <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps}>
                                 {xTitle && <Label value={xTitle} position="insideBottom" offset={-18} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </XAxis>
                             <YAxis type="number" dataKey="value" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
@@ -909,7 +1191,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                 const scatterData = chartData.map((d: any) => ({ name: d.name, value: d[key] || 0 }));
                                 return (
                                     <Scatter key={key} name={key} data={scatterData} fill={baseColor} fillOpacity={isBubble ? 0.7 : 1} shape={shape} isAnimationActive={false}>
-                                        {currentSettings.showLabels && <LabelList dataKey="value" position="top" fill="#64748b" fontSize={11} offset={10} />}
+                                        {currentSettings.showLabels && <LabelList dataKey="value" position="top" fontSize={11} offset={10} style={{ fill: '#334155', fontWeight: 600, ...LABEL_HALO }} />}
                                     </Scatter>
                                 );
                             })}
@@ -1001,7 +1283,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             <div ref={wrapperRef} style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, pointerEvents: 'auto', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: showTopLegend ? 'column' : 'row' }}>
                 {showTopLegend && renderTopLegend()}
                 <div style={{ flex: isRightLegend ? '0 0 62%' : '1', minWidth: 0, minHeight: 0, ...(showTopLegend ? {} : { height: '100%' }) }}>
-                    {renderChart()}
+                    {chartInView ? renderChart() : null}
                 </div>
                 {isRightLegend && currentSettings.showLegend && (
                     <div style={{ flex: '0 0 38%', display: 'flex', alignItems: 'center', height: '100%' }}>

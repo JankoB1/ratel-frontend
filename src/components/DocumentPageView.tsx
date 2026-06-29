@@ -1,13 +1,79 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
     RadialBarChart, RadialBar, ScatterChart, Scatter, ZAxis,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Label,
+    useYAxisScale, useXAxisScale, usePlotArea, ZIndexLayer, DefaultZIndexes
 } from "recharts";
 import MapGraphic from "./MapGraphic.tsx";
-import { extractFootnoteIds, hexToRgba, parseVal, formatChartValue } from "./CanvasEditor/utils";
+import { extractFootnoteIds, hexToRgba, parseVal, formatChartValue, wrapLabelLines, buildPieRows } from "./CanvasEditor/utils";
 import { CHART_PALETTE } from "./CanvasEditor/constants";
+
+// White "halo" behind data-value labels so digits stay legible over bars,
+// lines, areas, the grid, or other labels (keeps every value visible).
+const LABEL_HALO: any = { paintOrder: 'stroke', stroke: '#fff', strokeWidth: 3, strokeLinejoin: 'round' };
+
+// Oznake vrednosti za linijske/površinske grafikone, postavljene da se NIKAD ne preklapaju.
+// Renderuje se kao dete <LineChart>/<AreaChart>, pa preko Recharts hookova dobija TAČNU
+// skalu vrednost→piksel (umesto pretpostavke o visini grafikona, koja je varirala zbog
+// legendi i dovodila do preklapanja — npr. Slika 14.26: 11,8 i 16,8). Za svaku x-kategoriju
+// uzima sve tačke serija, sortira po y i pakuje oznake odozgo nadole sa minimalnim razmakom,
+// pa ih po potrebi pomeri naviše da ne izađu iz grafikona. Tako oznake na ISTOM x-u (jedino
+// mesto gde se mogu horizontalno poklopiti) uvek imaju zajamčen vertikalni razmak.
+const SmartLineLabels = ({ chartData, keys, formatVal, getYAxisId }: any) => {
+    const yScaleLeft = useYAxisScale('left');
+    const yScaleRight = useYAxisScale('right');
+    const xScale = useXAxisScale();
+    const plot = usePlotArea();
+    if (!yScaleLeft || !xScale) return null;
+    const top = plot ? plot.y : 0;
+    const bottom = plot ? plot.y + plot.height : Infinity;
+    const LH = 15;     // minimalni vertikalni razmak između naslaganih oznaka
+    const ABOVE = 13;  // podrazumevano oznaka stoji ovoliko px iznad svoje tačke
+    const els: any[] = [];
+    chartData.forEach((row: any, i: number) => {
+        const px = xScale(row.name, { position: 'middle' });
+        if (px === undefined || px === null || isNaN(px as number)) return;
+        const pts = keys
+            .map((k: string) => {
+                const v = Number(row[k]);
+                if (!isFinite(v)) return null;
+                const yScale = getYAxisId(k) === 'right' && yScaleRight ? yScaleRight : yScaleLeft;
+                const py = yScale(v);
+                if (py === undefined || py === null || isNaN(py as number)) return null;
+                return { k, v, py: py as number, ly: 0 };
+            })
+            .filter(Boolean)
+            .sort((a: any, b: any) => a.py - b.py);
+        let last = -Infinity;
+        pts.forEach((o: any) => {
+            let ly = Math.max(o.py - ABOVE, last + LH);
+            if (ly < top + 8) ly = top + 8;
+            o.ly = ly;
+            last = ly;
+        });
+        const overflow = (pts.length ? pts[pts.length - 1].ly : 0) - (bottom - 4);
+        if (overflow > 0) pts.forEach((o: any) => { o.ly -= overflow; });
+        pts.forEach((o: any) => {
+            els.push(
+                <text key={i + '-' + o.k} x={px} y={o.ly} textAnchor="middle"
+                      fill="#334155" fontSize={11} fontWeight={600}
+                      stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+                    {formatVal(o.v)}
+                </text>
+            );
+        });
+    });
+    // Recharts 3.x slaže decu u zIndex slojeve preko portala: tačke linije/površine su na
+    // sloju "scatter" (600), pa bi bez ovoga prekrile naše oznake (podrazumevani sloj 0) —
+    // npr. tačka je zaklanjala broj 3,2. Sloj "label" (2000) drži oznake UVEK preko tačaka.
+    return (
+        <ZIndexLayer zIndex={DefaultZIndexes.label}>
+            <g className="smart-line-labels">{els}</g>
+        </ZIndexLayer>
+    );
+};
 
 // --- HELPERS ---
 
@@ -19,16 +85,24 @@ export function buildMaps(sections: any[]) {
         const pages = section.canvas_data || [];
         let tableCount = 1;
         let mediaCount = 1;
+        // Broj poglavlja: koristi section.order (autoritativan redni broj iz baze),
+        // a ne poziciju u nizu — tako pojedinačni eksport jednog poglavlja zadržava
+        // ispravan broj (npr. 6.1 umesto 1.1).
+        const sectionNumber = (typeof section.order === 'number' && section.order > 0) ? section.order : (sIdx + 1);
 
         pages.forEach((page: any) => {
             page.rows.forEach((row: any) => {
                 row.columns.forEach((col: any) => {
                     col.elements.forEach((el: any) => {
                         if (el.type === 'table') {
-                            elementLabelMap[el.id] = `Tabela ${sIdx + 1}.${tableCount}`;
-                            tableCount++;
-                        } else if (el.type === 'image' || el.type === 'chart') {
-                            elementLabelMap[el.id] = `Slika ${sIdx + 1}.${mediaCount}`;
+                            // Tabele sa sakrivenim nazivom se ne broje — nisu zasebne tabele,
+                            // pa ne smeju da "preskoče" numeraciju vidljivih tabela.
+                            if (!el.payload?.settings?.hideLabel) {
+                                elementLabelMap[el.id] = `Tabela ${sectionNumber}.${tableCount}`;
+                                tableCount++;
+                            }
+                        } else if (el.type === 'image' || el.type === 'chart' || el.type === 'map') {
+                            elementLabelMap[el.id] = `Slika ${sectionNumber}.${mediaCount}`;
                             mediaCount++;
                         }
 
@@ -109,7 +183,22 @@ const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     );
 };
 
-const TextBlockReadonly = ({ el }: any) => {
+// Inline fusnote se čuvaju kao <sup data-footnote-id="X">[*]</sup> (placeholder); pravi broj
+// se dodeljuje globalno (buildMaps → globalFootnoteMap). U readonly/print prikazu zato sadržaj
+// svakog <sup> moramo da zamenimo stvarnim brojem [n], inače u PDF-u ostane zvezdica [*].
+const applyFootnoteNumbers = (html: string, globalFootnoteMap: Record<string, number>): string => {
+    if (!html || !globalFootnoteMap || html.indexOf('data-footnote-id') === -1) return html || '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    tmp.querySelectorAll('sup[data-footnote-id]').forEach((sup) => {
+        const id = sup.getAttribute('data-footnote-id');
+        const num = id ? globalFootnoteMap[id] : undefined;
+        if (num != null) sup.textContent = `[${num}]`;
+    });
+    return tmp.innerHTML;
+};
+
+const TextBlockReadonly = ({ el, globalFootnoteMap }: any) => {
     const s = el.payload.settings;
     return (
         <div
@@ -126,7 +215,7 @@ const TextBlockReadonly = ({ el }: any) => {
             <div
                 className="editor-content"
                 style={{ color: s.color, textAlign: s.alignment }}
-                dangerouslySetInnerHTML={{ __html: s.content || '' }}
+                dangerouslySetInnerHTML={{ __html: applyFootnoteNumbers(s.content || '', globalFootnoteMap) }}
             />
         </div>
     );
@@ -163,13 +252,15 @@ const ImageBlockReadonly = ({ el, label }: any) => {
     );
 };
 
-const TableBlockReadonly = ({ el, label }: any) => {
+const TableBlockReadonly = ({ el, label, globalFootnoteMap }: any) => {
     const s = el.payload.settings;
     const content = el.payload.sr?.content || {};
     const colsCount = s.columns || 1;
     const localWidths = (s.columnWidths && s.columnWidths.length === colsCount)
         ? s.columnWidths
         : Array(colsCount).fill(100 / colsCount);
+    // Eksplicitne visine redova (px; 0/undefined = auto) — mirror editora za isti izgled u PDF-u.
+    const rowHeights: number[] = s.rowHeights || [];
     return (
         <div
             className="element-block break-inside-avoid"
@@ -181,7 +272,7 @@ const TableBlockReadonly = ({ el, label }: any) => {
         >
             {!s.hideLabel && <ElementLabel label={label} title={s.title} />}
             <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0' }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, borderTop: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0', background: 'white', borderRadius: '0' }}>
                     <colgroup>
                         {localWidths.map((w: number, i: number) => (
                             <col key={i} style={{ width: `${w}%` }} />
@@ -196,13 +287,15 @@ const TableBlockReadonly = ({ el, label }: any) => {
                                 if (cellSt.hidden) return null;
                                 return (
                                     <td key={key} style={{
-                                        border: '1px solid #e2e8f0',
+                                        borderRight: '1px solid #e2e8f0',
+                                        borderBottom: '1px solid #e2e8f0',
                                         padding: '0.5rem',
                                         position: 'relative',
                                         backgroundColor: cellSt.backgroundColor || '#ffffff',
                                         textAlign: cellSt.alignment || 'left',
                                         verticalAlign: cellSt.verticalAlignment || 'top',
                                         color: cellSt.textColor || '#1E293B',
+                                        height: rowHeights[rIdx] ? `${rowHeights[rIdx]}px` : undefined,
                                     }}
                                         colSpan={cellSt.colSpan || 1}
                                         rowSpan={cellSt.rowSpan || 1}
@@ -217,7 +310,7 @@ const TableBlockReadonly = ({ el, label }: any) => {
                                             minHeight: '24px',
                                             width: '100%',
                                         }}
-                                            dangerouslySetInnerHTML={{ __html: content[key] || '' }}
+                                            dangerouslySetInnerHTML={{ __html: applyFootnoteNumbers(content[key] || '', globalFootnoteMap) }}
                                         />
                                     </td>
                                 );
@@ -227,16 +320,48 @@ const TableBlockReadonly = ({ el, label }: any) => {
                     </tbody>
                 </table>
             </div>
+            {/* Opis/izvor tabele (ispod) — mora da se prikaže i u PDF/readonly prikazu,
+                identično editoru (TableBlock.tsx). Bez ovoga je izvor tabele nedostajao na PDF-u. */}
+            {s.description && (
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', textAlign: 'left', width: '100%', fontStyle: 'italic' }}>
+                    {s.description}
+                </div>
+            )}
         </div>
     );
 };
 
-const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
+const ChartBlockReadonly = memo(({ el, label, isPrint = false, lite = false }: any) => {
     const s = el.payload.settings || {};
     const data = el.payload.data || [];
     const keys = el.payload.keys || [];
     const colors = el.payload.colors || {};
     const subType = el.payload.subChartType || s.subChartType;
+
+    // HARDKOD — SAMO za Sliku 7.1 (grupisani stubičasti grafikon u poglavlju "Regionalni roming").
+    // Klijent traži da legenda ide PLAVA → LJUBIČASTA (isti redosled kao stubići: serija A pa B),
+    // a ne obrnuto. Recharts 3.x baš za ovaj grafikon auto-generiše legendu OBRNUTO (ljubičasta pa
+    // plava) i NE poštuje prosleđeni `payload` na <Legend> koja je dete grafikona — grafikon ga
+    // pregazi. Zato SAMO za ovu sliku preuzimamo iscrtavanje legende preko `content` propa i
+    // ređamo stavke u ORIGINALNOM redosledu serija (keys: A=plava, pa B=ljubičasta). Stil je
+    // identičan podrazumevanoj donjoj legendi (krug + naziv). Svi ostali grafikoni su netaknuti.
+    const forceSlika71LegendOrder = label === 'Slika 7.1';
+    const slika71LegendContent = () => (
+        <ul style={{
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 16px',
+            justifyContent: s.legendAlign === 'left' ? 'flex-start' : s.legendAlign === 'right' ? 'flex-end' : 'center',
+            listStyle: 'none', margin: 0, padding: 0, fontSize: '12px',
+        }}>
+            {keys.map((key: string, idx: number) => (
+                <li key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0 }}>
+                        <circle cx="5" cy="5" r="5" fill={colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length]} />
+                    </svg>
+                    <span style={{ color: '#1E293B', fontWeight: 600 }}>{key}</span>
+                </li>
+            ))}
+        </ul>
+    );
     const pieLabelCache = useRef<{ key: string; positions: any[] }>({ key: '', positions: [] });
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [chartWidth, setChartWidth] = useState(400);
@@ -252,6 +377,27 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
         observer.observe(wrapperRef.current);
         return () => observer.disconnect();
     }, []);
+
+    // PERFORMANCE — odloženo (lazy) montiranje grafikona. Recharts grafikon je daleko
+    // najskuplji deo strane (SVG + ResponsiveContainer + ResizeObserver + layout), pa
+    // kad ViewPage iscrta SVE strane svih poglavlja odjednom, montiranje stotina grafikona
+    // zaledi browser pri ulasku u dokument. Zato grafikon montiramo tek kad se približi
+    // vidnom polju (IntersectionObserver, rootMargin 1200px → montira se pre nego što se
+    // vidi, bez praznog blica). Mesto mu je već rezervisano fiksnom visinom `chartAreaHeight`
+    // na wrapper-u, pa nema pomeranja sadržaja kad se pravi grafikon ubaci. U PDF-u (isPrint)
+    // i u sličicama (lite) ovo se NE primenjuje — PDF mora odmah da iscrta sve, a sličice
+    // koriste jeftin statički placeholder (vidi render ispod).
+    const [chartInView, setChartInView] = useState(isPrint);
+    useEffect(() => {
+        if (isPrint || lite || chartInView) return;
+        const node = wrapperRef.current;
+        if (!node || typeof IntersectionObserver === 'undefined') { setChartInView(true); return; }
+        const io = new IntersectionObserver((entries) => {
+            if (entries.some(e => e.isIntersecting)) { setChartInView(true); io.disconnect(); }
+        }, { rootMargin: '1200px 0px' });
+        io.observe(node);
+        return () => io.disconnect();
+    }, [isPrint, lite, chartInView]);
 
     const chartData = data.map((row: any) => {
         const out: any = { name: row.name };
@@ -274,11 +420,64 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
     const showTopLegend     = !!(s.showLegend && isTopLegend);
     const showAnyInternalLegend = showRechartsLegend || showTopLegend;
 
-    const baseChartHeight = isPie ? Math.max(180, Math.min(280, chartWidth)) : 280;
+    // Horizontal bar charts: wrap long row labels onto multiple lines and grow
+    // the chart vertically so rows never overlap and every label stays visible.
+    const isHorizontalBar = s.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
+    // Levi žleb za nazive redova prati DUŽINU naziva (≈6.2px/karakter), a ne fiksni
+    // procenat širine — inače kratki nazivi ("2021") dobiju ogroman žleb i ceo grafikon
+    // se pomeri udesno. Ograničen je gornjom granicom (i % širine) pa se duži nazivi
+    // prelamaju u više redova (renderHBarTick) umesto da šire žleb.
+    // Gornja granica je 280px (a ne 190): kod grafikona sa mnogo redova i VRLO dugačkim
+    // nazivima (npr. Slika 8.12 — 13 redova, najduži naziv 115 znakova) uži žleb je terao
+    // najduži naziv u 5 redova, a Recharts SVIM redovima daje visinu najgoreg → 13×79px+
+    // ≈1096px > 923px raspoložive visine A4 strane, pa grafikon ne stane na jednu stranu.
+    // Sa 280px najduži naziv staje u ≤3 reda (red ~53px), pa ceo grafikon padne na ~758px
+    // i staje na jednu stranu. Cap "ugrize" tek za nazive >~43 znaka (kraći su ograničeni
+    // članom `naziv*6.2+10`), pa grafikoni sa kratkim/srednjim nazivima ostaju nepromenjeni.
+    const hbarMaxNameLen = isHorizontalBar ? Math.max(0, ...chartData.map((d: any) => String(d.name ?? '').length)) : 0;
+    const hbarLabelWidth = isHorizontalBar ? Math.round(Math.max(60, Math.min(280, chartWidth * 0.42, hbarMaxNameLen * 6.2 + 10))) : 0;
+    const hbarCharsPerLine = Math.max(6, Math.floor((hbarLabelWidth - 10) / 6.2));
+    const hbarMaxLines = isHorizontalBar
+        ? Math.max(1, ...chartData.map((d: any) => wrapLabelLines(d.name, hbarCharsPerLine).length))
+        : 1;
+    const hbarRowHeight = Math.max(34, hbarMaxLines * 13 + 14);
+    const hbarHeight = isHorizontalBar ? data.length * hbarRowHeight + 44 : 0;
+
+    const baseChartHeight = isPie
+        ? Math.max(180, Math.min(280, chartWidth))
+        : isHorizontalBar
+            ? Math.max(280, hbarHeight)
+            : 280;
+
+    // Category X-axis (vertical bar / line / composed / category scatter): uvek prikaži SVE
+    // oznake (bez auto-preskakanja). Kad naziv ne staje u jedan red, biramo strategiju:
+    //  • VODORAVNO prelomljeno u više redova — kada IMA MESTA (najduža reč staje u red pa se
+    //    ne seče, red je dovoljno širok i staje u ≤3 reda), ili
+    //  • ISKOŠENO (−35/−55°) — kada su slotovi preuski (mnogo kategorija), pa bi vodoravno
+    //    lomljenje seklo reči / pravilo previše redova. Tako uvek ostaje čitljivo bez preklapanja.
+    const xCatChart = !isPie && !isHorizontalBar && s.chartType !== 'radar';
+    // Imena kategorija na X-osi sakrivamo SAMO ako ih korisnik eksplicitno ugasi
+    // (toggle "Prikaži imena kategorija"). Default = prikaz, pa se vide i kada je uključena
+    // tabela sa podacima ispod (ranije su se tu automatski gasila, što je klijent tražio da promenimo).
+    const xLabelsHidden = s.showXAxisLabels === false;
+    const xMaxNameLen = xCatChart ? Math.max(0, ...chartData.map((d: any) => String(d.name ?? '').length)) : 0;
+    const xLongestWord = xCatChart ? Math.max(0, ...chartData.flatMap((d: any) => String(d.name ?? '').trim().split(/\s+/).map((w: string) => w.length))) : 0;
+    const xPerCatPx = chartWidth / Math.max(1, chartData.length);
+    const xCrowded = xCatChart && !xLabelsHidden && (xMaxNameLen * 6.6 + 6) > xPerCatPx;
+    const xCharsPerLine = Math.max(1, Math.floor((xPerCatPx - 6) / 6.6));
+    const xWrapLines = xCrowded ? Math.max(1, ...chartData.map((d: any) => wrapLabelLines(d.name, xCharsPerLine).length)) : 1;
+    // "Ima mesta" za vodoravno lomljenje: red ≥6 znakova, najduža reč staje (bez sečenja), ≤3 reda.
+    const xNeedsWrap = xCrowded && xCharsPerLine >= 6 && xCharsPerLine >= xLongestWord && xWrapLines <= 3;
+    const xNeedsAngle = xCrowded && !xNeedsWrap;
+    const xAngle = !xNeedsAngle ? 0 : ((xMaxNameLen * 6.6) > xPerCatPx * 2 ? -55 : -35);
+    const xAngleHeight = xNeedsAngle ? Math.min(120, Math.round(xMaxNameLen * 6.6 * Math.sin(Math.abs(xAngle) * Math.PI / 180)) + 16) : 0;
+    const xWrapHeight = xNeedsWrap ? Math.min(100, xWrapLines * 12 + 16) : 0;
+    const xLabelHeight = Math.max(xAngleHeight, xWrapHeight);
+
     const legendItemCount = isPie ? data.length : keys.length;
     const itemsPerRow = Math.max(1, Math.min(6, Math.floor(chartWidth / 85)));
     const legendRows = Math.ceil(legendItemCount / itemsPerRow);
-    const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0);
+    const chartAreaHeight = baseChartHeight + (showAnyInternalLegend ? legendRows * 22 : 0) + xLabelHeight;
 
     const pieData = (isPie && data.length && keys.length)
         ? [...chartData.map((d: any) => ({ name: d.name, value: d[keys[0]] || 0 }))].sort((a: any, b: any) => b.value - a.value)
@@ -367,6 +566,33 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
 
     const renderDataTable = () => {
         if (!dataTableEnabled) return null;
+        // Pita: jedna vrednost po kategoriji → kategorije idu kao REDOVI sa swatch-em u boji
+        // svog parčeta (kanonski izračun iz buildPieRows: ista boja i isti redosled kao parčad
+        // i legenda). Generička šema "redovi = serije (keys)" je za pitu pogrešna jer pita ima
+        // samo jedan ključ (keys[0]) pa bi tabela prikazala 1 red sa bojom koja ne odgovara
+        // nijednom parčetu — tačno mismatch koji je klijent prijavio.
+        if (isPie) {
+            const pieRows = buildPieRows(data, keys, colors, CHART_PALETTE);
+            return (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', tableLayout: 'fixed' }}>
+                    <tbody>
+                        {pieRows.map((r) => (
+                            <tr key={r.name} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '4px 8px', fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ width: '10px', height: '10px', backgroundColor: r.color, flexShrink: 0, display: 'inline-block', borderRadius: '2px' }} />
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                    </span>
+                                </td>
+                                <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: '11px', color: '#334155' }}>
+                                    {formatVal(r.value)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            );
+        }
         return (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', tableLayout: 'fixed' }}>
                 <thead>
@@ -509,9 +735,49 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
             const { x, y, value, index } = p;
             if (value === null || value === undefined) return null;
 
-            const isAbove = (() => {
-                if (keys.length > 1) return keyIdx % 2 === 0;
-
+            let isAbove: boolean;
+            if (keys.length > 1) {
+                // Više serija: podrazumevano naizmenično gore/dole po indeksu serije.
+                // ALI kada se na ISTOJ x-tački vrednosti dve+ serije jako približe, njihove
+                // oznake bi se preklopile (npr. Slika 14.26: 3,9 i 3,2 u Q4). Tada ih tretiramo
+                // kao klaster i SLAŽEMO jednu iznad druge na FIKSNOM razmaku (16px), nezavisno
+                // od geometrije grafikona — tako se NIKAD ne mogu preklopiti. Grafikoni bez
+                // bliskih vrednosti ostaju identični (klaster ima 1 člana → keyIdx%2 kao ranije).
+                const allVals = chartData.flatMap((d: any) => keys.map((k: string) => Number(d[k])).filter((v: number) => !isNaN(v)));
+                const effMin = yMin !== 'auto' ? (yMin as number) : Math.min(...allVals);
+                const effMax = yMax !== 'auto' ? (yMax as number) : Math.max(...allVals);
+                const pxPerUnit = 240 / Math.max(effMax - effMin, 1);
+                const cluster = keys
+                    .map((k: string, ki: number) => ({ ki, v: Number(chartData[index]?.[k]) }))
+                    .filter((o: any) => !isNaN(o.v) && Math.abs(o.v - value) * pxPerUnit < 15)
+                    .sort((a: any, b: any) => b.v - a.v);
+                if (cluster.length > 1) {
+                    // Rang u klasteru: 0 = najviša vrednost (gore na grafikonu).
+                    const rank = cluster.findIndex((o: any) => o.ki === keyIdx);
+                    const GAP = 16;
+                    // Procena y najviše/najniže tačke klastera. Ista referenca za sve članove,
+                    // pa je razmak među naslaganim oznakama tačno GAP px (bez obzira na to što
+                    // je pxPerUnit približan) → preklapanje je nemoguće po konstrukciji.
+                    const clusterTopY = y + (value - cluster[0].v) * pxPerUnit;
+                    const clusterBottomY = y + (value - cluster[cluster.length - 1].v) * pxPerUnit;
+                    // Podrazumevano: sve oznake IZNAD najviše tačke, naslagane na GAP px.
+                    let labelY = clusterTopY - 13 - rank * GAP;
+                    // Ako bi najgornja naslagana oznaka izašla iz grafikona, ceo klaster
+                    // slažemo ISPOD najniže tačke (ista odluka u svakom pozivu → konzistentno).
+                    const topMostLabelY = clusterTopY - 13 - (cluster.length - 1) * GAP;
+                    if (topMostLabelY < 14) {
+                        labelY = clusterBottomY + 16 + ((cluster.length - 1) - rank) * GAP;
+                    }
+                    return (
+                        <text x={x} y={labelY} textAnchor="middle"
+                              fill="#334155" fontSize={11} fontWeight={600}
+                              stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
+                            {formatVal(value)}
+                        </text>
+                    );
+                }
+                isAbove = keyIdx % 2 === 0;
+            } else {
                 const allVals = chartData.map((d: any) => { const v = Number(d[key]); return isNaN(v) ? 0 : v; });
                 const effectiveMin = yMin !== 'auto' ? (yMin as number) : Math.min(...allVals);
                 const effectiveMax = yMax !== 'auto' ? (yMax as number) : Math.max(...allVals);
@@ -521,24 +787,68 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                 const nextVal = index < allVals.length - 1 ? allVals[index + 1] : null;
                 const prevClose = prevVal !== null && Math.abs(value - prevVal) * pixelsPerUnit < 16;
                 const nextClose = nextVal !== null && Math.abs(value - nextVal) * pixelsPerUnit < 16;
-                if (prevClose || nextClose) return index % 2 === 0;
-                return true;
-            })();
+                isAbove = (prevClose || nextClose) ? index % 2 === 0 : true;
+            }
+
+            // Never drop a label BELOW into the x-axis category-name band — that is
+            // exactly where digits would overlap the names. Low points label above.
+            // (Klasteri se obrađuju iznad i izlaze ranije, pa ih ovaj guard ne dotiče.)
+            if (!isAbove && y > 200) isAbove = true;
 
             return (
-                <text x={x} y={y + (isAbove ? -14 : 14)} textAnchor="middle" fill="#64748b" fontSize={11}>
+                <text x={x} y={y + (isAbove ? -13 : 16)} textAnchor="middle"
+                      fill="#334155" fontSize={11} fontWeight={600}
+                      stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">
                     {formatVal(value)}
                 </text>
             );
+        };
+
+        // (1) Vodoravna oznaka prelomljena u više redova (kada ima mesta) — centrirana ispod
+        // svoje tačke; svaki naziv normalno orijentisan i vidljiv.
+        const renderWrappedXTick = ({ x, y, payload }: any) => {
+            const lines = wrapLabelLines(payload?.value, xCharsPerLine);
+            const lineH = 12;
+            return (
+                <text x={x} y={y + 12} textAnchor="middle" fill="#64748b" fontSize={11}>
+                    {lines.map((ln: string, i: number) => (
+                        <tspan key={i} x={x} dy={i === 0 ? 0 : lineH}>{ln}</tspan>
+                    ))}
+                </text>
+            );
+        };
+        // (2) Iskošena oznaka (kada su slotovi preuski) — svaki naziv ostaje vidljiv bez preklapanja.
+        const renderAngledXTick = ({ x, y, payload }: any) => (
+            <text x={x} y={y + 4} textAnchor="end" fill="#64748b" fontSize={11}
+                  transform={`rotate(${xAngle}, ${x}, ${y + 4})`}>
+                {String(payload?.value ?? '')}
+            </text>
+        );
+        // Shared props for every category X-axis: interval=0 → show ALL labels (no auto-skipping);
+        // reserve height + pick wrapped/angled tick only when crowded (izbor napravljen gore).
+        const categoryXAxisProps: any = {
+            interval: 0,
+            tick: xLabelsHidden ? false : (xNeedsWrap ? renderWrappedXTick : (xNeedsAngle ? renderAngledXTick : axisTickStyle)),
+            ...((xNeedsWrap || xNeedsAngle) ? { height: xLabelHeight } : {}),
         };
 
         switch (s.chartType) {
             case 'bar': {
                 const isStacked = subType === 'stacked_v' || subType === 'stacked_h';
                 const isHorizontal = subType === 'grouped_h' || subType === 'stacked_h';
-                const yAxisWidth = isHorizontal
-                    ? Math.min(200, Math.max(60, Math.max(...chartData.map((d: any) => String(d.name || '').length), 0) * 6.5))
-                    : undefined;
+                // Multi-line wrapped category labels for horizontal bars (no truncation/overlap).
+                const renderHBarTick = ({ x, y, payload }: any) => {
+                    const lines = wrapLabelLines(payload?.value, hbarCharsPerLine);
+                    const lineH = 13;
+                    const firstDy = -((lines.length - 1) * lineH) / 2 + 4;
+                    return (
+                        <text x={x} y={y} textAnchor="end" fill="#64748b" fontSize={11} fontWeight={500}>
+                            {lines.map((ln: string, i: number) => (
+                                <tspan key={i} x={x} dy={i === 0 ? firstDy : lineH}>{ln}</tspan>
+                            ))}
+                        </text>
+                    );
+                };
                 return (
                     <ResponsiveContainer width="99%" height="100%">
                         <BarChart data={chartData} layout={isHorizontal ? 'vertical' : 'horizontal'} margin={chartMargin}>
@@ -546,17 +856,17 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                             {isHorizontal ? (
                                 <>
                                     <XAxis type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={xDomain} allowDataOverflow={hasCustomXDomain} />
-                                    <YAxis type="category" dataKey="name" width={yAxisWidth} tick={{ ...axisTickStyle, width: yAxisWidth }} axisLine={axisLineStyle} tickLine={false} />
+                                    <YAxis type="category" dataKey="name" width={hbarLabelWidth} interval={0} tick={renderHBarTick} axisLine={axisLineStyle} tickLine={false} />
                                 </>
                             ) : (
                                 <>
-                                    <XAxis type="category" dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                                    <XAxis type="category" dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                                     <YAxis yAxisId="left" type="number" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                                     {dualY && <YAxis yAxisId="right" orientation="right" type="number" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                                 </>
                             )}
                             {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
-                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
+                            {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} {...(forceSlika71LegendOrder ? { content: slika71LegendContent } : {})} />}
                             {keys.map((key: string, idx: number) => {
                                 let labelPosition: any;
                                 if (isStacked) labelPosition = isHorizontal ? 'center' : 'inside';
@@ -567,9 +877,11 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                                 return (
                                     <Bar key={key} dataKey={key} yAxisId={!isHorizontal ? getYAxisId(key) : undefined} radius={isHorizontal ? [0, 4, 4, 0] : [4, 4, 0, 0]} fill={seriesColor} stackId={isStacked ? 'a' : undefined} isAnimationActive={false} activeBar={!isPrint ? { stroke: '#1e293b', strokeWidth: 2 } : undefined}>
                                         {isSingleSeries && chartData.map((entry: any, i: number) => (
-                                            <Cell key={`cell-${i}`} fill={colors[entry.name] || seriesColor} />
+                                            // Single-series stubići se boje po REDU (kao legenda i swatch-evi u editoru),
+                                            // pa je fallback paleta po indeksu reda — ne seriesColor (uvek paleta[0]).
+                                            <Cell key={`cell-${i}`} fill={colors[entry.name] || CHART_PALETTE[i % CHART_PALETTE.length]} />
                                         ))}
-                                        {s.showLabels && <LabelList dataKey={key} position={labelPosition} style={{ fill: labelFill, fontSize: 11 }} formatter={formatVal} />}
+                                        {s.showLabels && <LabelList dataKey={key} position={labelPosition} style={{ fill: labelFill, fontSize: 11, fontWeight: 600, ...(isStacked ? {} : LABEL_HALO) }} formatter={formatVal} />}
                                     </Bar>
                                 );
                             })}
@@ -586,7 +898,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                     <ResponsiveContainer width="99%" height="100%">
                         <ChartComp data={chartData} margin={chartMargin}>
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                            <XAxis dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                             <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
@@ -594,9 +906,10 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                             {keys.map((key: string, idx: number) => {
                                 const color = colors[key] || CHART_PALETTE[idx % CHART_PALETTE.length];
                                 const yAxisId = getYAxisId(key);
-                                if (isArea) return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={s.showLabels ? makeSmartLineLabel(key, idx) : false} />;
-                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={s.showLabels ? makeSmartLineLabel(key, idx) : false} />;
+                                if (isArea) return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stackId={isStackedArea ? '1' : undefined} stroke={color} fill={color} fillOpacity={0.6} strokeWidth={2} dot={hasDots ? { r: 4 } : false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={false} />;
+                                return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={hasDots ? { r: 4, fill: color, strokeWidth: 2, stroke: '#fff' } : { r: 0 }} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} isAnimationActive={false} label={false} />;
                             })}
+                            {s.showLabels && <SmartLineLabels chartData={chartData} keys={keys} formatVal={formatVal} getYAxisId={getYAxisId} />}
                         </ChartComp>
                     </ResponsiveContainer>
                 );
@@ -608,7 +921,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                         <ResponsiveContainer width="99%" height="100%">
                             <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="100%" barSize={12} data={radialData}>
                                 <RadialBar background={{ fill: '#f1f5f9' }} dataKey="value" cornerRadius={10} isAnimationActive={false}
-                                    label={s.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#64748b" fontSize={11}>{formatVal(p.value)}</text> : false}
+                                    label={s.showLabels ? (p: any) => <text x={p.x} y={p.y} textAnchor="middle" fill="#334155" fontSize={11} fontWeight={600} stroke="#fff" strokeWidth={3} paintOrder="stroke" strokeLinejoin="round">{formatVal(p.value)}</text> : false}
                                 />
                                 {!isPrint && <Tooltip contentStyle={tooltipStyle} formatter={(v: any, n: any) => [formatVal(v), n]} />}
                                 {showRechartsLegend && <Legend verticalAlign="bottom" align={s.legendAlign || 'center'} wrapperStyle={{ fontSize: '12px', paddingTop: '5px', paddingLeft: '24px' }} iconType="circle" formatter={renderLegendText} />}
@@ -676,7 +989,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                     <ResponsiveContainer width="99%" height="100%">
                         <ComposedChart data={chartData} margin={chartMargin}>
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis dataKey="name" tick={dataTableEnabled ? false : axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} />
+                            <XAxis dataKey="name" axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps} />
                             <YAxis yAxisId="left" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain} />
                             {dualY && <YAxis yAxisId="right" orientation="right" tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomainRight} allowDataOverflow={hasCustomYDomainRight} />}
                             {!isPrint && <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f1f5f9' }} formatter={(v: any, n: any) => [formatVal(v), n]} />}
@@ -691,7 +1004,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                                     else t = 'line';
                                 }
                                 if (t === 'area') return <Area key={key} type="monotone" dataKey={key} yAxisId={yAxisId} fill={color} stroke={color} fillOpacity={0.3} isAnimationActive={false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} label={s.showLabels ? makeSmartLineLabel(key, idx) : false} />;
-                                if (t === 'bar') return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={!isPrint ? { stroke: '#1e293b', strokeWidth: 2 } : undefined}>{s.showLabels && <LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11 }} formatter={formatVal} />}</Bar>;
+                                if (t === 'bar') return <Bar key={key} dataKey={key} yAxisId={yAxisId} stackId={isStackedLine ? 'a' : undefined} barSize={isAreaBar ? 15 : 20} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} activeBar={!isPrint ? { stroke: '#1e293b', strokeWidth: 2 } : undefined}>{s.showLabels && <LabelList dataKey={key} position={isStackedLine ? 'inside' : 'top'} style={{ fill: isStackedLine ? '#fff' : '#64748b', fontSize: 11, fontWeight: 600, ...(isStackedLine ? {} : LABEL_HALO) }} formatter={formatVal} />}</Bar>;
                                 return <Line key={key} type="monotone" dataKey={key} yAxisId={yAxisId} stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} activeDot={!isPrint ? { r: 7, stroke: '#1e293b', strokeWidth: 2, fill: color } : false} label={s.showLabels ? makeSmartLineLabel(key, idx) : false} />;
                             })}
                         </ComposedChart>
@@ -744,7 +1057,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                     <ResponsiveContainer width="99%" height="100%">
                         <ScatterChart margin={scatterMargin}>
                             {s.showGrid && <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />}
-                            <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} tick={axisTickStyle} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding}>
+                            <XAxis type="category" dataKey="name" allowDuplicatedCategory={false} axisLine={axisLineStyle} tickLine={false} padding={xAxisPadding} {...categoryXAxisProps}>
                                 {xTitle && <Label value={xTitle} position="insideBottom" offset={-18} style={{ fill: '#475569', fontSize: 12, fontWeight: 600, textAnchor: 'middle' }} />}
                             </XAxis>
                             <YAxis type="number" dataKey="value" width={computedYAxisWidth} tickFormatter={formatVal} tick={axisTickStyle} axisLine={false} tickLine={false} domain={yDomain} allowDataOverflow={hasCustomYDomain}>
@@ -758,7 +1071,7 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                                 const scatterData = chartData.map((d: any) => ({ name: d.name, value: d[key] || 0 }));
                                 return (
                                     <Scatter key={key} name={key} data={scatterData} fill={color} fillOpacity={isBubble ? 0.7 : 1} shape={shape} isAnimationActive={false}>
-                                        {s.showLabels && <LabelList dataKey="value" position="top" fill="#64748b" fontSize={11} offset={10} />}
+                                        {s.showLabels && <LabelList dataKey="value" position="top" fontSize={11} offset={10} style={{ fill: '#334155', fontWeight: 600, ...LABEL_HALO }} />}
                                     </Scatter>
                                 );
                             })}
@@ -807,14 +1120,25 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
                 </div>
             )}
             <div ref={wrapperRef} style={{ width: '100%', height: `${chartAreaHeight}px`, flexShrink: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: showTopLegend ? 'column' : 'row' }}>
-                {showTopLegend && renderTopLegend()}
-                <div style={{ flex: isRightLegend ? '0 0 62%' : '1', minWidth: 0, minHeight: 0, ...(showTopLegend ? {} : { height: '100%' }) }}>
-                    {renderChart()}
-                </div>
-                {isRightLegend && s.showLegend && (
-                    <div style={{ flex: '0 0 38%', display: 'flex', alignItems: 'center', height: '100%' }}>
-                        {renderSideLegend()}
+                {lite ? (
+                    // Sličica (sidebar/drawer): jeftin statički placeholder umesto živog Recharts grafikona.
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '7%', padding: '10% 12%', background: '#f8fafc', borderRadius: '6px', boxSizing: 'border-box' }}>
+                        {[0.5, 0.82, 0.62, 1, 0.72].map((h, i) => (
+                            <div key={i} style={{ flex: 1, height: `${h * 100}%`, background: '#e2e8f0', borderRadius: '2px' }} />
+                        ))}
                     </div>
+                ) : !chartInView ? null : (
+                    <>
+                        {showTopLegend && renderTopLegend()}
+                        <div style={{ flex: isRightLegend ? '0 0 62%' : '1', minWidth: 0, minHeight: 0, ...(showTopLegend ? {} : { height: '100%' }) }}>
+                            {renderChart()}
+                        </div>
+                        {isRightLegend && s.showLegend && (
+                            <div style={{ flex: '0 0 38%', display: 'flex', alignItems: 'center', height: '100%' }}>
+                                {renderSideLegend()}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
             {dataTableEnabled && (
@@ -836,9 +1160,9 @@ const ChartBlockReadonly = ({ el, label, isPrint = false }: any) => {
             )}
         </div>
     );
-};
+});
 
-const MapBlockReadonly = ({ el }: any) => {
+const MapBlockReadonly = ({ el, label }: any) => {
     const s = el.payload.settings || {};
     const data = el.payload.data || s.data || [];
     const baseColor = s.baseColor || '#3b82f6';
@@ -848,6 +1172,10 @@ const MapBlockReadonly = ({ el }: any) => {
     const min = values.length ? Math.min(...values) : 0;
     const max = values.length ? Math.max(...values) : 0;
 
+    // Veći kontrast: niža donja granica + gama (>1) gura „manje aktivne" boje svetlije, pa
+    // glavna (najjača) boja mnogo više iskače. Ista funkcija se koristi za mapu i za legendu.
+    const opacityFor = (t: number) => 0.15 + 0.85 * Math.pow(Math.max(0, Math.min(1, t)), 1.8);
+
     const calculatedColors: any = {};
     const calculatedValues: any = {};
     data.forEach((d: any) => {
@@ -856,9 +1184,7 @@ const MapBlockReadonly = ({ el }: any) => {
         if (isNaN(val) || d['Vrednost'] === '' || d['Vrednost'] === undefined) {
             calculatedColors[d.name] = '#f1f5f9';
         } else {
-            let opacity = 0.2;
-            if (max > min) opacity = 0.2 + 0.8 * ((val - min) / (max - min));
-            else if (max === min && values.length > 0) opacity = 1;
+            const opacity = max > min ? opacityFor((val - min) / (max - min)) : 1;
             calculatedColors[d.name] = hexToRgba(baseColor, opacity);
         }
     });
@@ -871,9 +1197,9 @@ const MapBlockReadonly = ({ el }: any) => {
             legendItems.push({ color: hexToRgba(baseColor, 1), label: formatVal(min) });
         } else {
             const step = (max - min) / 3;
-            legendItems.push({ color: hexToRgba(baseColor, 0.4), label: `${formatVal(min)} - ${formatVal(min + step)}` });
-            legendItems.push({ color: hexToRgba(baseColor, 0.7), label: `${formatVal(min + step)} - ${formatVal(min + 2 * step)}` });
-            legendItems.push({ color: hexToRgba(baseColor, 1), label: `${formatVal(min + 2 * step)} - ${formatVal(max)}` });
+            legendItems.push({ color: hexToRgba(baseColor, opacityFor(1 / 6)), label: `${formatVal(min)} - ${formatVal(min + step)}` });
+            legendItems.push({ color: hexToRgba(baseColor, opacityFor(1 / 2)), label: `${formatVal(min + step)} - ${formatVal(min + 2 * step)}` });
+            legendItems.push({ color: hexToRgba(baseColor, opacityFor(5 / 6)), label: `${formatVal(min + 2 * step)} - ${formatVal(max)}` });
         }
     }
     legendItems.push({ color: '#f1f5f9', label: 'Nema podataka', isNoData: true });
@@ -887,6 +1213,7 @@ const MapBlockReadonly = ({ el }: any) => {
                 border: 'none', cursor: 'default',
             }}
         >
+            <ElementLabel label={label} title={s.title} />
             <div style={{ width: '100%', height: '100%', display: 'flex', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ width: `${width}%`, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                     <MapGraphic colors={calculatedColors} values={calculatedValues} />
@@ -922,28 +1249,86 @@ const MapBlockReadonly = ({ el }: any) => {
 // stranicu sa FRONTEND_URL-a, a php artisan serve je single-threaded i blokiran unutar
 // exportPdf() — pa svaki asset sa backend origin-a (localhost:8000) zablokira do timeout-a
 // i korica ostane prazna. Sa relativnim URL-om slika stiže sa Vite-a, kao i ostali asseti.
-export const COVER_IMAGE_URL = '/images/pdf-naslovna.svg';
+// VAŽNO: pune-strane pozadine su PNG (288 DPI), NE SVG. Chrome `page.pdf()` rasterizuje
+// SVG koji je ubačen preko <img> na veličinu PDF strane u tačkama (~595×842 = 72 DPI),
+// bez obzira na viewBox/width/height/deviceScaleFactor — pa logo i tekst ispadnu mutni.
+// Rasterski <img> (PNG) se, naprotiv, ugrađuje u native rezoluciji → oštro. Ovi SVG-ovi
+// su ionako "flatten-ovan" eksport (sadrže ugrađene bitmape + gradient + pattern fill),
+// pa ih unapred rasterizujemo u PNG. Regeneracija (ako se SVG izmeni): otvori SVG preko
+// <img width:794 height:1123 object-fit:cover> u headless Chrome-u sa deviceScaleFactor:3
+// i `page.screenshot()` u istoimeni .png u ovom folderu.
+export const COVER_IMAGE_URL = '/images/pdf-naslovna.png';        // legacy (stara korica sa utisnutim tekstom)
+export const COVER_BG_URL   = '/images/pdf-naslovna-pozadina.png'; // nova pozadina korice (bez teksta)
+export const COVER_LOGO_URL = '/images/ratel-logo.png';           // logo u donjem desnom uglu korice
 
-export const CoverPage = ({ isPrint = false }: { isPrint?: boolean }) => (
-    <div
-        className="canvas-page"
-        style={isPrint
-            ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
-            : { padding: 0, overflow: 'hidden' }}
-    >
-        <img
-            src={COVER_IMAGE_URL}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-    </div>
-);
+// Korica (1. strana). Pozadina je slika BEZ teksta; naslov, veliki istaknuti tekst (npr. godina)
+// i podnaslov se iscrtavaju kao živi tekst (admin ih definiše po dokumentu) na istim pozicijama i
+// veličinama kao na ranijoj fiksnoj korici (navy #002D51, gore-levo). Logo ide u donji desni ugao.
+// Naslov i veliki tekst poštuju prelome reda (pre-line) — admin ih može uneti u više redova.
+export const CoverPage = ({ isPrint = false, title, big, subtitle }: {
+    isPrint?: boolean;
+    title?: string;
+    big?: string;
+    subtitle?: string;
+}) => {
+    const NAVY = '#002D51';
+    const t = (title ?? '').trim();
+    const b = (big ?? '').trim();
+    const s = (subtitle ?? '').trim();
+    return (
+        <div
+            className="canvas-page"
+            style={isPrint
+                ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+                : { padding: 0, overflow: 'hidden' }}
+        >
+            <img
+                src={COVER_BG_URL}
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 0 }}
+            />
+
+            {/* Tekstualni sloj (gore-levo). Elementi se REĐAJU u koloni (flex) od fiksnog vrha, pa se
+                veliki tekst i podnaslov automatski pomeraju naniže zavisno od broja redova naslova:
+                kratak naslov → nema „zjapeće" praznine; dug naslov → nema preklapanja. Razmaci između
+                blokova su mali i konstantni (margini), a broj redova i visine računa sam layout.
+                Naslov i veliki tekst poštuju prelome reda (pre-line). Vrh i veličine usklađeni sa
+                ranijom koricom. */}
+            <div style={{ position: 'absolute', top: '120px', left: '62px', right: '70px', zIndex: 1, fontFamily: 'var(--font-sans)', color: NAVY, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                {t && (
+                    <div style={{ fontSize: '50px', fontWeight: 800, lineHeight: 1.22, textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'pre-line' }}>
+                        {t}
+                    </div>
+                )}
+                {b && (
+                    <div style={{ fontSize: '128px', fontWeight: 800, lineHeight: 1, marginTop: '12px', whiteSpace: 'pre-line' }}>
+                        {b}
+                    </div>
+                )}
+                {s && (
+                    <div style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', marginTop: '22px' }}>
+                        {s}
+                    </div>
+                )}
+            </div>
+
+            {/* Logo — donji desni ugao */}
+            <img
+                src={COVER_LOGO_URL}
+                alt="RATEL"
+                style={{ position: 'absolute', right: '58px', bottom: '62px', width: '185px', height: 'auto', zIndex: 1, display: 'block' }}
+            />
+        </div>
+    );
+};
 
 // --- FULL-PAGE SLIKA (puna A4 strana, npr. strana posle korice i kontakt na kraju) ---
 
 // Strana odmah posle korice (pre Sadržaja) i poslednja (kontakt) strana — pune A4 slike.
-export const SECOND_PAGE_IMAGE_URL = '/images/pdf-2.svg';
-export const CONTACT_PAGE_IMAGE_URL = '/images/pdf-kontakt.svg';
+export const SECOND_PAGE_IMAGE_URL = '/images/pdf-2.png';        // legacy (stara 2. strana sa utisnutim logom)
+export const CONTACT_PAGE_IMAGE_URL = '/images/pdf-kontakt.png';
+export const PAGE2_BG_URL   = '/images/pdf-2-pozadina.png';      // pozadina 2. strane (samo plavi gradijent)
+export const PAGE2_LOGO_URL = '/images/ratel-logo-white.png';   // beli RATEL logo (vertikalni lockup)
 
 export const FullPageImage = ({ src, isPrint = false }: { src: string; isPrint?: boolean }) => (
     <div
@@ -960,17 +1345,55 @@ export const FullPageImage = ({ src, isPrint = false }: { src: string; isPrint?:
     </div>
 );
 
+// 2. strana PDF-a: beli RATEL logo na plavoj pozadini, sa opcionim uvodnim tekstom (admin ga
+// definiše po dokumentu). Bez teksta → logo je vertikalno centriran. Sa tekstom → flex-centriranje
+// grupe (logo + tekst) automatski pomera logo malo IZNAD sredine, a uvodni tekst (beo, srednje
+// veličine) stoji centralno ispod njega. Tekst poštuje prelome reda (pre-line).
+export const IntroLogoPage = ({ isPrint = false, introText }: { isPrint?: boolean; introText?: string }) => {
+    const text = (introText ?? '').trim();
+    return (
+        <div
+            className="canvas-page"
+            style={isPrint
+                ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+                : { padding: 0, overflow: 'hidden' }}
+        >
+            <img
+                src={PAGE2_BG_URL}
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 0 }}
+            />
+            <div style={{ position: 'relative', zIndex: 1, height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 90px', fontFamily: 'var(--font-sans)' }}>
+                <img src={PAGE2_LOGO_URL} alt="RATEL" style={{ width: '210px', height: 'auto', display: 'block' }} />
+                {text && (
+                    <div style={{ marginTop: '48px', color: '#ffffff', fontSize: '23px', lineHeight: 1.6, textAlign: 'center', whiteSpace: 'pre-line', maxWidth: '560px', fontWeight: 500 }}>
+                        {text}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- SADRŽAJ (TABLE OF CONTENTS) PAGE ---
 
 // Pozadinska slika za "Sadržaj" stranicu. Trenutno prazno — korisnik će kasnije dodati
 // sliku (npr. staviti fajl u frontend `public/images/` i ovde upisati '/images/pdf-sadrzaj.svg').
 // Kada se postavi, PrintView je automatski preload-uje pre snimanja PDF-a (kao i koricu),
 // a komponenta ispod je render-uje kao pozadinski sloj ispod teksta.
-export const TOC_BACKGROUND_URL = '';
+// Pozadinska slika strane "Sadržaj". Sadrži svu dekoraciju (gornju plavu liniju, talasasti
+// pattern, ugaone akcente) — mi preko nje samo iscrtavamo tekst. PrintView je preload-uje.
+export const TOC_BACKGROUND_URL = '/images/pdf-sadrzaj.png';
 
-// Stavke sadržaja: naziv sekcije + globalni broj strane na kojoj ona počinje.
-export type TocEntry = { title: string; page: number };
+// Boja teksta preuzeta iz primera (pdf-sadrzaj-primer.svg / pdf-sekcija-primer.svg).
+const NAVY = '#002D51';
 
+// Stavke sadržaja: redni broj sekcije, naziv i globalni broj strane na kojoj ona počinje.
+export type TocEntry = { number: number; title: string; page: number };
+
+// Pozicije su preslikane iz primera: SVG je A4 na 595×842, canvas-page je 794×1123 (faktor
+// ×1.334). Naslov "SADRŽAJ" gore-levo iznad plave linije iz pozadine; stavke ispod, sa brojem
+// strane poravnatim uz desnu ivicu (bez tačkica). Dug naziv se prelama, broj ostaje u 1. redu.
 export const TableOfContents = ({ entries, isPrint = false }: {
     entries: TocEntry[];
     isPrint?: boolean;
@@ -981,7 +1404,6 @@ export const TableOfContents = ({ entries, isPrint = false }: {
             ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
             : { padding: 0, overflow: 'hidden' }}
     >
-        {/* Pozadinski sloj — spreman za buduću sliku (vidi TOC_BACKGROUND_URL). */}
         {TOC_BACKGROUND_URL && (
             <img
                 src={TOC_BACKGROUND_URL}
@@ -991,20 +1413,18 @@ export const TableOfContents = ({ entries, isPrint = false }: {
         )}
 
         {/* Tekstualni sloj iznad pozadine */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', padding: '110px 70px 70px' }}>
-            <h1 style={{ fontSize: '42px', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-                Sadržaj
+        <div style={{ position: 'relative', zIndex: 1, height: '100%', fontFamily: 'var(--font-sans)' }}>
+            <h1 style={{ position: 'absolute', top: '96px', left: '96px', margin: 0, fontSize: '32px', fontWeight: 800, letterSpacing: '2px', color: NAVY, lineHeight: 1 }}>
+                SADRŽAJ
             </h1>
-            <div style={{ width: '80px', height: '4px', background: '#2563eb', borderRadius: '2px', marginTop: '18px', marginBottom: '48px', flexShrink: 0 }} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+            <div style={{ position: 'absolute', top: '212px', left: '96px', right: '63px', display: 'flex', flexDirection: 'column' }}>
                 {entries.map((entry, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: '12px', fontSize: '17px', lineHeight: 1.3 }}>
-                        <span style={{ color: '#334155', fontWeight: 600, flexShrink: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {entry.title}
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '24px', marginBottom: '22px', fontSize: '18px', lineHeight: 1.45, color: NAVY }}>
+                        <span style={{ fontWeight: 600 }}>
+                            {entry.number}. {entry.title}
                         </span>
-                        <span style={{ flex: 1, borderBottom: '2px dotted #cbd5e1', transform: 'translateY(-5px)' }} />
-                        <span style={{ color: '#2563eb', fontWeight: 800, flexShrink: 0, minWidth: '24px', textAlign: 'right' }}>
+                        <span style={{ flexShrink: 0, fontWeight: 700, textAlign: 'right' }}>
                             {entry.page}
                         </span>
                     </div>
@@ -1014,9 +1434,100 @@ export const TableOfContents = ({ entries, isPrint = false }: {
     </div>
 );
 
+// --- NASLOVNA STRANA SEKCIJE (section divider) ---
+
+// Pozadinska slika naslovne strane sekcije. Sadrži talasasti pattern i plavi trougao dole-desno;
+// mi preko nje iscrtavamo samo naslov. PrintView je preload-uje pre snimanja PDF-a (kao koricu).
+export const SECTION_TITLE_BACKGROUND_URL = '/images/pdf-sekcija.png';
+
+// Naslovna strana sekcije — "N. Naziv" levo poravnato u gornjoj trećini strane, sa visećim
+// uvlačenjem (broj u levoj koloni, naslov se prelama poravnat udesno od broja). Boja i pozicije
+// preslikane iz pdf-sekcija-primer.svg (SVG 595×842 → canvas 794×1123, faktor ×1.334).
+// Zauzima celu jednu PDF stranu (pageBreakAfter).
+export const SectionTitlePage = ({ number, title, isPrint = false }: { number: number; title: string; isPrint?: boolean }) => (
+    <div
+        className="canvas-page"
+        style={isPrint
+            ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+            : { padding: 0, overflow: 'hidden' }}
+    >
+        {SECTION_TITLE_BACKGROUND_URL && (
+            <img
+                src={SECTION_TITLE_BACKGROUND_URL}
+                alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 0 }}
+            />
+        )}
+
+        {/* Naslov: broj u fiksnoj levoj koloni (79px), naslov počinje na 138px i prelama se. */}
+        <div style={{ position: 'relative', zIndex: 1, height: '100%', fontFamily: 'var(--font-sans)' }}>
+            <div style={{ position: 'absolute', top: '188px', left: '79px', display: 'flex', alignItems: 'flex-start' }}>
+                <span style={{ width: '59px', flexShrink: 0, fontSize: '40px', fontWeight: 800, color: NAVY, lineHeight: 1.25 }}>
+                    {number}.
+                </span>
+                <span style={{ maxWidth: '340px', fontSize: '40px', fontWeight: 800, color: NAVY, lineHeight: 1.25 }}>
+                    {title}
+                </span>
+            </div>
+        </div>
+    </div>
+);
+
+// --- NAPOMENA / "O PODACIMA" STRANA (pre Sadržaja) ---
+
+// Samostalna strana sa napomenom o izvoru i odgovornosti za podatke. Ubacuje se u export
+// odmah posle RATEL logo strane, a pre Sadržaja. Po dogovoru ("stil kao ostale strane"),
+// koristi dekorativnu pozadinu naslovne strane sekcije (talasasti pattern); tekst je u gornjoj
+// trećini strane, navy bojom, obostrano poravnat (justify), bez naslova. Pozadina je u zasebnoj konstanti
+// da bi se lako zamenila kada stigne tačan Figma dizajn ove strane.
+export const DISCLAIMER_BACKGROUND_URL = SECTION_TITLE_BACKGROUND_URL;
+
+// Tekst napomene (verbatim od klijenta). Svaki string je jedan pasus.
+export const DISCLAIMER_PARAGRAPHS = [
+    'Ovaj izveštaj se zasniva na podacima koje Regulatoru dostavljaju privredni subjekti koji obavljaju delatnost elektronskih komunikacija i poštanski operatori, u skladu sa važećim propisima.',
+    'Za tačnost, potpunost i verodostojnost tih podataka su odgovorni subjekti koji ih dostavljaju.',
+    'U pojedinim slučajevima moguća su naknadna ažuriranja i korekcije podataka od strane subjekata koji ih dostavljaju, što može dovesti do odstupanja u odnosu na prethodno objavljene vrednosti.',
+];
+
+// 3. strana PDF-a (Napomena). `text` (admin po dokumentu) → svaki red je jedan pasus; ako je
+// prazno, koristi se podrazumevani DISCLAIMER_PARAGRAPHS (postojeće ponašanje). Datum poslednje
+// izmene NIJE više ovde — sada ide u footer poslednje strane svake sekcije (vidi DocumentPage).
+export const DisclaimerPage = ({ isPrint = false, text }: { isPrint?: boolean; text?: string }) => {
+    const paragraphs = (text ?? '').trim()
+        ? (text as string).split('\n').map(s => s.trim()).filter(Boolean)
+        : DISCLAIMER_PARAGRAPHS;
+    return (
+        <div
+            className="canvas-page"
+            style={isPrint
+                ? { boxShadow: 'none', border: 'none', pageBreakAfter: 'always', padding: 0, overflow: 'hidden' }
+                : { padding: 0, overflow: 'hidden' }}
+        >
+            {DISCLAIMER_BACKGROUND_URL && (
+                <img
+                    src={DISCLAIMER_BACKGROUND_URL}
+                    alt=""
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block', zIndex: 0 }}
+                />
+            )}
+
+            {/* Tekstualni sloj iznad pozadine — gornja trećina, čista zona iznad/oko talasastog pattern-a. */}
+            <div style={{ position: 'relative', zIndex: 1, height: '100%', fontFamily: 'var(--font-sans)' }}>
+                <div style={{ position: 'absolute', top: '170px', left: '96px', right: '110px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    {paragraphs.map((p, i) => (
+                        <p key={i} style={{ margin: 0, fontSize: '17px', lineHeight: 1.7, color: NAVY, textAlign: 'justify' }}>
+                            {p}
+                        </p>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- DOCUMENT PAGE COMPONENT ---
 
-export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelMap, isPrint = false, documentTitle, sectionTitle }: {
+export const DocumentPage = memo(({ page, pageIndex, globalFootnoteMap, elementLabelMap, isPrint = false, documentTitle, sectionTitle, lite = false, footerDate }: {
     page: any;
     pageIndex: number;
     globalFootnoteMap: Record<string, number>;
@@ -1024,6 +1535,8 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
     isPrint?: boolean;
     documentTitle?: string;
     sectionTitle?: string;
+    lite?: boolean;
+    footerDate?: string;   // već formatiran datum poslednje izmene sekcije — samo na poslednjoj strani sekcije (PDF)
 }) => {
     const pageFootnotes = useMemo(() => buildPageFootnotes(page, globalFootnoteMap), [page, globalFootnoteMap]);
 
@@ -1038,7 +1551,7 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
                         {documentTitle || 'Annual Report'}
                     </span>
                     {sectionTitle && (
-                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                        <span style={{ fontWeight: 400, opacity: 0.7, minWidth: 0, overflow: 'hidden', textAlign: 'right', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'normal', lineHeight: 1.25, wordBreak: 'break-word' }}>
                             {sectionTitle}
                         </span>
                     )}
@@ -1054,12 +1567,19 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
                                         <div key={col.id} className={`canvas-col ${col.widthClass}`} style={{ border: 'none' }}>
                                             {col.elements.map((el: any) => {
                                                 const label = elementLabelMap[el.id] || '';
-                                                if (el.type === 'text') return <TextBlockReadonly key={el.id} el={el} />;
-                                                if (el.type === 'image') return <ImageBlockReadonly key={el.id} el={el} label={label} />;
-                                                if (el.type === 'table') return <TableBlockReadonly key={el.id} el={el} label={label} />;
-                                                if (el.type === 'chart') return <ChartBlockReadonly key={el.id} el={el} label={label} isPrint={isPrint} />;
-                                                if (el.type === 'map') return <MapBlockReadonly key={el.id} el={el} />;
-                                                return null;
+                                                const node =
+                                                    el.type === 'text' ? <TextBlockReadonly el={el} globalFootnoteMap={globalFootnoteMap} /> :
+                                                    el.type === 'image' ? <ImageBlockReadonly el={el} label={label} /> :
+                                                    el.type === 'table' ? <TableBlockReadonly el={el} label={label} globalFootnoteMap={globalFootnoteMap} /> :
+                                                    el.type === 'chart' ? <ChartBlockReadonly el={el} label={label} isPrint={isPrint} lite={lite} /> :
+                                                    el.type === 'map' ? <MapBlockReadonly el={el} label={label} /> : null;
+                                                if (!node) return null;
+                                                // PDF (isPrint) keeps the exact original DOM — no wrapper.
+                                                // Preview pages get a data-element-id wrapper so the document
+                                                // search (ViewPage/CollectionPage/GroupPreviewPage) can highlight + scroll.
+                                                return isPrint
+                                                    ? <Fragment key={el.id}>{node}</Fragment>
+                                                    : <div key={el.id} data-element-id={el.id} style={{ position: 'relative' }}>{node}</div>;
                                             })}
                                         </div>
                                     ))}
@@ -1082,8 +1602,13 @@ export const DocumentPage = ({ page, pageIndex, globalFootnoteMap, elementLabelM
                 )}
             </div>
             <div className="page-footer">
+                {footerDate && (
+                    <div style={{ position: 'absolute', bottom: '22px', left: '50px', fontSize: '10px', fontWeight: 600, color: '#94a3b8' }}>
+                        Poslednji put izmenjeno {footerDate}
+                    </div>
+                )}
                 <div className="page-footer-inner">{pageIndex + 1}.</div>
             </div>
         </div>
     );
-};
+});

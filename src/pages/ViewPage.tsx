@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, Layers, X } from "lucide-react";
+import { ChevronUp, ChevronDown, ZoomIn, ZoomOut, Loader2, Layers, X, Download } from "lucide-react";
 import { DocumentPage, CoverPage, buildMaps } from "../components/DocumentPageView";
 import SectionListSidebar from "../components/SectionListSidebar";
+import { useDocumentSearch, DocumentSearchField } from "../components/DocumentSearch";
 import logo from "../assets/logo.svg";
 
 // Thumbnail dimensions: scale down A4 (794×1123px) to fit sidebar
@@ -105,6 +106,7 @@ const ThumbDrawer = ({
                                             elementLabelMap={elementLabelMap}
                                             documentTitle={documentTitle}
                                             sectionTitle={sectionTitle}
+                                            lite
                                         />
                                     </div>
                                 </div>
@@ -123,6 +125,10 @@ const ViewPage = () => {
     const { id } = useParams();
     const [sections, setSections] = useState<any[]>([]);
     const [documentTitle, setDocumentTitle] = useState("");
+    const [coverTitle, setCoverTitle] = useState("");
+    const [coverBig, setCoverBig] = useState("");
+    const [coverSubtitle, setCoverSubtitle] = useState("");
+    const [pdfAvailable, setPdfAvailable] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [zoom, setZoom] = useState(100);
     const [currentGlobalPage, setCurrentGlobalPage] = useState(0);
@@ -136,6 +142,10 @@ const ViewPage = () => {
     const sectionTabsRef  = useRef<HTMLDivElement>(null);
     // Sprečava scroll-handler da odmah prepiše currentGlobalPage tokom programatskog skoka.
     const isProgrammaticScrollRef = useRef(false);
+
+    // Pretraga celog dokumenta — identično kao u editoru (Ctrl/Cmd+F, Enter/Shift+Enter, Esc).
+    // sections je stabilna state-referenca, mainAreaRef je scroll kontejner sa svim stranama.
+    const search = useDocumentSearch(sections, mainAreaRef);
 
     useEffect(() => {
         const update = () => {
@@ -161,6 +171,10 @@ const ViewPage = () => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 setDocumentTitle(data.document.title || "");
+                setCoverTitle(data.document.cover_title || "");
+                setCoverBig(data.document.cover_big || "");
+                setCoverSubtitle(data.document.cover_subtitle || "");
+                setPdfAvailable(!!data.pdf_available);
                 setSections(data.document.sections || []);
             } catch (e) {
                 console.error(e);
@@ -226,6 +240,9 @@ const ViewPage = () => {
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // Ne diraj zoom dok korisnik kuca u polje (npr. search box) — inače "+"/"-" zumira.
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
             if (e.ctrlKey && e.shiftKey && e.key === "0") { e.preventDefault(); resetZoom(); }
             else if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "+" || e.key === "=")) zoomIn();
             else if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key === "-") zoomOut();
@@ -235,23 +252,33 @@ const ViewPage = () => {
     }, [zoomIn, zoomOut, resetZoom]);
 
     // Scroll tracking — globalIndex najbliže stranice na vrhu.
+    // Throttle preko requestAnimationFrame: handler skenira getBoundingClientRect SVIH
+    // strana (O(broj strana) reflow merenja), pa bi na svakom scroll tiku — kojih ima na
+    // desetine u sekundi — to bilo skupo kod dugačkih dokumenata. Ovako se merenje izvrši
+    // najviše jednom po frejmu, što drži scroll glatkim.
+    const scrollRafRef = useRef(false);
     const handleMainScroll = useCallback(() => {
         if (isProgrammaticScrollRef.current) return;
-        const container = mainAreaRef.current;
-        if (!container) return;
-        const pageEls = container.querySelectorAll<HTMLElement>("[data-view-page-index]");
-        if (pageEls.length === 0) return;
-        const containerTop = container.getBoundingClientRect().top;
-        let closestIdx = 0;
-        let closestDist = Infinity;
-        pageEls.forEach(el => {
-            const dist = Math.abs(el.getBoundingClientRect().top - containerTop);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestIdx = parseInt(el.getAttribute("data-view-page-index") || "0", 10);
-            }
+        if (scrollRafRef.current) return;
+        scrollRafRef.current = true;
+        requestAnimationFrame(() => {
+            scrollRafRef.current = false;
+            const container = mainAreaRef.current;
+            if (!container) return;
+            const pageEls = container.querySelectorAll<HTMLElement>("[data-view-page-index]");
+            if (pageEls.length === 0) return;
+            const containerTop = container.getBoundingClientRect().top;
+            let closestIdx = 0;
+            let closestDist = Infinity;
+            pageEls.forEach(el => {
+                const dist = Math.abs(el.getBoundingClientRect().top - containerTop);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestIdx = parseInt(el.getAttribute("data-view-page-index") || "0", 10);
+                }
+            });
+            setCurrentGlobalPage(closestIdx);
         });
-        setCurrentGlobalPage(closestIdx);
     }, []);
 
     useEffect(() => {
@@ -294,6 +321,11 @@ const ViewPage = () => {
     return (
         <div className="flex flex-col h-screen bg-background-grey overflow-hidden font-sans text-dark-blue">
 
+            {/* Mobilni: uvek vidljivo, elegantno plutajuće polje za pretragu na dnu.
+                (Desktop verzija je inline u toolbaru, levo od zoom kontrola.)
+                Renderujemo samo jednu varijantu — dele isti searchInputRef. */}
+            {isMobile && <DocumentSearchField search={search} variant="floating-bottom" />}
+
             {/* ═══════════════════════════════════════════════
                 DESKTOP TOOLBAR
             ═══════════════════════════════════════════════ */}
@@ -321,19 +353,32 @@ const ViewPage = () => {
                     </button>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white rounded-[50px] py-[10px] px-[25px] border border-slate-100 shadow-sm">
-                    <button onClick={zoomOut} disabled={zoom <= 50}
-                        className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
-                        <ZoomOut size={16} className="text-slate-600" />
-                    </button>
-                    <button onClick={resetZoom} title="Resetuj zoom na 100%"
-                        className="font-bold text-[13px] min-w-[40px] text-center hover:text-blue-600 transition-colors">
-                        {zoom}%
-                    </button>
-                    <button onClick={zoomIn} disabled={zoom >= 200}
-                        className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
-                        <ZoomIn size={16} className="text-slate-600" />
-                    </button>
+                {/* Preuzmi PDF (ako je admin generisao) + pretraga + zoom — desna strana toolbara. */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {pdfAvailable && (
+                        <a
+                            href={`${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"}/api/print-documents/${id}/pdf`}
+                            target="_blank" rel="noopener"
+                            className="flex items-center gap-2 bg-[#0056B3] text-white rounded-[50px] py-[10px] px-[20px] text-[13px] font-bold shadow-sm hover:bg-[#004690] transition-colors shrink-0 whitespace-nowrap"
+                        >
+                            <Download size={15} /> Preuzmi PDF
+                        </a>
+                    )}
+                    {!isMobile && <DocumentSearchField search={search} variant="inline" />}
+                    <div className="flex items-center gap-3 bg-white rounded-[50px] py-[10px] px-[25px] border border-slate-100 shadow-sm shrink-0">
+                        <button onClick={zoomOut} disabled={zoom <= 50}
+                            className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                            <ZoomOut size={16} className="text-slate-600" />
+                        </button>
+                        <button onClick={resetZoom} title="Resetuj zoom na 100%"
+                            className="font-bold text-[13px] min-w-[40px] text-center hover:text-blue-600 transition-colors">
+                            {zoom}%
+                        </button>
+                        <button onClick={zoomIn} disabled={zoom >= 200}
+                            className="p-1 rounded-full hover:bg-slate-100 disabled:opacity-30 transition-colors">
+                            <ZoomIn size={16} className="text-slate-600" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -349,6 +394,16 @@ const ViewPage = () => {
                     {documentTitle}
                 </p>
                 <div className="flex items-center gap-0.5 shrink-0">
+                    {pdfAvailable && (
+                        <a
+                            href={`${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"}/api/print-documents/${id}/pdf`}
+                            target="_blank" rel="noopener"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-[#0056B3] text-white"
+                            title="Preuzmi PDF"
+                        >
+                            <Download size={14} />
+                        </a>
+                    )}
                     <button
                         onClick={() => setShowThumbDrawer(true)}
                         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors relative"
@@ -439,6 +494,7 @@ const ViewPage = () => {
                                                 elementLabelMap={elementLabelMap}
                                                 documentTitle={documentTitle}
                                                 sectionTitle={currentSection?.title}
+                                                lite
                                             />
                                         </div>
                                     </div>
@@ -451,13 +507,13 @@ const ViewPage = () => {
                 {/* Main content — sve stranice svih poglavlja u jednom toku */}
                 <div
                     ref={mainAreaRef}
-                    className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pt-2"
+                    className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pt-2 pb-28 md:pb-0"
                 >
                     <div
                         className="canvas-wrapper origin-top-left"
                         style={{ zoom: effectiveZoom / 100 }}
                     >
-                        <CoverPage />
+                        <CoverPage title={coverTitle || documentTitle} big={coverBig} subtitle={coverSubtitle} />
                         {globalPages.map((gp) => (
                             <div
                                 key={`${gp.sectionId}-${gp.page.id}-${gp.globalIndex}`}

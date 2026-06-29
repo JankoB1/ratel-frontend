@@ -2,7 +2,7 @@ import { GripVertical, Trash2 } from "lucide-react";
 import { hexToRgba } from "./utils";
 import MapGraphic from "../MapGraphic";
 
-export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, onDelete, onDragStart, onDragEnd }: any) => {
+export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selectedElement, setSelectedElement, onDelete, onDragStart, onDragEnd, elementLabel }: any) => {
     const defaultSettings = el.payload.settings || {};
     const currentSettings = isSelected && selectedElement?.elementId === el.id ? selectedElement.settings : defaultSettings;
 
@@ -14,6 +14,10 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
     const min = values.length > 0 ? Math.min(...values) : 0;
     const max = values.length > 0 ? Math.max(...values) : 0;
 
+    // Veći kontrast: niža donja granica + gama (>1) gura „manje aktivne" boje svetlije, pa
+    // glavna (najjača) boja mnogo više iskače. Ista funkcija se koristi za mapu i za legendu.
+    const opacityFor = (t: number) => 0.15 + 0.85 * Math.pow(Math.max(0, Math.min(1, t)), 1.8);
+
     const calculatedColors: any = {};
     const calculatedValues: any = {};
 
@@ -24,12 +28,7 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
         if (isNaN(val) || d['Vrednost'] === '' || d['Vrednost'] === undefined) {
             calculatedColors[d.name] = '#f1f5f9';
         } else {
-            let opacity = 0.2;
-            if (max > min) {
-                opacity = 0.2 + 0.8 * ((val - min) / (max - min));
-            } else if (max === min && values.length > 0) {
-                opacity = 1;
-            }
+            const opacity = max > min ? opacityFor((val - min) / (max - min)) : 1;
             calculatedColors[d.name] = hexToRgba(baseColor, opacity);
         }
     });
@@ -45,15 +44,15 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
         } else {
             const step = (max - min) / 3;
             legendItems.push({
-                color: hexToRgba(baseColor, 0.4),
+                color: hexToRgba(baseColor, opacityFor(1 / 6)),
                 label: `${formatVal(min)} - ${formatVal(min + step)}`
             });
             legendItems.push({
-                color: hexToRgba(baseColor, 0.7),
+                color: hexToRgba(baseColor, opacityFor(1 / 2)),
                 label: `${formatVal(min + step)} - ${formatVal(min + 2 * step)}`
             });
             legendItems.push({
-                color: hexToRgba(baseColor, 1),
+                color: hexToRgba(baseColor, opacityFor(5 / 6)),
                 label: `${formatVal(min + 2 * step)} - ${formatVal(max)}`
             });
         }
@@ -87,6 +86,12 @@ export const MapElementBlock = ({ el, pageId, rowId, colId, isSelected, selected
                 <div className="element-actions">
                     <div className="action-btn grab"><GripVertical size={14} /></div>
                     <button onClick={(e) => { e.stopPropagation(); onDelete(pageId, rowId, colId, el.id); }} className="action-btn danger"><Trash2 size={14} /></button>
+                </div>
+            )}
+
+            {elementLabel && (
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px', textAlign: 'left', borderLeft: '3px solid #3b82f6', paddingLeft: '8px', width: '100%', wordBreak: 'break-word' }}>
+                    {elementLabel}{currentSettings.title ? `: ${currentSettings.title}` : ''}
                 </div>
             )}
 

@@ -48,6 +48,13 @@ const RichDescriptionEditor = ({ value, onChange, elementKey, placeholder }: { v
                 suppressContentEditableWarning
                 data-placeholder={placeholder || 'Unesite opis...'}
                 onInput={e => onChange((e.target as HTMLDivElement).innerHTML)}
+                onPaste={e => {
+                    // Pejstuj kao čist tekst — bez stilova iz izvora; formatiranje se po želji
+                    // dodaje alatkama iznad (bold, kurziv, boja...).
+                    e.preventDefault();
+                    const text = e.clipboardData.getData('text/plain');
+                    document.execCommand('insertText', false, text);
+                }}
                 className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl p-3 text-sm text-slate-600 outline-none focus:border-blue-400 transition-all min-h-[60px] rich-description-editor"
             />
         </div>
@@ -368,7 +375,16 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
     const mapData = selectedElement.extraPayload?.data || settings.data || [];
 
-    const handleMapValueChange = (district: string, val: string) => {
+    const handleMapValueChange = (district: string, raw: string) => {
+        // Dozvoli unos decimalnih vrednosti i sa zarezom (sr-RS) i sa tačkom.
+        // Normalizujemo na tačku radi skladištenja (parseFloat / Intl ostaju isti kao do sada).
+        let val = raw.replace(/,/g, '.');          // zarez -> tačka
+        val = val.replace(/[^0-9.\-]/g, '');       // dozvoli samo cifre, tačku i minus
+        val = val.replace(/(?!^)-/g, '');          // minus samo na početku
+        const firstDot = val.indexOf('.');         // dozvoli samo jednu decimalnu tačku
+        if (firstDot !== -1) {
+            val = val.slice(0, firstDot + 1) + val.slice(firstDot + 1).replace(/\./g, '');
+        }
         let newData = [...mapData];
         const idx = newData.findIndex((d: any) => d.name === district);
         if (idx >= 0) {
@@ -871,6 +887,26 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                         <input type="checkbox" className="hidden" checked={!!settings.showDataTable} onChange={() => updateElementSettings({ showDataTable: !settings.showDataTable })} />
                                     </label>
 
+                                    {/* Pali/gasi imena kategorija na X-osi. Prikazujemo samo za grafikone koji
+                                        imaju kategorijsku X-osu (ne za pita/radar/scatter i horizontalni bar gde su
+                                        kategorije na Y-osi). Default = uključeno → vide se i kada je tabela ispod. */}
+                                    {(() => {
+                                        const subType = selectedElement?.extraPayload?.subChartType || settings.subChartType || '';
+                                        const isHBar = settings.chartType === 'bar' && (subType === 'grouped_h' || subType === 'stacked_h');
+                                        const hasCatXAxis = !['pie', 'radar', 'scatter'].includes(settings.chartType) && !isHBar;
+                                        if (!hasCatXAxis) return null;
+                                        const on = settings.showXAxisLabels !== false;
+                                        return (
+                                            <label className="flex items-center justify-between cursor-pointer group">
+                                                <span className="text-sm text-slate-600 font-medium">Prikaži imena kategorija</span>
+                                                <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${on ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${on ? 'translate-x-4' : ''}`} />
+                                                </div>
+                                                <input type="checkbox" className="hidden" checked={on} onChange={() => updateElementSettings({ showXAxisLabels: settings.showXAxisLabels === false })} />
+                                            </label>
+                                        );
+                                    })()}
+
                                     {settings.showLegend && (
                                         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-3">
                                             <span className="text-[10px] font-bold text-slate-400 uppercase">Legenda — pozicija</span>
@@ -944,6 +980,17 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                 <h3 className="text-[14px] text-slate-500 tracking-wider uppercase mb-2">Opcije mape</h3>
 
                                 <div className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex flex-col gap-4 relative z-0 mb-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide ml-1">Naziv mape (naslov)</label>
+                                        <input
+                                            type="text"
+                                            value={settings.title || ''}
+                                            onChange={(e) => updateElementSettings({ title: e.target.value })}
+                                            placeholder="npr. Pokrivenost po regionima"
+                                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl outline-none focus:border-blue-400"
+                                        />
+                                    </div>
+
                                     <label className="flex items-center justify-between cursor-pointer group">
                                         <span className="text-sm text-slate-600 font-medium">Prikaži legendu</span>
                                         <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${settings.showLegend ? 'bg-blue-500' : 'bg-slate-200'}`}>
@@ -1010,7 +1057,8 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                             {district}
                                         </span>
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         value={valToDisplay}
                                                         onChange={(e) => handleMapValueChange(district, e.target.value)}
                                                         placeholder="0"

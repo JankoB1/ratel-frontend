@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { AlignLeft, AlignCenter, AlignRight, GripVertical, Trash2 } from "lucide-react";
 import { extractFootnoteIds } from "./utils";
+
+// Minimalna visina reda pri povlačenju (px) — sprečava da se red skroz "uruši".
+const ROW_MIN_H = 30;
 
 const ElementLabel = ({ label, title }: { label: string; title?: string }) => {
     if (!label) return null;
@@ -108,7 +111,7 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
     return (
         <td
             onClick={onClick}
-            style={{ ...style, border: '1px solid #e2e8f0', padding: '0.5rem', transition: 'all 0.2s', position: 'relative', boxShadow: isActive ? 'inset 0 0 0 2px #60a5fa' : 'none', backgroundColor: isActive ? 'rgba(239, 246, 255, 0.3)' : style.backgroundColor }}
+            style={{ ...style, borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', padding: '0.5rem', transition: 'all 0.2s', position: 'relative', boxShadow: isActive ? 'inset 0 0 0 2px #60a5fa' : 'none', backgroundColor: isActive ? 'rgba(239, 246, 255, 0.3)' : style.backgroundColor }}
             colSpan={colSpan}
             rowSpan={rowSpan}
         >
@@ -117,6 +120,13 @@ const EditableCell = ({ value, onBlur, style, isActive, onClick, cellSt, colSpan
                 contentEditable
                 suppressContentEditableWarning
                 onInput={(e) => onBlur(e.currentTarget.innerHTML)}
+                onPaste={(e) => {
+                    // Pejstuj kao čist tekst — bez fonta/boje/veličine iz izvora (npr. Word/Excel),
+                    // pa preuzima stil ćelije umesto da "uvuče" strano formatiranje.
+                    e.preventDefault();
+                    const text = e.clipboardData.getData('text/plain');
+                    document.execCommand('insertText', false, text);
+                }}
                 onBlur={saveSelection}
                 onMouseUp={saveSelection}
                 onKeyUp={saveSelection}
@@ -141,6 +151,17 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
     const [localWidths, setLocalWidths] = useState<number[]>(currentSettings.columnWidths || defaultWidths);
     const startDragRef = useRef<{ startX: number, startWidths: number[], index: number } | null>(null);
 
+    // Visine redova (px; 0 = auto/content-driven). Radi po istom principu kao širine kolona.
+    const rowsCount = currentSettings.rows || 1;
+    const [localHeights, setLocalHeights] = useState<number[]>(
+        (currentSettings.rowHeights && currentSettings.rowHeights.length === rowsCount)
+            ? currentSettings.rowHeights
+            : Array.from({ length: rowsCount }, (_, i) => currentSettings.rowHeights?.[i] || 0)
+    );
+    const startRowDragRef = useRef<{ startY: number, startHeights: number[], index: number } | null>(null);
+    const tableWrapRef = useRef<HTMLDivElement>(null);
+    const [rowBoundaries, setRowBoundaries] = useState<number[]>([]);
+
     useEffect(() => {
         if (currentSettings.columnWidths && currentSettings.columnWidths.length === colsCount) {
             setLocalWidths(currentSettings.columnWidths);
@@ -148,6 +169,28 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             setLocalWidths(Array(colsCount).fill(100 / colsCount));
         }
     }, [currentSettings.columnWidths, colsCount]);
+
+    useEffect(() => {
+        if (currentSettings.rowHeights && currentSettings.rowHeights.length === rowsCount) {
+            setLocalHeights(currentSettings.rowHeights);
+        } else {
+            setLocalHeights(Array.from({ length: rowsCount }, (_, i) => currentSettings.rowHeights?.[i] || 0));
+        }
+    }, [currentSettings.rowHeights, rowsCount]);
+
+    // Izmeri donju ivicu svakog reda (px u odnosu na wrapper) — redovi bez eksplicitne
+    // visine su content-driven, pa se granice moraju meriti iz DOM-a da bi hvataljke stale
+    // tačno na spoj redova (analogno % pozicijama hvataljki za kolone).
+    useLayoutEffect(() => {
+        if (!isSelected) return;
+        const trs = tableWrapRef.current?.querySelectorAll('tbody tr');
+        if (!trs || trs.length === 0) return;
+        const tops: number[] = [];
+        trs.forEach((tr) => { const el = tr as HTMLElement; tops.push(el.offsetTop + el.offsetHeight); });
+        setRowBoundaries((prev) =>
+            (prev.length === tops.length && prev.every((v, i) => Math.abs(v - tops[i]) < 0.5)) ? prev : tops
+        );
+    }, [isSelected, localHeights, localWidths, currentSettings.rows, currentSettings.columns, content]);
 
     const onResizeMouseDown = (e: React.MouseEvent, index: number) => {
         e.preventDefault();
@@ -189,6 +232,41 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
         startDragRef.current = null;
         document.removeEventListener('mousemove', onResizeMouseMove);
         document.removeEventListener('mouseup', onResizeMouseUp);
+    };
+
+    // --- Promena VISINE reda (isti princip kao širina kolone, samo po Y osi) ---
+    const onRowResizeMouseDown = (e: React.MouseEvent, index: number) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const trs = tableWrapRef.current?.querySelectorAll('tbody tr');
+        const measured = trs && trs[index] ? (trs[index] as HTMLElement).offsetHeight : 40;
+        const startHeights = Array.from({ length: rowsCount }, (_, i) => localHeights[i] || 0);
+        // Red bez eksplicitne visine kreće od svoje izmerene (content) visine.
+        if (!startHeights[index]) startHeights[index] = measured;
+        startRowDragRef.current = { startY: e.clientY, startHeights, index };
+        document.addEventListener('mousemove', onRowResizeMouseMove);
+        document.addEventListener('mouseup', onRowResizeMouseUp);
+    };
+
+    const onRowResizeMouseMove = (e: MouseEvent) => {
+        if (!startRowDragRef.current) return;
+        const { startY, startHeights, index } = startRowDragRef.current;
+        const deltaY = e.clientY - startY;
+        const newHeights = [...startHeights];
+        newHeights[index] = Math.max(ROW_MIN_H, Math.round(startHeights[index] + deltaY));
+        setLocalHeights(newHeights);
+    };
+
+    const onRowResizeMouseUp = () => {
+        if (startRowDragRef.current) {
+            setLocalHeights((currentLocal) => {
+                updateElementSettings({ ...currentSettings, rowHeights: currentLocal });
+                return currentLocal;
+            });
+        }
+        startRowDragRef.current = null;
+        document.removeEventListener('mousemove', onRowResizeMouseMove);
+        document.removeEventListener('mouseup', onRowResizeMouseUp);
     };
 
     const updateCellSetting = (prop: string, value: string) => {
@@ -327,8 +405,8 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
 
             {!currentSettings.hideLabel && <ElementLabel label={elementLabel} title={currentSettings.title} />}
 
-            <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #cbd5e1', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>
+            <div ref={tableWrapRef} style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', borderRadius: '0', position: 'relative' }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0, borderTop: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0', background: 'white', borderRadius: '0', position: 'relative', zIndex: 0 }}>
                     <colgroup>
                         {localWidths.map((w, i) => (
                             <col key={i} style={{ width: `${w}%` }} />
@@ -353,7 +431,8 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                                             backgroundColor: cellSt.backgroundColor || '#ffffff',
                                             textAlign: cellSt.alignment || 'left',
                                             verticalAlign: cellSt.verticalAlignment || 'top',
-                                            color: cellSt.textColor || '#1E293B'
+                                            color: cellSt.textColor || '#1E293B',
+                                            height: localHeights[rIdx] ? `${localHeights[rIdx]}px` : undefined,
                                         }}
                                         colSpan={cellSt.colSpan || 1}
                                         rowSpan={cellSt.rowSpan || 1}
@@ -389,6 +468,27 @@ export const TableElementBlock = ({ el, pageId, rowId, colId, isSelected, select
                         />
                     );
                 })}
+
+                {/* Hvataljke za promenu VISINE reda — isti princip kao za širinu kolone:
+                    overlay trake na donjoj ivici svakog reda; povuci gore/dole. */}
+                {isSelected && rowBoundaries.map((boundaryTop, i) => (
+                    <div
+                        key={`row-resizer-${i}`}
+                        onMouseDown={(e) => onRowResizeMouseDown(e, i)}
+                        style={{
+                            position: 'absolute',
+                            left: 0,
+                            right: 0,
+                            top: `${boundaryTop - 3}px`,
+                            height: '6px',
+                            cursor: 'row-resize',
+                            zIndex: 20,
+                            backgroundColor: startRowDragRef.current?.index === i ? '#3b82f6' : 'transparent',
+                        }}
+                        className="hover:bg-blue-400 transition-colors"
+                        title="Povuci za promenu visine"
+                    />
+                ))}
             </div>
 
             {currentSettings.description && (
