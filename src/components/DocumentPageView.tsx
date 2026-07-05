@@ -9,6 +9,7 @@ import {
 import MapGraphic from "./MapGraphic.tsx";
 import { extractFootnoteIds, hexToRgba, parseVal, formatChartValue, wrapLabelLines, buildPieRows } from "./CanvasEditor/utils";
 import { CHART_PALETTE } from "./CanvasEditor/constants";
+import { sanitizeHtml } from "../utils/sanitizeHtml";
 
 // White "halo" behind data-value labels so digits stay legible over bars,
 // lines, areas, the grid, or other labels (keeps every value visible).
@@ -215,7 +216,7 @@ const TextBlockReadonly = ({ el, globalFootnoteMap }: any) => {
             <div
                 className="editor-content"
                 style={{ color: s.color, textAlign: s.alignment }}
-                dangerouslySetInnerHTML={{ __html: applyFootnoteNumbers(s.content || '', globalFootnoteMap) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(applyFootnoteNumbers(s.content || '', globalFootnoteMap)) }}
             />
         </div>
     );
@@ -310,7 +311,7 @@ const TableBlockReadonly = ({ el, label, globalFootnoteMap }: any) => {
                                             minHeight: '24px',
                                             width: '100%',
                                         }}
-                                            dangerouslySetInnerHTML={{ __html: applyFootnoteNumbers(content[key] || '', globalFootnoteMap) }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(applyFootnoteNumbers(content[key] || '', globalFootnoteMap)) }}
                                         />
                                     </td>
                                 );
@@ -1149,7 +1150,7 @@ const ChartBlockReadonly = memo(({ el, label, isPrint = false, lite = false }: a
             {s.description && (
                 <div
                     style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
-                    dangerouslySetInnerHTML={{ __html: s.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(s.description) }}
                 />
             )}
 
@@ -1595,7 +1596,7 @@ export const DocumentPage = memo(({ page, pageIndex, globalFootnoteMap, elementL
                         {pageFootnotes.map(fn => (
                             <div key={fn.id} className="footnote-item" style={{ width: '100%', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                 <span style={{ fontWeight: 700, flexShrink: 0, minWidth: '15px' }}>{fn.number}.</span>
-                                <span style={{ wordBreak: 'break-word', flex: 1 }} dangerouslySetInnerHTML={{ __html: fn.text || '...' }} />
+                                <span style={{ wordBreak: 'break-word', flex: 1 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(fn.text || '...') }} />
                             </div>
                         ))}
                     </div>

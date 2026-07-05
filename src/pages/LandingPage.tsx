@@ -451,7 +451,7 @@ interface LandingBoxConfig {
     title: string | null;
     subtitle: string | null;
     image_path: string | null;
-    link_type: 'none' | 'document' | 'collection' | 'quarterly';
+    link_type: 'none' | 'document' | 'collection' | 'quarterly' | 'url';
     link_url: string | null;
     link_label: string | null;
 }
@@ -485,9 +485,13 @@ const LandingPage = () => {
     // Helper: dohvati admin override za poziciju, ili koristi defaults
     const boxAt = (pos: number) => boxes.find(b => b.position === pos) ?? null;
     const openBox = (box: LandingBoxConfig | null, fallbackUrl?: string) => {
-        const url = box?.link_url || fallbackUrl;
-        if (!url) return;
-        window.open(url, '_blank');
+        const raw = box?.link_url || fallbackUrl;
+        if (!raw) return;
+        // Interne putanje (počinju sa '/') — navigiraj u istom tabu bez novog prozora.
+        if (raw.startsWith('/')) { navigate(raw); return; }
+        // Spoljne URL-ove koji nemaju protokol, dodaj https:// da ne bi bili relativni.
+        const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const query = search.toLowerCase();
@@ -547,11 +551,13 @@ const LandingPage = () => {
                     </button>
                 </div>
 
-                {/* Right: 1-2-1-2 grid
-                    Mobile (2 col): white | blue / image | lightblue
-                    Desktop (4 col): white(span2) | blue | image(span2) | lightblue / _ | lightblue | _ | lightblue
+                {/* Right: 7-box grid
+                    Mobile (2 col, 4 rows): boxes 0-5 po 2, box 6 full-width
+                    Desktop (4 col, 2 rows): col1=pos0(tall), col2-4=2×3 mali boksevi
+                    Pos 0: col 1, row-span-2 | Pos 1: col 2 r1 | Pos 2: col 3 r1 | Pos 3: col 4 r1
+                                             | Pos 4: col 2 r2 | Pos 5: col 3 r2 | Pos 6: col 4 r2
                 */}
-                <div className="w-full grid grid-cols-2 grid-rows-2 lg:grid-cols-4 lg:grid-rows-2 gap-2.5 md:gap-3 h-[240px] sm:h-[280px] lg:h-[420px]">
+                <div className="w-full grid grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-2.5 md:gap-3 lg:h-[420px]">
 
                     {/* COL 1 — pos 0 — tall white (light gradient) */}
                     {(() => {
@@ -562,7 +568,7 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto lg:row-span-2 bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col justify-end shadow-sm relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0) 65%)' }} />
                                 <p className="relative text-xs md:text-sm text-slate-700 font-semibold leading-snug whitespace-pre-line">{title}</p>
@@ -586,7 +592,7 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto rounded-2xl p-3 md:p-5 relative text-white flex flex-col justify-end overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)' }} />
                                 <p className="relative text-xs md:text-sm font-semibold leading-snug whitespace-pre-line">{title}</p>
@@ -594,7 +600,7 @@ const LandingPage = () => {
                         );
                     })()}
 
-                    {/* COL 3 — pos 2 — tall dark (dark gradient, white text) */}
+                    {/* COL 3 / ROW 1 — pos 2 — small dark (dark gradient, white text) */}
                     {(() => {
                         const b = boxAt(2);
                         const title = b?.title || 'Kvartalni podaci';
@@ -603,7 +609,7 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`lg:row-span-2 rounded-2xl overflow-hidden relative text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto rounded-2xl overflow-hidden relative text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0) 100%)' }} />
                                 <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">
@@ -622,7 +628,7 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`bg-[#E8F0FB] rounded-2xl p-3 md:p-5 flex flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto bg-[#E8F0FB] rounded-2xl p-3 md:p-5 flex flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
                                 <p className="relative text-[10px] md:text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
@@ -639,7 +645,7 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto flex bg-[#E8F0FB] rounded-2xl p-3 lg:p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
                                 <p className="relative text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
@@ -647,7 +653,7 @@ const LandingPage = () => {
                         );
                     })()}
 
-                    {/* COL 4 / ROW 2 — pos 5 — hidden on mobile, small light */}
+                    {/* COL 3 / ROW 2 — pos 5 — small light */}
                     {(() => {
                         const b = boxAt(5);
                         const title = b?.title || 'Pogledajte prethodne\npreglede tržišta';
@@ -656,7 +662,24 @@ const LandingPage = () => {
                         const clickable = !!link;
                         return (
                             <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
-                                className={`hidden lg:flex bg-[#E8F0FB] rounded-2xl p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                className={`h-[120px] sm:h-[140px] lg:h-auto flex bg-[#E8F0FB] rounded-2xl p-3 lg:p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+                                style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                                <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
+                                <p className="relative text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>
+                            </button>
+                        );
+                    })()}
+
+                    {/* COL 4 / ROW 2 — pos 6 — small light; na mobilnom pun red (col-span-2) */}
+                    {(() => {
+                        const b = boxAt(6);
+                        const title = b?.title || 'Više informacija';
+                        const image = b?.image_path || 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=600&q=80';
+                        const link = b?.link_url ?? null;
+                        const clickable = !!link;
+                        return (
+                            <button type="button" onClick={() => link && openBox(b, link)} disabled={!clickable}
+                                className={`col-span-2 lg:col-span-1 h-[120px] sm:h-[140px] lg:h-auto flex bg-[#E8F0FB] rounded-2xl p-3 lg:p-5 flex-col justify-end relative overflow-hidden text-left transition-all duration-200 group ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
                                 style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(232,240,251,0.95) 0%, rgba(232,240,251,0.75) 35%, rgba(232,240,251,0) 65%)' }} />
                                 <p className="relative text-xs text-dark-blue font-semibold leading-snug whitespace-pre-line">{title}</p>

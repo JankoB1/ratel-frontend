@@ -235,8 +235,11 @@ const PanelPage = () => {
         // bi snimanje odobrenog poglavlja oborilo odobravanja i nateralo ponovni ciklus pregleda.
         // PDF se generiše iz stanja u bazi; za najnovije izmene prvo ručno sačuvajte poglavlje.
 
-        // Otvaramo prazan tab odmah (pre await), jer browseri blokiraju window.open posle async operacija
+        // Otvaramo prazan tab odmah (pre await), jer browseri blokiraju window.open posle async operacija.
+        // Ne možemo 'noopener' (tada window.open vrati null, a treba nam handle za location), pa ručno
+        // nulujemo opener da novi tab ne može da menja originalni (reverse tabnabbing, defense-in-depth).
         const pdfWindow = window.open('', '_blank');
+        if (pdfWindow) pdfWindow.opener = null;
         setIsExportingPdf(true);
 
         try {
@@ -705,6 +708,7 @@ const PanelPage = () => {
                                     sectionNum={sectionNum}
                                     documentTitle={documentInfo?.title}
                                     sectionTitle={activeSection.title}
+                                    sectionId={activeSectionId ?? undefined}
                                     readOnly={!canEditSection || !!sectionLockedBy}
                                 />
                             </div>

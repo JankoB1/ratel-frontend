@@ -3,6 +3,31 @@ import { useParams } from "react-router-dom";
 import { DocumentPage, CoverPage, IntroLogoPage, TableOfContents, FullPageImage, SectionTitlePage, DisclaimerPage, buildMaps, COVER_BG_URL, COVER_LOGO_URL, PAGE2_BG_URL, PAGE2_LOGO_URL, TOC_BACKGROUND_URL, CONTACT_PAGE_IMAGE_URL, SECTION_TITLE_BACKGROUND_URL, type TocEntry } from "../components/DocumentPageView";
 import { formatLastModified } from "../components/SectionListSidebar";
 
+// Validacija `dataUrl` iz query stringa pre nego što ga fetch-ujemo (zaštita od DOM XSS).
+// Dozvoljeno je samo: http(s) protokol, putanja koja počinje sa /print-data/, i host sa
+// allowliste (isti origin aplikacije, konfigurisani VITE_BACKEND_URL, i interni host(ovi) koje
+// Browsershot koristi za dohvat print-data JSON-a — podesivo preko VITE_PRINT_DATA_HOSTS,
+// podrazumevano "backend.internal"). Sve ostalo baca grešku → prikaz odbija učitavanje.
+const validatePrintDataUrl = (raw: string): string => {
+    let u: URL;
+    try {
+        u = new URL(raw, window.location.origin);
+    } catch {
+        throw new Error('Neispravan dataUrl.');
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('Nedozvoljen protokol u dataUrl.');
+    if (!u.pathname.startsWith('/print-data/')) throw new Error('Nedozvoljena putanja u dataUrl.');
+
+    const allowed = new Set<string>([window.location.host]);
+    try { allowed.add(new URL(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').host); } catch { /* ignore */ }
+    (import.meta.env.VITE_PRINT_DATA_HOSTS || 'backend.internal')
+        .split(',').map((h: string) => h.trim()).filter(Boolean)
+        .forEach((h: string) => allowed.add(h));
+
+    if (!allowed.has(u.host)) throw new Error('Nedozvoljen host u dataUrl.');
+    return u.toString();
+};
+
 // Browsershot čeka samo na #print-ready selektor, ne na učitavanje slika. Korica je
 // najteži (265KB) i jedini cross-origin asset, pa se ne stigne iscrtati pre snimanja →
 // prazna prva strana u PDF-u. Zato je preload-ujemo i tek onda signaliziramo spremnost.
@@ -76,7 +101,13 @@ const PrintView = () => {
                 const dataUrl = params.get('dataUrl');
                 let data: any;
                 if (dataUrl) {
-                    const res = await fetch(dataUrl);
+                    // Bezbednost (DOM XSS): `dataUrl` dolazi iz query stringa i može biti podmetnut.
+                    // Dozvoljavamo SAMO http(s) URL ka /print-data/ na poznatom hostu (isti origin,
+                    // konfigurisani backend, ili interni host koji Browsershot koristi). Time se
+                    // sprečava da napadač natera print prikaz da učita proizvoljan JSON i renderuje
+                    // zlonamerni HTML na originu aplikacije. (sanitizeHtml je druga linija odbrane.)
+                    const safeUrl = validatePrintDataUrl(dataUrl);
+                    const res = await fetch(safeUrl, { signal: controller.signal });
                     clearTimeout(timeoutId);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     data = await res.json();

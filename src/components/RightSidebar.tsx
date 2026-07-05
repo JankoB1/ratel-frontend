@@ -5,7 +5,7 @@ import {
     ArrowUpToLine, ArrowDownToLine, FoldVertical, ArrowRightToLine, ArrowDownToLine as ArrowDownMerge, SplitSquareHorizontal,
     List, ListOrdered, Quote, Link2, Trash2, Grid3X3,
     Table2, Type, BarChart3, Palette, CaseUpper, Layers, Target, LineChart, PieChart, ScatterChart, Star, Heading1, Heading2, MessageSquareQuote,
-    PlusCircle
+    PlusCircle, Pencil
 } from "lucide-react";
 import { useEditor } from "../contexts/EditorContext";
 import axiosClient from "../axios-client.ts";
@@ -200,6 +200,25 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
 
     const [activeTab, setActiveTab] = useState<'element' | 'groups' | 'approval'>('element');
     const [newGroupName, setNewGroupName] = useState('');
+    // Kada je postavljen (id grupe), grouping mode je u režimu IZMENE postojeće grupe (ne kreiranja nove).
+    const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+
+    // Uđi u grouping mode nad postojećom grupom: pretpopuni naziv i selekciju njenim elementima,
+    // pa korisnik može da dopuni/izmeni izbor na stranici i sačuva izmene.
+    const startEditGroup = (group: any) => {
+        const ids = (group.elements ?? []).map((el: any) => el.id).filter(Boolean);
+        setEditingGroupId(group.id);
+        setNewGroupName(group.name ?? '');
+        setGroupSelection(ids);
+        setIsGroupingMode(true);
+    };
+
+    const cancelGrouping = () => {
+        setIsGroupingMode(false);
+        setGroupSelection([]);
+        setEditingGroupId(null);
+        setNewGroupName('');
+    };
 
     // --- NOVO: Stanja i funkcije za sačuvane grupe ---
     const [savedGroups, setSavedGroups] = useState<any[]>([]);
@@ -499,7 +518,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                     {!isGroupingMode ? (
                         <>
                             <button
-                                onClick={() => { setIsGroupingMode(true); setGroupSelection([]); setNewGroupName(''); }}
+                                onClick={() => { setEditingGroupId(null); setIsGroupingMode(true); setGroupSelection([]); setNewGroupName(''); }}
                                 className="w-full py-3 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl font-bold text-sm hover:bg-blue-100 transition-colors flex justify-center items-center gap-2"
                             >
                                 <PlusCircle size={16} /> Napravi novu grupu
@@ -520,7 +539,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                 {/* Ako backend bude vraćao JSON dekodiran, ovo će pokazati broj elemenata u grupi */}
                                                 <span className="text-[10px] text-slate-400 mt-0.5">{group.elements?.length || 0} elemenata unutra</span>
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex gap-1.5 shrink-0">
                                                 <button
                                                     onClick={() => {
                                                         // Okidamo event i šaljemo elemente Canvas-u
@@ -528,17 +547,26 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                                             detail: { elements: group.elements }
                                                         }));
                                                     }}
-                                                    className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                                                     title="Umetni na dno stranice"
                                                 >
-                                                    <ArrowDownToLine size={14} />
+                                                    <ArrowDownToLine size={15} />
+                                                </button>
+                                                <button
+                                                    onClick={() => startEditGroup(group)}
+                                                    className="p-1.5 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                                    title="Izmeni grupu"
+                                                    aria-label="Izmeni grupu"
+                                                >
+                                                    <Pencil size={15} />
                                                 </button>
                                                 <button
                                                     onClick={() => deleteGroup(group.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                                                     title="Obriši grupu"
+                                                    aria-label="Obriši grupu"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             </div>
                                         </div>
@@ -548,8 +576,13 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                         </>
                     ) : (
                         <div className="bg-white rounded-[20px] p-4 shadow-sm border border-blue-200 flex flex-col gap-3 ring-4 ring-blue-50">
-                            <h3 className="text-xs font-bold text-slate-700 uppercase">Nova grupa</h3>
-                            <p className="text-[11px] text-slate-500 leading-tight">Kliknite na elemente na stranici koje želite da grupišete. ({groupSelection?.length || 0} izabrano)</p>
+                            <h3 className="text-xs font-bold text-slate-700 uppercase">{editingGroupId ? 'Izmeni grupu' : 'Nova grupa'}</h3>
+                            <p className="text-[11px] text-slate-500 leading-tight">
+                                {editingGroupId
+                                    ? 'Kliknite na elemente da dodate/uklonite iz grupe, ili samo izmenite naziv.'
+                                    : 'Kliknite na elemente na stranici koje želite da grupišete.'}
+                                {' '}({groupSelection?.length || 0} izabrano)
+                            </p>
                             <input
                                 type="text"
                                 placeholder="Naziv grupe..."
@@ -559,7 +592,7 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                             />
                             <div className="flex gap-2 mt-2">
                                 <button
-                                    onClick={() => { setIsGroupingMode(false); setGroupSelection([]); }}
+                                    onClick={cancelGrouping}
                                     className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200"
                                 >
                                     Odustani
@@ -568,12 +601,17 @@ const RightSidebar = ({ activeSectionId, activeSectionPageCount = 1, onApprovalC
                                     onClick={() => {
                                         if (!newGroupName) return alert("Unesite naziv grupe!");
                                         if (groupSelection.length === 0) return alert("Izaberite bar jedan element!");
-                                        // Okidamo event koji će Canvas da uhvati
-                                        window.dispatchEvent(new CustomEvent('create-group', { detail: { groupName: newGroupName, selectedIds: groupSelection } }));
+                                        // Okidamo event koji će Canvas da uhvati — izmena vs. kreiranje.
+                                        if (editingGroupId) {
+                                            window.dispatchEvent(new CustomEvent('update-group', { detail: { groupId: editingGroupId, groupName: newGroupName, selectedIds: groupSelection } }));
+                                        } else {
+                                            window.dispatchEvent(new CustomEvent('create-group', { detail: { groupName: newGroupName, selectedIds: groupSelection } }));
+                                        }
+                                        setEditingGroupId(null);
                                     }}
                                     className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-xs font-bold hover:bg-blue-600 shadow-sm"
                                 >
-                                    Sačuvaj
+                                    {editingGroupId ? 'Sačuvaj izmene' : 'Sačuvaj'}
                                 </button>
                             </div>
                         </div>

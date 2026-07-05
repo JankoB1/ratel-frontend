@@ -9,6 +9,14 @@ RUN npm ci
 
 # Copy source and build
 COPY . .
+
+# Backend URL se ugrađuje u build (Vite import.meta.env). Prosledi ga pri buildu:
+#   docker build --build-arg VITE_BACKEND_URL=https://rat.exalt.rs ...
+# Ako se izostavi, kod pada na runtime fallback (http://localhost:8000) — u produkciji
+# OBAVEZNO proslediti https:// vrednost da kredencijali/kolačići ne idu preko HTTP-a.
+ARG VITE_BACKEND_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 RUN npm run build
 
 # ---- Serve Stage ----

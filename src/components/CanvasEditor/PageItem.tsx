@@ -6,6 +6,7 @@ import {
 import addIcon from "../../assets/apps-add.svg";
 import type { ElementType, ColumnData } from "./types";
 import { extractFootnoteIds } from "./utils";
+import { sanitizeHtml } from "../../utils/sanitizeHtml";
 import { TextElementBlock } from "./TextBlock";
 import { ImageElementBlock } from "./ImageBlock";
 import { TableElementBlock } from "./TableBlock";
@@ -306,7 +307,7 @@ export const PageItem = ({ page, pageIndex, totalPages, onDeletePage, setPages, 
                         {pageFootnotes.map((fn) => (
                             <div key={fn.id} className="footnote-item" style={{ width: '100%', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                 <span style={{ fontWeight: 700, flexShrink: 0, minWidth: '15px' }}>{fn.number}.</span>
-                                <span style={{ wordBreak: 'break-word', flex: 1 }} dangerouslySetInnerHTML={{ __html: fn.text || '...' }} />
+                                <span style={{ wordBreak: 'break-word', flex: 1 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(fn.text || '...') }} />
                             </div>
                         ))}
                     </div>

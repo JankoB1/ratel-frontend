@@ -15,10 +15,11 @@ interface CanvasProps {
     sectionNum?: number;
     documentTitle?: string;
     sectionTitle?: string;
+    sectionId?: number;
     readOnly?: boolean;
 }
 
-const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitle, sectionTitle, readOnly = false }) => {
+const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitle, sectionTitle, sectionId, readOnly = false }) => {
     const { setSelectedElement, selectedElement, updateElementSettings, isGroupingMode, setIsGroupingMode, groupSelection, setGroupSelection } = useEditor();
 
     const pagesRef = useRef(pages);
@@ -229,7 +230,13 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             });
 
             try {
-                await axiosClient.post('/api/saved-groups', { name: groupName, elements: extractedElements, rows_data: rowsData });
+                await axiosClient.post('/api/saved-groups', {
+                    name: groupName,
+                    elements: extractedElements,
+                    rows_data: rowsData,
+                    section_id: sectionId ?? null,
+                    section_title: sectionTitle ?? null,
+                });
                 window.dispatchEvent(new Event('group-saved'));
             } catch (error) {
                 console.error("Greška pri čuvanju grupe:", error);
@@ -240,8 +247,65 @@ const Canvas: FC<CanvasProps> = ({ pages, setPages, sectionNum = 1, documentTitl
             setGroupSelection([]);
         };
 
+        const handleUpdateGroup = async (e: any) => {
+            const { groupId, groupName, selectedIds } = e.detail;
+            if (!groupId || !selectedIds || selectedIds.length === 0) return;
+
+            const extractedElements: any[] = [];
+            const rowsData: any[] = [];
+
+            pagesRef.current.forEach((page: any) => {
+                page.rows.forEach((row: any) => {
+                    const filteredCols = row.columns
+                        .map((col: any) => ({ ...col, elements: col.elements.filter((el: any) => selectedIds.includes(el.id)) }))
+                        .filter((col: any) => col.elements.length > 0);
+
+                    if (filteredCols.length > 0) {
+                        rowsData.push({ ...row, columns: filteredCols });
+                        filteredCols.forEach((col: any) => col.elements.forEach((el: any) => extractedElements.push({ ...el })));
+                    }
+                });
+            });
+
+            // Izabrani elementi ne postoje na tekućem dokumentu (npr. grupa se menja iz drugog
+            // dokumenta) → ne diramo sadržaj da ga ne bismo obrisali. Dozvoli samo preimenovanje.
+            if (extractedElements.length === 0) {
+                try {
+                    await axiosClient.put(`/api/saved-groups/${groupId}`, { name: groupName });
+                    window.dispatchEvent(new Event('group-saved'));
+                } catch (error) {
+                    console.error("Greška pri izmeni grupe:", error);
+                    alert("Došlo je do greške prilikom izmene.");
+                }
+                setIsGroupingMode(false);
+                setGroupSelection([]);
+                return;
+            }
+
+            try {
+                await axiosClient.put(`/api/saved-groups/${groupId}`, {
+                    name: groupName,
+                    elements: extractedElements,
+                    rows_data: rowsData,
+                    section_id: sectionId ?? null,
+                    section_title: sectionTitle ?? null,
+                });
+                window.dispatchEvent(new Event('group-saved'));
+            } catch (error) {
+                console.error("Greška pri izmeni grupe:", error);
+                alert("Došlo je do greške prilikom izmene.");
+            }
+
+            setIsGroupingMode(false);
+            setGroupSelection([]);
+        };
+
         window.addEventListener('create-group', handleCreateGroup);
-        return () => window.removeEventListener('create-group', handleCreateGroup);
+        window.addEventListener('update-group', handleUpdateGroup);
+        return () => {
+            window.removeEventListener('create-group', handleCreateGroup);
+            window.removeEventListener('update-group', handleUpdateGroup);
+        };
     }, [setIsGroupingMode, setGroupSelection]);
 
     useEffect(() => {

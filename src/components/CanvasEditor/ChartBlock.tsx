@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useLayoutEffect, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Plus, Trash2, GripVertical } from "lucide-react";
+import { sanitizeHtml } from "../../utils/sanitizeHtml";
 import {
     BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
     ComposedChart, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -1301,7 +1302,7 @@ export const ChartElementBlock = ({ el, pageId, rowId, colId, isSelected, select
             {currentSettings.description && (
                 <div
                     style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', width: '100%', fontStyle: 'italic' }}
-                    dangerouslySetInnerHTML={{ __html: currentSettings.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentSettings.description) }}
                 />
             )}
 

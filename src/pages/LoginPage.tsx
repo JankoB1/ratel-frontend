@@ -24,7 +24,9 @@ const LoginPage = () => {
             return;
         }
 
-        if (!email.includes("@")) {
+        // Osnovna provera formata e-mail adrese (a ne samo prisustva "@"): lokalni deo,
+        // "@", domen sa bar jednom tačkom i TLD-om. Server ostaje merodavan, ovo je prvi sloj.
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
             setError("Unesite ispravnu e-mail adresu.");
             return;
         }

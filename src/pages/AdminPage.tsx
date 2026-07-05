@@ -1388,9 +1388,10 @@ interface LandingBox {
     title: string | null;
     subtitle: string | null;
     image_path: string | null;
-    link_type: 'none' | 'document' | 'collection' | 'quarterly';
+    link_type: 'none' | 'document' | 'collection' | 'quarterly' | 'url';
     link_document_id: number | null;
     link_collection_id: number | null;
+    link_url: string | null;
 }
 
 interface CollectionItem {
@@ -1406,10 +1407,11 @@ interface CollectionItem {
 const BOX_DEFAULTS: Record<number, { title: string; style: string }> = {
     0: { title: 'Pogledajte kompletan\npregled tržišta 2025', style: 'tall light' },
     1: { title: 'Pregled tržišta elektronskih komunikacija 2025', style: 'dark' },
-    2: { title: 'Kvartalni podaci', style: 'tall dark' },
+    2: { title: 'Kvartalni podaci', style: 'dark' },
     3: { title: 'Pregled tržišta\ninformaciona\nbezbednost 2025', style: 'light' },
     4: { title: 'Pregled tržišta\npoštanskih\nusluga 2025', style: 'light' },
     5: { title: 'Pogledajte prethodne\npreglede tržišta', style: 'light' },
+    6: { title: 'Više informacija', style: 'light' },
 };
 
 const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
@@ -1439,7 +1441,7 @@ const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
             <div className="bg-white border border-slate-100 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="font-extrabold text-sm text-dark-blue">Hero boksovi (6 pozicija)</h3>
+                        <h3 className="font-extrabold text-sm text-dark-blue">Hero boksovi (7 pozicija)</h3>
                         <p className="text-xs text-slate-400 mt-0.5">Klikni na boks da izmeniš naslov, sliku i link</p>
                     </div>
                     <button onClick={() => setShowCollectionsManager(true)}
@@ -1452,16 +1454,20 @@ const LandingBoxesTab = ({ documents }: { documents: DocItem[] }) => {
                     <div className="flex justify-center py-12 text-slate-300"><Loader2 className="animate-spin" /></div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {[0,1,2,3,4,5].map(pos => {
+                        {[0,1,2,3,4,5,6].map(pos => {
                             const b = boxes.find(x => x.position === pos);
                             const def = BOX_DEFAULTS[pos];
                             const linkInfo = b?.link_type === 'document'
                                 ? documents.find(d => d.id === b.link_document_id)?.title
                                 : b?.link_type === 'collection'
                                     ? collections.find(c => c.id === b.link_collection_id)?.name
-                                    : null;
+                                    : b?.link_type === 'url' && b.link_url
+                                        ? b.link_url
+                                        : b?.link_type === 'quarterly'
+                                            ? 'Kvartalni podaci'
+                                            : null;
                             return (
-                                <button key={pos} onClick={() => setEditingBox(b || { id: 0, position: pos, title: null, subtitle: null, image_path: null, link_type: 'none', link_document_id: null, link_collection_id: null })}
+                                <button key={pos} onClick={() => setEditingBox(b || { id: 0, position: pos, title: null, subtitle: null, image_path: null, link_type: 'none', link_document_id: null, link_collection_id: null, link_url: null })}
                                     className="flex flex-col gap-2 p-3 border border-slate-200 rounded-xl hover:border-[#0056B3] hover:bg-slate-50 transition text-left">
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-bold text-white bg-[#0056B3] px-2 py-0.5 rounded">Pos {pos}</span>
@@ -1516,9 +1522,10 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
     onClose: () => void; onSaved: () => void;
 }) => {
     const [title, setTitle] = useState(box.title ?? '');
-    const [linkType, setLinkType] = useState<'none'|'document'|'collection'|'quarterly'>(box.link_type);
+    const [linkType, setLinkType] = useState<'none'|'document'|'collection'|'quarterly'|'url'>(box.link_type);
     const [linkDocId, setLinkDocId] = useState<number | null>(box.link_document_id);
     const [linkCollId, setLinkCollId] = useState<number | null>(box.link_collection_id);
+    const [linkUrl, setLinkUrl] = useState(box.link_url ?? '');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(box.image_path);
     const [saving, setSaving] = useState(false);
@@ -1548,6 +1555,7 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                 link_type: linkType,
                 link_document_id: linkType === 'document' ? linkDocId : null,
                 link_collection_id: linkType === 'collection' ? linkCollId : null,
+                link_url: linkType === 'url' ? (linkUrl.trim() || null) : null,
             });
             onSaved();
         } catch (e: any) {
@@ -1591,11 +1599,11 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                     {/* Link type */}
                     <div>
                         <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2 block">Link</label>
-                        <div className="flex gap-2">
-                            {(['none','document','collection','quarterly'] as const).map(t => (
+                        <div className="flex gap-2 flex-wrap">
+                            {(['none','document','collection','quarterly','url'] as const).map(t => (
                                 <button key={t} type="button" onClick={() => setLinkType(t)}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition ${linkType===t ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                                    {t==='none' ? 'Bez' : t==='document' ? 'Dokument' : t==='collection' ? 'Kolekcija' : 'Kvartalni'}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition min-w-[60px] ${linkType===t ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                                    {t==='none' ? 'Bez' : t==='document' ? 'Dokument' : t==='collection' ? 'Kolekcija' : t==='quarterly' ? 'Kvartalni' : 'URL'}
                                 </button>
                             ))}
                         </div>
@@ -1625,6 +1633,17 @@ const LandingBoxEditModal = ({ box, documents, collections, onClose, onSaved }: 
                             {collections.length === 0 && (
                                 <p className="text-[11px] text-amber-600 mt-1">Prvo napravi kolekciju u „Kolekcije" dugmetu.</p>
                             )}
+                        </div>
+                    )}
+
+                    {/* Custom URL input */}
+                    {linkType === 'url' && (
+                        <div>
+                            <label className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1 block">URL adresa</label>
+                            <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
+                                placeholder="https://primer.com/stranica"
+                                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#0056B3]" />
+                            <p className="text-[11px] text-slate-400 mt-1">Može biti interna putanja (/quarterly) ili spoljna adresa (https://...).</p>
                         </div>
                     )}
 
@@ -2000,7 +2019,7 @@ const AdminPage = () => {
     };
 
     const handleOpenView = (id: number) => {
-        window.open(`/document/${id}/view`, "_blank");
+        window.open(`/document/${id}/view`, "_blank", "noopener,noreferrer");
     };
 
     const filteredDocuments = documents.filter(d =>

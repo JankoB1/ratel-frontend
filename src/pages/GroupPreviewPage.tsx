@@ -12,6 +12,8 @@ interface Group {
     elements: any[];
     rows_data?: any[] | null;
     document_id: number | null;
+    section_id: number | null;
+    section_title: string | null;
     document: { id: number; title: string } | null;
     updated_at: string;
 }
@@ -42,8 +44,11 @@ const GroupPreviewPage = () => {
     const navigate = useNavigate();
 
     const [group, setGroup] = useState<Group | null>(null);
+    const [docSections, setDocSections] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [zoom, setZoom] = useState(100);
+    const [isMobile, setIsMobile] = useState(false);
+    const [mobileZoom, setMobileZoom] = useState(75);
 
     const mainAreaRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +56,24 @@ const GroupPreviewPage = () => {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
         fetch(`${backendUrl}/api/portal/saved-groups/${id}`, { headers: { Accept: "application/json" } })
             .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-            .then(data => setGroup(data))
+            .then(async (data: Group) => {
+                setGroup(data);
+                // Ako je grupa vezana za dokument, fetchujemo sve sekcije tog dokumenta da bi
+                // buildMaps mogao da dodeli tačne labele (Slika N.M, Tabela N.M) identične
+                // onima u celom dokumentu — umesto da broji od 1 kao da je grupa izolovana.
+                if (data.document_id) {
+                    try {
+                        const res = await fetch(
+                            `${backendUrl}/api/portal/documents/${data.document_id}/sections-labels`,
+                            { headers: { Accept: "application/json" } },
+                        );
+                        if (res.ok) {
+                            const json = await res.json();
+                            setDocSections(json.data ?? []);
+                        }
+                    } catch { /* best-effort — fallback na fakeSection */ }
+                }
+            })
             .catch(console.error)
             .finally(() => setIsLoading(false));
     }, [id]);
@@ -77,7 +99,13 @@ const GroupPreviewPage = () => {
     const measureRef = useRef<HTMLDivElement>(null);
     const slicesKeyRef = useRef<string>("");
 
-    const { elementLabelMap, globalFootnoteMap } = useMemo(() => buildMaps(fakeSection), [fakeSection]);
+    // Ako imamo sve sekcije dokumenta, koristimo ih za buildMaps → labele (Slika N.M, Tabela N.M)
+    // su apsolutno identične kao u celom dokumentu. Fallback na fakeSection ako dokument nije poznat.
+    const sectionsForLabels = useMemo(
+        () => (docSections.length > 0 ? docSections : fakeSection),
+        [docSections, fakeSection],
+    );
+    const { elementLabelMap, globalFootnoteMap } = useMemo(() => buildMaps(sectionsForLabels), [sectionsForLabels]);
 
     // Pretraga grupe — identično kao u editoru (Ctrl/Cmd+F, Enter/Shift+Enter, Esc).
     // fakeSection je već memoizovan, pa je referenca stabilna.
@@ -158,6 +186,23 @@ const GroupPreviewPage = () => {
     const resetZoom = useCallback(() => setZoom(100), []);
 
     useEffect(() => {
+        const PAGE_W = 794;
+        const update = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (mobile) {
+                const availW = window.innerWidth - 32;
+                setMobileZoom(Math.round((availW / PAGE_W) * 100));
+            }
+        };
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
+
+    const effectiveZoom = isMobile ? mobileZoom : zoom;
+
+    useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             // Ne diraj zoom dok korisnik kuca u polje (npr. search box) — inače "+"/"-" zumira.
             const t = e.target as HTMLElement | null;
@@ -196,8 +241,8 @@ const GroupPreviewPage = () => {
             {/* Plutajuća pretraga (Ctrl/Cmd+F) — radi identično kao u editoru */}
             <DocumentSearchBox search={search} />
 
-            {/* ── Toolbar ── */}
-            <div className="h-20 px-8 flex items-center justify-between bg-background-grey shrink-0">
+            {/* ── Desktop toolbar ── */}
+            <div className="hidden md:flex h-20 px-8 items-center justify-between bg-background-grey shrink-0">
 
                 {/* Back + title */}
                 <div className="flex items-center gap-3 bg-white rounded-[50px] py-[10px] px-[20px] border border-slate-100 shadow-sm">
@@ -220,7 +265,7 @@ const GroupPreviewPage = () => {
                     <div className="flex items-center gap-2 bg-white rounded-[50px] py-[10px] px-[20px] border border-slate-100 shadow-sm">
                         <span className="text-[12px] text-slate-400">Iz dokumenta:</span>
                         <button
-                            onClick={() => window.open(`/document/${group.document!.id}/view`, "_blank")}
+                            onClick={() => window.open(`/document/${group.document!.id}/view`, "_blank", "noopener,noreferrer")}
                             className="flex items-center gap-1.5 font-bold text-[13px] text-[#0056B3] hover:underline"
                         >
                             {group.document.title}
@@ -254,12 +299,40 @@ const GroupPreviewPage = () => {
                 </div>
             </div>
 
+            {/* ── Mobile toolbar ── */}
+            <div className="flex md:hidden h-14 px-4 items-center justify-between bg-white border-b border-slate-100 shrink-0 gap-2">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-1 shrink-0 text-slate-500 hover:text-dark-blue transition-colors"
+                >
+                    <ChevronLeft size={18} />
+                    <span className="font-bold text-[12px]">Nazad</span>
+                </button>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-center px-2">
+                    <img src={logo} alt="RATEL" className="h-4 shrink-0" />
+                    <span className="font-extrabold text-[11px] uppercase tracking-wide text-dark-blue truncate">
+                        {group.name}
+                    </span>
+                </div>
+                {group.document ? (
+                    <button
+                        onClick={() => window.open(`/document/${group.document!.id}/view`, "_blank", "noopener,noreferrer")}
+                        title={`Otvori dokument: ${group.document.title}`}
+                        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-[#0056B3] transition-colors"
+                    >
+                        <ExternalLink size={15} />
+                    </button>
+                ) : (
+                    <div className="w-8 shrink-0" />
+                )}
+            </div>
+
             {/* ── Main scroll area ── */}
             <div
                 ref={mainAreaRef}
-                className="flex-1 overflow-y-auto custom-scrollbar pt-2 px-8 pb-8"
+                className="flex-1 overflow-y-auto custom-scrollbar pt-2 px-4 md:px-8 pb-4 md:pb-8"
             >
-                <div className="canvas-wrapper" style={{ zoom: zoom / 100 }}>
+                <div className="canvas-wrapper" style={{ zoom: effectiveZoom / 100 }}>
                     {(paginatedPages ?? []).map((pg, idx) => (
                         <DocumentPage
                             key={pg.id}
@@ -267,6 +340,8 @@ const GroupPreviewPage = () => {
                             pageIndex={idx}
                             globalFootnoteMap={globalFootnoteMap}
                             elementLabelMap={elementLabelMap}
+                            documentTitle={group.document?.title}
+                            sectionTitle={group.section_title ?? undefined}
                         />
                     ))}
                 </div>
@@ -286,6 +361,8 @@ const GroupPreviewPage = () => {
                         pageIndex={0}
                         globalFootnoteMap={globalFootnoteMap}
                         elementLabelMap={elementLabelMap}
+                        documentTitle={group?.document?.title}
+                        sectionTitle={group?.section_title ?? undefined}
                     />
                 </div>
             </div>
